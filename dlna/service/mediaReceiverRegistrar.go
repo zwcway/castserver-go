@@ -4,7 +4,7 @@ import (
 	_ "embed"
 
 	"github.com/valyala/fasthttp"
-	"go.uber.org/zap"
+	"github.com/zwcway/castserver-go/utils"
 )
 
 //go:embed scpd/connectionManager.xml
@@ -19,7 +19,7 @@ var MediaReceiverRegistrar = mediaReceiverRegistrar{
 	actionXML: mrrXML,
 }
 
-func (c *mediaReceiverRegistrar) Init(log *zap.Logger) error {
+func (c *mediaReceiverRegistrar) Init(ctx utils.Context) error {
 
 	c.handlers = &ServiceHandler{
 		Id: "urn:schemas-upnp-org:service:X-MS-MediaReceiverRegistrar",

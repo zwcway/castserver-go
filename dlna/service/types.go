@@ -2,7 +2,7 @@ package service
 
 import (
 	"github.com/valyala/fasthttp"
-	"go.uber.org/zap"
+	"github.com/zwcway/castserver-go/utils"
 )
 
 type httpHandler func(ctx *fasthttp.RequestCtx)
@@ -20,7 +20,7 @@ type ServiceHandler struct {
 }
 
 type ServiceController interface {
-	Init(log *zap.Logger) error
+	Init(lctx utils.Context) error
 	Deinit()
 
 	Handlers() *ServiceHandler

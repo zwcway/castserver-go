@@ -94,7 +94,7 @@ func NewDLNAServer(ctx utils.Context) (s *dlnaServer, err error) {
 	s.uuid = utils.MakeUUID(s.name)
 
 	for _, ss := range serviceList {
-		ss.Init(s.log)
+		ss.Init(s.ctx)
 	}
 
 	s.conn, err = net.Listen("tcp", getListenAddress())
@@ -114,6 +114,9 @@ func (s *dlnaServer) Close() {
 	for _, ss := range s.ssdpList {
 		ss.Close()
 	}
+	for _, ss := range serviceList {
+		ss.Deinit()
+	}
 	s.conn.Close()
 }
 
@@ -126,6 +129,7 @@ func (s *dlnaServer) ListenAndServe() {
 
 func (s *dlnaServer) httpHandler(ctx *fasthttp.RequestCtx) {
 	ctx.Response.Header.SetServer(config.NameVersion())
+	// ctx.Response.Header.Set()
 	uri := string(ctx.Path())
 
 	for i := range serviceList {
