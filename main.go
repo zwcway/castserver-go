@@ -8,14 +8,14 @@ import (
 	"os/signal"
 	"syscall"
 
-	config "github.com/zwcway/castserver-go/config"
+	"github.com/zwcway/castserver-go/config"
 	"github.com/zwcway/castserver-go/modules/controller"
 	"github.com/zwcway/castserver-go/modules/detector"
 	"github.com/zwcway/castserver-go/modules/mutexer"
 	"github.com/zwcway/castserver-go/modules/pusher"
 	"github.com/zwcway/castserver-go/modules/receiver"
 	"github.com/zwcway/castserver-go/modules/web"
-	utils "github.com/zwcway/castserver-go/utils"
+	"github.com/zwcway/castserver-go/utils"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"

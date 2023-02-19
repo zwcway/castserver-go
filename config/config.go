@@ -5,6 +5,9 @@ import (
 	"math"
 	"net"
 	"net/netip"
+	"path/filepath"
+
+	"github.com/zwcway/fasthttp-upnp/utils"
 )
 
 var (
@@ -35,10 +38,16 @@ var (
 	ReceiveUseIPV6   bool
 	ReceiveAddrPort  netip.AddrPort
 	ReceiveInterface *net.Interface
+	ReceiveTempDir   string
 	EnableDLNA       bool
 	EnableAirPlay    bool
 
+	DLNAUseIPV6        bool
+	DLNAInterface      *net.Interface
+	DLNAAddrPort       netip.AddrPort
 	DLNANotifyInterval uint8
+	DLNAAllowIps       []*net.IPNet
+	DLNADenyIps        []*net.IPNet
 )
 
 func MTU() int {
@@ -54,6 +63,19 @@ func OfflineValue() int {
 
 func NameVersion() string {
 	return fmt.Sprintf("%s %s", APPNAME, VERSION)
+}
+
+func TemporayFile(file string) string {
+	if ReceiveTempDir == "" {
+		return ""
+	}
+	// if strings.HasPrefix(file, "http") {
+	// 	idx := strings.Index(file, "?")
+	// 	file = file[:idx]
+	// }
+	ext := filepath.Ext(file)
+
+	return filepath.Join(ReceiveTempDir, utils.MakeUUID(file)+ext)
 }
 
 const (

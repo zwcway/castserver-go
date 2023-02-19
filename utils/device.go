@@ -15,5 +15,5 @@ func MakeUUID(unique string) string {
 
 	buf := md.Sum(nil)
 
-	return fmt.Sprintf("uuid:%x-%x-%x-%x-%x", buf[:4], buf[4:6], buf[6:8], buf[8:10], buf[10:16])
+	return fmt.Sprintf("%x-%x-%x-%x-%x", buf[:4], buf[4:6], buf[6:8], buf[8:10], buf[10:16])
 }

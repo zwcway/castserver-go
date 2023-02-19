@@ -12,7 +12,7 @@ var (
 	log    *zap.Logger
 	Module receiveModel
 
-	dlnaInstance dlna.DLNAServer
+	dlnaInstance *dlna.DLNAServer
 )
 
 type receiveModel struct {
@@ -24,7 +24,7 @@ func (receiveModel) Init(ctx utils.Context) error {
 	log = ctx.Logger("receiver")
 
 	if config.EnableDLNA {
-		dlnaInstance, err = dlna.NewDLNAServer(ctx)
+		dlnaInstance, err = dlna.NewDLNAServer(ctx, "")
 		if err != nil {
 			return err
 		}

@@ -127,6 +127,9 @@ func FromOptions(log *zap.Logger, opts map[string]string) error {
 		}
 
 		DetectInterface = iface
+		ReceiveInterface = iface
+		HTTPInterface = iface
+		DLNAInterface = iface
 	}
 
 	return nil

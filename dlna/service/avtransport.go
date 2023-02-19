@@ -1,65 +1,136 @@
 package service
 
 import (
-	_ "embed"
+	"strconv"
+	"strings"
 
 	"github.com/valyala/fasthttp"
-	"github.com/zwcway/castserver-go/dlna/upnp"
-	"github.com/zwcway/castserver-go/utils"
+	"github.com/zwcway/castserver-go/decoder"
+	"github.com/zwcway/fasthttp-upnp/avtransport1"
+	"github.com/zwcway/fasthttp-upnp/soap"
 	"go.uber.org/zap"
 )
 
-//go:embed scpd/avtransport.xml
-var avtXML []byte
+var playUri string
+var metaData string
 
-type aVTransport struct {
-	ctx       utils.Context
-	log       *zap.Logger
-	actionXML []byte
-	handlers  *ServiceHandler
+func setAVTransportURIHandler(input any, output any, ctx *fasthttp.RequestCtx, uuid string) error {
+	in := input.(*avtransport1.ArgInSetAVTransportURI)
+	// out := output.(*avtransport1.ArgOutSetAVTransportURI)
 
-	events upnp.Event
-}
+	log.Info("set uri", zap.String("url", in.CurrentURI), zap.Int("rate", audioDecoder.SampleRate()), zap.Int("channels", audioDecoder.Channels()))
 
-var AVTransport = aVTransport{
-	actionXML: avtXML,
-}
+	playUri = in.CurrentURI
+	metaData = in.CurrentURIMetaData
 
-func (c *aVTransport) Init(ctx utils.Context) error {
-	c.ctx = ctx
-	c.log = ctx.Logger("dlna aVTransport")
-	c.handlers = &ServiceHandler{
-		Id: "urn:schemas-upnp-org:service:AVTransport",
-
-		SCPD:   Controller{"/AVTransport1.xml", c.SCPDHandler},
-		Contol: Controller{"/AVTransport/control", c.ControlHandler},
-		Event:  Controller{"/AVTransport/event", c.EventHandler},
+	audioDecoder.Close()
+	var err error
+	if err = audioDecoder.Decode(playUri); err != nil {
+		log.Error("create decoder failed", zap.Error(err))
+		return &soap.Error{Code: 500, Desc: err.Error()}
 	}
 	return nil
 }
-func (c *aVTransport) Deinit() {
 
-}
-func (c *aVTransport) Handlers() *ServiceHandler {
-	return c.handlers
+func avtGetPositionInfo(input any, output any, ctx *fasthttp.RequestCtx, uuid string) error {
+	out := output.(*avtransport1.ArgOutGetPositionInfo)
+
+	dur := decoder.DurationFormat(audioDecoder.Duration())
+	out.TrackDuration = dur
+	out.TrackURI = audioDecoder.CurrentFile()
+	out.RelTime = dur
+	out.AbsTime = dur
+	out.Track = 0
+	out.TrackMetaData = metaData
+	out.AbsCount = int32(audioDecoder.Position())
+	out.RelCount = int32(audioDecoder.Position())
+
+	return nil
 }
 
-func (c *aVTransport) SCPDHandler(ctx *fasthttp.RequestCtx) {
-	ctx.Response.Header.SetContentType(`text/xml; charset="utf-8"`)
-	ctx.Write(c.actionXML)
-}
-func (c *aVTransport) ControlHandler(ctx *fasthttp.RequestCtx) {
+func avtPlay(input any, output any, ctx *fasthttp.RequestCtx, uuid string) error {
+	in := input.(*avtransport1.ArgInPlay)
 
-}
-func (c *aVTransport) EventHandler(ctx *fasthttp.RequestCtx) {
-	method := string(ctx.Method())
-	switch method {
-	case "SUBSCRIBE":
-		err := checkSubscibe(&c.events, ctx)
-		if err != nil {
-			c.log.Error("subscribe invalid", zap.Error(err), zap.String("request", ctx.Request.Header.String()))
-		}
-	default:
-		ctx.SetStatusCode(fasthttp.StatusNotFound)
+	speed := parseSpeed(in.Speed)
+
+	if playUri == "" {
+		return nil
 	}
+	if audioDecoder.CurrentFile() == "" { // 重新播放
+		var err error
+		if err = audioDecoder.Decode(playUri); err != nil {
+			log.Error("create decoder failed", zap.Error(err))
+			return &soap.Error{Code: 500, Desc: err.Error()}
+		}
+	}
+
+	if audioDecoder.IsPaused() {
+		audioDecoder.Unpause()
+	} else {
+		audioDecoder.LocalPlay()
+	}
+	audioDecoder.SetSpeed(speed)
+
+	return nil
+}
+
+func avtPause(input any, output any, ctx *fasthttp.RequestCtx, uuid string) error {
+	if playUri == "" {
+		return nil
+	}
+	audioDecoder.Pause()
+
+	return nil
+}
+
+func avtStop(input any, output any, ctx *fasthttp.RequestCtx, uuid string) error {
+	if playUri == "" {
+		return nil
+	}
+
+	audioDecoder.Close()
+	return nil
+}
+
+func avtSeek(input any, output any, ctx *fasthttp.RequestCtx, uuid string) error {
+	in := input.(*avtransport1.ArgInSeek)
+
+	if playUri == "" {
+		return nil
+	}
+	switch in.Unit {
+	case "ABS_TIME", "REL_TIME":
+		d, err := decoder.ParseDuration(in.Target)
+		if err != nil {
+			return &soap.Error{Code: fasthttp.StatusBadRequest, Desc: err.Error()}
+		}
+		err = audioDecoder.Seek(d)
+		if err != nil {
+			return &soap.Error{Code: fasthttp.StatusBadRequest, Desc: err.Error()}
+		}
+	}
+
+	return nil
+}
+
+func parseSpeed(sp string) float64 {
+	sl := strings.Split(sp, "/")
+	if len(sl) == 1 {
+		i, err := strconv.Atoi(sp)
+		if err != nil {
+			return 1.0
+		}
+		return float64(i)
+	} else if len(sl) == 2 {
+		num, err := strconv.Atoi(sl[0])
+		if err != nil {
+			return 1.0
+		}
+		den, err := strconv.Atoi(sl[1])
+		if err != nil {
+			return 1.0
+		}
+		return float64(num) / float64(den)
+	}
+	return 1.0
 }
