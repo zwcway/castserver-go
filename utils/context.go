@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"os"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -15,7 +16,7 @@ const (
 )
 
 type Context interface {
-	Done() <-chan struct{}
+	context.Context
 	Signal() chan os.Signal
 	Logger(tag string) *zap.Logger
 }
@@ -23,6 +24,11 @@ type Context interface {
 type cContext struct {
 	c context.Context
 }
+
+func (c *cContext) Deadline() (time.Time, bool) { return c.c.Deadline() }
+func (c *cContext) Err() error                  { return c.c.Err() }
+func (c *cContext) Value(key any) any           { return c.c.Value(key) }
+func (c *cContext) Done() <-chan struct{}       { return c.c.Done() }
 
 func (c *cContext) Signal() chan os.Signal {
 	return c.c.Value(valueSignalKey).(chan os.Signal)
@@ -32,10 +38,6 @@ func (c *cContext) logger() *zap.Logger {
 }
 func (c *cContext) Logger(tag string) *zap.Logger {
 	return c.logger().With(zap.String("tag", tag))
-}
-
-func (c *cContext) Done() <-chan struct{} {
-	return c.c.Done()
 }
 
 func (c *cContext) WithSignal(sig chan os.Signal) *cContext {

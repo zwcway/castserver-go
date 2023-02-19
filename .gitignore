@@ -6,3 +6,4 @@ node_modules
 /front/public/*
 !/front/public/.gitkeep
 test/
+vendor
