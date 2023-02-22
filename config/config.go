@@ -13,15 +13,19 @@ import (
 var (
 	ConfigFile string = "castserver.conf"
 
-	DetectUseIPV6    bool
-	DetectInterface  *net.Interface
-	MulticastAddress netip.Addr
-	MulticastPort    uint16
-	DetectNetMTU     uint32
+	RuntimeThreads int
 
-	MaxReadBufferSize int
-	SendRoutinesMax   int
-	SendQueueSize     int
+	ServerUseIPV6    bool
+	ServerInterface  *net.Interface // 监听的网卡
+	ServerAddrPort   netip.AddrPort // 监听的地址
+	MulticastAddress netip.Addr     // 多播的地址
+	MulticastPort    uint16         // 多播端口
+	ServerNetMTU     uint32
+
+	ReadBufferSize  int
+	ReadQueueSize   int
+	SendRoutinesMax int
+	SendQueueSize   int
 
 	SupportAudioBits  []uint8
 	SupportAudioRates []uint8
@@ -51,10 +55,10 @@ var (
 )
 
 func MTU() int {
-	if DetectInterface == nil {
-		return int(DetectNetMTU)
+	if ServerInterface == nil {
+		return int(ServerNetMTU)
 	}
-	return DetectInterface.MTU
+	return ServerInterface.MTU
 }
 
 func OfflineValue() int {

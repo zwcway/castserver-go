@@ -1,9 +1,7 @@
-node_modules
 .idea
 .vscode
 *.exe
-/front/*.xml
-/front/public/*
-!/front/public/.gitkeep
 test/
 vendor
+pkg
+scripts

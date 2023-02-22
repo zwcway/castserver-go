@@ -11,6 +11,7 @@ const (
 	JSONPACK_STRING
 	JSONPACK_ARRAY
 	JSONPACK_MAP
+	JSONPACK_FLOAT
 )
 
 type InvalidValueError struct {

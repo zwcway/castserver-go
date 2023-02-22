@@ -1,35 +1,48 @@
 package speaker
 
 import (
+	"fmt"
 	"net"
 	"net/netip"
 	"sync"
+	"time"
 
 	"github.com/zwcway/castserver-go/common/audio"
+	"github.com/zwcway/castserver-go/common/dsp"
 )
 
 type Speaker struct {
-	ID        SpeakerID
+	ID        ID
 	MAC       net.HardwareAddr
 	IP        netip.Addr
 	Name      string
-	Line      SpeakerLineID
-	Mode      SpeakerModel
+	Line      LineID
+	Mode      Model
 	Dport     uint16 // pcm data port
-	Mport     uint16 // multicast port
-	Supported bool
+	Supported bool   // 是否兼容
 
-	RateMask audio.AudioRateMask
-	BitsMask audio.AudioBitsMask
-	Channel  audio.AudioChannel
+	RateMask audio.AudioRateMask // 设备支持的采样率列表
+	BitsMask audio.BitsMask      // 设备支持的位宽列表
+	Channel  audio.Channel       // 当前设置的声道
+	Rate     audio.AudioRate     // 当前指定的采样率
+	Bits     audio.Bits          // 当前指定的位宽
+
+	AbsoluteVol bool // 支持绝对音量控制
+	Volume      int  // 音量
+
+	PowerSave bool       // 是否支持电源控制
+	PowerSate PowerState // 电源状态
 
 	Conn *net.UDPConn
 
-	Timeout    int
-	ConnTime   uint64
-	State      SpeakerState
-	Statistic  SpeakerStatistic
+	Timeout    int // 超时计数
+	ConnTime   time.Time
+	State      State
+	Statistic  Statistic
 	LevelMeter float32
+
+	DPEnable        bool
+	dsp.DataProcess // 数字频域均衡器
 }
 
 func (sp *Speaker) String() string {
@@ -37,10 +50,10 @@ func (sp *Speaker) String() string {
 }
 
 func (sp *Speaker) IsOnline() bool {
-	return sp.State == SpeakerState_ONLINE
+	return sp.State == State_ONLINE
 }
 func (sp *Speaker) IsOffline() bool {
-	return sp.State == SpeakerState_OFFLINE
+	return sp.State == State_OFFLINE
 }
 func (sp *Speaker) IsSupported() bool {
 	return sp.Supported
@@ -55,11 +68,11 @@ func (sp *Speaker) CheckOnline() {
 }
 
 func (sp *Speaker) SetOffline() {
-	sp.State &= ^SpeakerState_ONLINE
+	sp.State &= ^State_ONLINE
 }
 
 func (sp *Speaker) SetOnline() {
-	sp.State |= SpeakerState_ONLINE
+	sp.State |= State_ONLINE
 }
 
 func (sp *Speaker) UDPAddr() *net.UDPAddr {
@@ -70,34 +83,46 @@ func (sp *Speaker) UDPAddr() *net.UDPAddr {
 	}
 }
 
-type speakerMapSlice map[int][]*Speaker
+func (sp *Speaker) WriteUDP(d []byte) error {
+	if sp.Conn == nil {
+		return fmt.Errorf("speaker %d not connected", sp.ID)
+	}
+	n, err := sp.Conn.Write(d)
+	if err != nil {
+		sp.Statistic.Error += uint32(len(d))
+		return fmt.Errorf("write to speaker '%d' failed: %s", sp.ID, err.Error())
+	}
 
-func (s *speakerMapSlice) remove(key int, sp *Speaker) {
-	slice, ok := (*s)[key]
-	if !ok {
-		return
+	sp.Statistic.Spend += uint64(n)
+
+	if n != len(d) {
+		sp.Statistic.Error += uint32(len(d) - n)
+		return fmt.Errorf("write to speaker '%d' length error %d!=%d", sp.ID, n, len(d))
 	}
-	for i, item := range slice {
-		if item == sp {
-			(*s)[key] = append(slice[:i], slice[i+1:]...)
-			return
-		}
-	}
+
+	return nil
 }
-func (s *speakerMapSlice) add(key int, sp *Speaker) {
-	if _, ok := (*s)[key]; ok {
-		(*s)[key] = append((*s)[key], sp)
+
+func (sp *Speaker) ChangeChannel(ch audio.Channel) {
+	if ch.IsValid() {
+		sp.Channel = ch
 	} else {
-		(*s)[key] = append([]*Speaker{}, sp)
+		sp.Channel = audio.AudioChannel_NONE
 	}
+	refreshLine(sp.Line)
+}
+
+func (sp *Speaker) ChangeLine(line LineID) {
+	removeSpeakerFromLine(sp)
+
+	sp.Line = line
+
+	appendSpeakerToLine(sp)
+	refreshLine(line)
 }
 
 var list []Speaker
-var listByID map[SpeakerID]*Speaker
-var listByLine speakerMapSlice
-var listByChannel speakerMapSlice
-
-var lineList map[SpeakerLineID]SpeakerLine
+var listByID map[ID]*Speaker
 
 var lock sync.Mutex
 
@@ -105,83 +130,15 @@ func Init() error {
 	maxSize := 0
 
 	list = make([]Speaker, maxSize)
-	listByID = make(map[SpeakerID]*Speaker, 0)
-	listByLine = make(speakerMapSlice, 0)
-	listByChannel = make(speakerMapSlice, 0)
+	listByID = make(map[ID]*Speaker, 0)
 
-	lineList = make(map[SpeakerLineID]SpeakerLine, 0)
+	initLine()
 
 	return nil
 }
 
-func lineIsValid(line SpeakerLineID) bool {
-	_, ok := lineList[line]
-	return ok
-}
-
-func AddLine(name string) *SpeakerLine {
-	var line SpeakerLine
-
-	l := len(lineList)
-
-	if l > 0 {
-		line.id = lineList[SpeakerLineID(l-1)].id + 1
-	} else {
-		line.id = SpeakerLineID(0)
-	}
-	line.name = name
-
-	lineList[line.id] = line
-
-	return &line
-}
-
-func EditLine(id SpeakerLineID, name string) error {
-	line, ok := lineList[id]
-	if !ok {
-		return &UnknownLineError{id}
-	}
-	line.name = name
-
-	return nil
-}
-
-func DelLine(id SpeakerLineID, move SpeakerLineID) error {
-	lock.Lock()
-	defer lock.Unlock()
-
-	if id == move {
-		return nil
-	}
-
-	if !lineIsValid(move) {
-		return &UnknownLineError{move}
-	}
-
-	// 迁移至新的线路
-	for _, sp := range list {
-		if sp.Line == id {
-			sp.Line = move
-		}
-	}
-
-	delete(lineList, id)
-
-	return nil
-}
-
-func CountLine() int {
-	return len(lineList)
-}
-
-func CountLineSpeaker(id SpeakerLineID) int {
-	i := 0
-	for _, sp := range listByID {
-		if sp.Line == id {
-			i++
-		}
-	}
-	return i
+func CountSpeaker() int {
+	return len(list)
 }
 
 func All(cb func(*Speaker)) {
@@ -190,7 +147,7 @@ func All(cb func(*Speaker)) {
 	}
 }
 
-func AddSpeaker(id SpeakerID, line SpeakerLineID, channel audio.AudioChannel) (*Speaker, error) {
+func AddSpeaker(id ID, line LineID, channel audio.Channel) (*Speaker, error) {
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -202,18 +159,17 @@ func AddSpeaker(id SpeakerID, line SpeakerLineID, channel audio.AudioChannel) (*
 	sp.ID = id
 	sp.Line = line
 	sp.Channel = channel
-	sp.State = SpeakerState_OFFLINE
+	sp.State = State_OFFLINE
 
 	list = append(list, sp)
 
 	listByID[sp.ID] = &sp
-	listByLine.add(int(sp.Line), &sp)
-	listByChannel.add(int(sp.Channel), &sp)
+	appendSpeakerToLine(&sp)
 
 	return &sp, nil
 }
 
-func DelSpeaker(id SpeakerID) error {
+func DelSpeaker(id ID) error {
 	sp, ok := listByID[id]
 	if !ok {
 		return &UnknownSpeakerError{id}
@@ -232,24 +188,14 @@ func DelSpeaker(id SpeakerID) error {
 	}
 
 	delete(listByID, sp.ID)
-	listByLine.remove(int(sp.Line), sp)
-	listByChannel.remove(int(sp.Channel), sp)
+	removeSpeakerFromLine(sp)
 
 	return nil
 }
 
-func FindSpeakerByID(id SpeakerID) *Speaker {
+func FindSpeakerByID(id ID) *Speaker {
 	if sp, ok := listByID[id]; ok {
 		return sp
 	}
 	return nil
-}
-
-func SpeakersByChannel(ch audio.AudioChannel) ([]*Speaker, bool) {
-	l, ok := listByChannel[int(ch)]
-	return l, ok
-}
-func SpeakersByLine(line SpeakerLineID) ([]*Speaker, bool) {
-	l, ok := listByLine[int(line)]
-	return l, ok
 }

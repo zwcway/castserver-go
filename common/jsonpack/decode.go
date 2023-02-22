@@ -1,6 +1,7 @@
 package jsonpack
 
 import (
+	"math"
 	"reflect"
 	"strings"
 )
@@ -138,7 +139,8 @@ func (d *Decoder) needString(r reflect.Value, f string) (string, error) {
 
 func (d *Decoder) decodeInt32(r reflect.Value, s uint32, f string, skip bool) error {
 	err := needReflectKind(skip, f, r, reflect.Int8, reflect.Uint8, reflect.Int, reflect.Uint,
-		reflect.Int16, reflect.Uint16, reflect.Int32, reflect.Uint32, reflect.Int64, reflect.Uint64)
+		reflect.Int16, reflect.Uint16, reflect.Int32, reflect.Uint32, reflect.Int64, reflect.Uint64,
+		reflect.Float32, reflect.Float64)
 	if err != nil {
 		return err
 	}
@@ -155,7 +157,29 @@ func (d *Decoder) decodeInt32(r reflect.Value, s uint32, f string, skip bool) er
 		r.SetInt(int64(i))
 	case reflect.Uint8, reflect.Uint, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		r.SetUint(uint64(i))
+	case reflect.Float32, reflect.Float64:
+		r.SetFloat(float64(i))
 	}
+
+	return nil
+}
+
+func (d *Decoder) decodeFloat32(r reflect.Value, s uint32, f string, skip bool) error {
+	err := needReflectKind(skip, f, r, reflect.Float32, reflect.Float64)
+	if err != nil {
+		return err
+	}
+
+	i, err := d.readInt32(s)
+	if err != nil {
+		return err
+	}
+	if skip {
+		return nil
+	}
+
+	bits := math.Float32frombits(i)
+	r.SetFloat(float64(bits))
 
 	return nil
 }
@@ -176,23 +200,6 @@ func (d *Decoder) decodeBool(r reflect.Value, s uint32, f string, skip bool) err
 	r.SetBool(s != 0)
 
 	return nil
-}
-
-func convertType(t uint32) []reflect.Kind {
-	switch t {
-	case JSONPACK_ARRAY:
-		return []reflect.Kind{reflect.Slice}
-	case JSONPACK_BOOLEAN:
-		return []reflect.Kind{reflect.Bool}
-	case JSONPACK_MAP:
-		return []reflect.Kind{reflect.Struct}
-	case JSONPACK_NUMBER:
-		return []reflect.Kind{reflect.Int8, reflect.Uint8, reflect.Int, reflect.Uint,
-			reflect.Int16, reflect.Uint16, reflect.Int32, reflect.Uint32, reflect.Int64, reflect.Uint64}
-	case JSONPACK_STRING:
-		return []reflect.Kind{reflect.String}
-	}
-	return []reflect.Kind{}
 }
 
 func (d *Decoder) decodeArray(r reflect.Value, s uint32, f string, skip bool) error {
@@ -279,7 +286,7 @@ func (d *Decoder) reflectMap2Struct(r reflect.Value, l uint32, f string, skip bo
 
 	// 对于未指定 omit 的键，需要抛出异常
 	for k, f := range fields {
-		if _, ok := f.tags["omit"]; !ok {
+		if _, ok := f.tags["omitempty"]; !ok {
 			return &EmptyUnmarshalError{k}
 		}
 	}
@@ -345,6 +352,8 @@ func (d *Decoder) reflectObject(r reflect.Value, f string, skip bool) error {
 		err = d.decodeBool(r, s, f, skip)
 	case JSONPACK_NUMBER:
 		err = d.decodeInt32(r, s, f, skip)
+	case JSONPACK_FLOAT:
+		err = d.decodeFloat32(r, s, f, skip)
 	case JSONPACK_STRING:
 		err = d.decodeString(r, s, f, skip)
 	default:

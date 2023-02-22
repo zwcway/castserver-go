@@ -126,7 +126,7 @@ func FromOptions(log *zap.Logger, opts map[string]string) error {
 			return fmt.Errorf("")
 		}
 
-		DetectInterface = iface
+		ServerInterface = iface
 		ReceiveInterface = iface
 		HTTPInterface = iface
 		DLNAInterface = iface

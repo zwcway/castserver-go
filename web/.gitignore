@@ -1,0 +1,5 @@
+/front/*.xml
+/front/dest/*
+node_modules
+public/*
+!public/.gitkeep

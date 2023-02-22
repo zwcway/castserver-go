@@ -6,16 +6,16 @@ import (
 )
 
 type LineError struct {
-	Line SpeakerLine
+	Line Line
 	Err  error
 }
 
 func (e *LineError) Error() string {
-	return fmt.Sprintf("The line %s(%d) got error: %s", e.Line.name, e.Line.id, e.Err)
+	return fmt.Sprintf("The line %s(%d) got error: %s", e.Line.Name, e.Line.ID, e.Err)
 }
 
 type UnknownLineError struct {
-	Line SpeakerLineID
+	Line LineID
 }
 
 func (e *UnknownLineError) Error() string {
@@ -23,7 +23,7 @@ func (e *UnknownLineError) Error() string {
 }
 
 type SpeakerError struct {
-	ID   SpeakerID
+	ID   ID
 	Name string
 	IP   net.IP
 	MAC  net.HardwareAddr
@@ -35,7 +35,7 @@ func (e *SpeakerError) Error() string {
 }
 
 type UnknownSpeakerError struct {
-	ID SpeakerID
+	ID ID
 }
 
 func (e *UnknownSpeakerError) Error() string {
