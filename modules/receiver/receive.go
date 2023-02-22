@@ -1,5 +1,0 @@
-package receiver
-
-func listenUDP() {
-	
-}

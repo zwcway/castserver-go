@@ -1,41 +1,62 @@
 package speaker
 
-import "github.com/zwcway/castserver-go/common/audio"
+type LineID uint8
 
-type SpeakerLineID uint8
-type SpeakerLine struct {
-	id   SpeakerLineID
-	name string
-}
-
-type SpeakerModel uint8
+type Model uint8
 
 const (
-	SpeakerModel_UNICAST   SpeakerModel = 0
-	SpeakerModel_MULTICAST SpeakerModel = 1
+	Model_UNICAST   Model = 0
+	Model_MULTICAST Model = 1
 )
 
-type SpeakerState uint32
+type State uint32
 
 const (
-	SpeakerState_OFFLINE    SpeakerState = 0
-	SpeakerState_ONLINE     SpeakerState = 0x00000001
-	SpeakerState_CONNERROR  SpeakerState = 0x01000000
-	SpeakerState_QUEUEERROR SpeakerState = 0x02000000
-	SpeakerState_DELETED    SpeakerState = 0x80000000
+	State_OFFLINE    State = 0
+	State_ONLINE     State = 0x00000001
+	State_CONNERROR  State = 0x01000000
+	State_QUEUEERROR State = 0x02000000
+	State_DELETED    State = 0x80000000
 )
 
-type SpeakerID uint32
+type ID uint32
 
-func (id *SpeakerID) IsValid() bool {
+func (id *ID) IsValid() bool {
 	return true
 }
 
-type SpeakerStatistic struct {
-	Queue uint32
-	Spend uint32
-	Drop  uint32
+type Statistic struct {
+	Queue uint32 // 队列中数据量
+	Spend uint64 // 已经发送的数据量
+	Drop  uint32 // 被丢弃的数据量
+	Error uint32
 }
 
-var DefaultLine SpeakerLineID = 0
-var DefaultChannel audio.AudioChannel = audio.AudioChannel_FRONT_LEFT
+type PowerState uint8
+
+type speakerMapSlice map[int][]*Speaker
+
+func (s *speakerMapSlice) remove(key int, sp *Speaker) {
+	slice, ok := (*s)[key]
+	if !ok {
+		return
+	}
+	for i, item := range slice {
+		if item == sp {
+			(*s)[key] = append(slice[:i], slice[i+1:]...)
+			return
+		}
+	}
+}
+
+func (s *speakerMapSlice) len(key int) int {
+	return len((*s)[key])
+}
+
+func (s *speakerMapSlice) add(key int, sp *Speaker) {
+	if _, ok := (*s)[key]; ok {
+		(*s)[key] = append((*s)[key], sp)
+	} else {
+		(*s)[key] = append([]*Speaker{}, sp)
+	}
+}

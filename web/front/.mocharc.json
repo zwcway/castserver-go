@@ -1,0 +1,15 @@
+{
+  "recursive": true,
+  "extension": ["js"],
+  "require": [
+    "esm",
+    "@babel/register",
+    "jsdom"
+  ],
+  "reporter": "mocha-junit-reporter",
+  "spec": "tests/spec/**/*.js",
+  "timeout" : 0,
+  "watch": false,
+  "watch-files": ["tests/spec/**/*.js"],
+  "exit": true
+}

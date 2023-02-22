@@ -1,6 +1,11 @@
 package jsonpack
 
-import "reflect"
+import (
+	"fmt"
+	"math"
+	"reflect"
+	"strings"
+)
 
 type Encoder []byte
 
@@ -27,6 +32,10 @@ func (j *Encoder) writeInteger(t uint32, size uint32) {
 		*j = append(*j, byte(t), byte(t>>8), byte(t>>16), byte(t>>24))
 	}
 }
+func (j *Encoder) writeFloat(t float32) {
+	bits := math.Float32bits(t)
+	j.writeInteger(bits, 4)
+}
 
 func (j *Encoder) encodeInt8(val uint8) {
 	j.encodeInt32(uint32(val))
@@ -40,6 +49,11 @@ func (j *Encoder) encodeInt32(val uint32) {
 	size := j.intSize(val)
 	j.writeType(JSONPACK_NUMBER, size)
 	j.writeInteger(val, size)
+}
+
+func (j *Encoder) encodeFloat32(val float32) {
+	j.writeType(JSONPACK_FLOAT, 4)
+	j.writeFloat(val)
 }
 
 func (j *Encoder) encodeBool(val bool) {
@@ -78,21 +92,65 @@ func (j *Encoder) reflectArray(r reflect.Value, t reflect.Type) {
 	len := r.Len()
 	j.EncodeArray(uint32(len))
 	for i := 0; i < len; i++ {
-		j.reflectValue(r.Field(i), t.Field(i).Name)
+		j.reflectValue(r.Index(i), fmt.Sprintf("%d", i))
 	}
 }
 
+type structFieldInfo struct {
+	name string
+	idx  int
+}
+
 func (j *Encoder) reflectMap(r reflect.Value, t reflect.Type) {
-	len := r.NumField()
-	j.EncodeMap(uint32(len))
-	for i := 0; i < len; i++ {
+	l := r.NumField()
+	ss := []structFieldInfo{}
+
+	for i := 0; i < l; i++ {
 		tf := t.Field(i)
 		name := tf.Tag.Get("jp")
+		tags := strings.Split(name, ",")
 		if name == "" {
 			name = tf.Name
+		} else {
+			name = tags[0]
 		}
+
+		omitempty := false
+		if len(tags) > 1 {
+			for _, t := range tags[1:] {
+				if t == "omitempty" {
+					omitempty = true
+				}
+			}
+		}
+		field := r.Field(i)
+
+		if omitempty {
+			switch field.Kind() {
+			case reflect.Slice:
+				if field.Len() == 0 {
+					continue
+				}
+			case reflect.Pointer:
+				if field.IsNil() {
+					continue
+				}
+			}
+		}
+
+		ss = append(ss, structFieldInfo{
+			name: name,
+			idx:  i,
+		})
+	}
+
+	j.EncodeMap(uint32(len(ss)))
+	for _, s := range ss {
+		tf := t.Field(s.idx)
+		name := s.name
+
 		j.encodeString(name)
-		j.reflectValue(r.Field(i), tf.Name)
+		j.reflectValue(r.Field(s.idx), tf.Name)
 	}
 }
 
@@ -123,6 +181,8 @@ func (j *Encoder) reflectValue(r reflect.Value, field string) error {
 		j.encodeInt16(uint16(r.Int()))
 	case reflect.Uint16:
 		j.encodeInt16(uint16(r.Uint()))
+	case reflect.Float32:
+		j.encodeFloat32(float32(r.Float()))
 	default:
 		return &InvalidValueError{field, r.Kind()}
 	}

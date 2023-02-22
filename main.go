@@ -6,16 +6,18 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"syscall"
 
+	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/config"
-	"github.com/zwcway/castserver-go/modules/controller"
-	"github.com/zwcway/castserver-go/modules/detector"
-	"github.com/zwcway/castserver-go/modules/mutexer"
-	"github.com/zwcway/castserver-go/modules/pusher"
-	"github.com/zwcway/castserver-go/modules/receiver"
-	"github.com/zwcway/castserver-go/modules/web"
+	"github.com/zwcway/castserver-go/control"
+	"github.com/zwcway/castserver-go/detector"
+	"github.com/zwcway/castserver-go/mutexer"
+	"github.com/zwcway/castserver-go/pusher"
+	"github.com/zwcway/castserver-go/receiver"
 	"github.com/zwcway/castserver-go/utils"
+	"github.com/zwcway/castserver-go/web"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -87,8 +89,6 @@ func initLogger() *zap.Logger {
 }
 
 func main() {
-	// debug.SetMaxThreads(10)
-
 	log := initLogger()
 
 	// 用于通知主程序退出
@@ -102,14 +102,17 @@ func main() {
 		exit(2, false, err.Error())
 	}
 
+	debug.SetMaxThreads(config.RuntimeThreads)
+
 	mods := []Module{
 		mutexer.Module,
 		detector.Module,
-		controller.Module,
+		control.Module,
 		pusher.Module,
 		receiver.Module,
 		web.Module}
 
+	speaker.Init()
 	for _, f := range mods {
 		err = f.Init(rootCtx)
 		if err != nil {

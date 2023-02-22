@@ -44,6 +44,21 @@ func parseListen(log *zap.Logger, listen string, port uint16) (ap netip.AddrPort
 	return
 }
 
+func parseDetectListen(log *zap.Logger, cfg reflect.Value, k *ini.Key, def *ini.Key, ck *cfgKey) {
+	port, err := def.Uint()
+	if err != nil {
+		panic(err)
+	}
+	var listen string
+	if k != nil {
+		listen = k.String()
+	}
+	addr, iface := parseListen(log, listen, uint16(port))
+
+	ServerUseIPV6 = addr.Addr().Is6()
+	ServerAddrPort = addr
+	ServerInterface = iface
+}
 func parseHttpListen(log *zap.Logger, cfg reflect.Value, k *ini.Key, def *ini.Key, ck *cfgKey) {
 	port, err := def.Uint()
 	if err != nil {
@@ -101,12 +116,18 @@ func parseBits(log *zap.Logger, cfg reflect.Value, k *ini.Key, def *ini.Key, ck 
 
 		SupportAudioBits = make([]uint8, 0)
 		for _, v := range r {
+			var a audio.Bits
+			a = a.FromName(v)
+			if a != audio.AudioBits_NONE {
+				SupportAudioBits = append(SupportAudioBits, uint8(a))
+				continue
+			}
 			i, err := strconv.ParseInt(v, 0, 1)
 			if err != nil {
 				return false
 			}
-			a, err := audio.NewAudioBits(int32(i))
-			if err != nil {
+			a = audio.NewAudioBits(int32(i))
+			if !a.IsValid() {
 				return false
 			}
 			SupportAudioBits = append(SupportAudioBits, uint8(a))
@@ -134,8 +155,8 @@ func parseRates(log *zap.Logger, cfg reflect.Value, k *ini.Key, def *ini.Key, ck
 			if err != nil {
 				return false
 			}
-			a, err := audio.NewAudioRate(int32(i))
-			if err != nil {
+			a := audio.NewAudioRate(int(i))
+			if !a.IsValid() {
 				return false
 			}
 			SupportAudioRates = append(SupportAudioRates, uint8(a))
@@ -258,7 +279,7 @@ func FromContent(log *zap.Logger, data []byte) error {
 		}
 	}
 
-	if DetectUseIPV6 {
+	if ServerUseIPV6 {
 		MulticastAddress = netip.MustParseAddr("FF02:2C:4D:FF::16")
 	} else {
 		MulticastAddress = netip.MustParseAddr("239.44.77.16")
@@ -407,26 +428,27 @@ func setReflectSlice(log *zap.Logger, key *ini.Key, defKey *ini.Key, cfgrv refle
 
 var configStruct = []cfgSection{
 	{"", []cfgKey{
-		{&DetectNetMTU, "mtu", "1500", nil},
+		{&ServerNetMTU, "mtu", "1500", nil},
+		{&RuntimeThreads, "max thread", "100", nil},
 	}},
 	{"audio", []cfgKey{
 		{&SupportAudioBits, "support bits", "u8/u16le/u24le/s32le/u32le/fltle", parseBits},
 		{&SupportAudioRates, "support rates", "44100/48000/96000/192000", parseRates},
 	}},
 	{"detect", []cfgKey{
-		{&DetectUseIPV6, "ipv6", "false", nil},
-		{&DetectInterface, "interface", "", nil},
-		{&MaxReadBufferSize, "read buffer", "1024", nil},
-		{&SpeakerOfflineTimeout, "offline timeout", "1024", nil},
-		{&SpeakerOfflineCheckInterval, "offline check interval", "1024", nil},
+		{nil, "listen", "4414", parseDetectListen},
+		{&SpeakerOfflineTimeout, "offline timeout", "5", nil},
+		{&SpeakerOfflineCheckInterval, "offline check interval", "5", nil},
 	}},
-	{"push", []cfgKey{
-		{&SendRoutinesMax, "send routines max", "2", nil},
-		{&SendQueueSize, "send queue size", "512", nil},
+	{"speaker", []cfgKey{
+		{&ReadBufferSize, "receive buffer", "1024", nil},
+		{&SendRoutinesMax, "send thread max", "2", nil},
+		{&SendQueueSize, "send queue size", "16", nil},
+		{&ReadQueueSize, "read queue size", "512", nil},
 	}},
 	{"http", []cfgKey{
 		{nil, "listen", "4415", parseHttpListen},
-		{&HTTPRoot, "root", "front/public", parsePath},
+		{&HTTPRoot, "root", "web/public", parsePath},
 	}},
 	{"receive", []cfgKey{
 		{nil, "listen", "4416", parseReceiveListen},
@@ -437,6 +459,6 @@ var configStruct = []cfgSection{
 		{nil, "listen", "4416", parseDLNAListen},
 		{&DLNANotifyInterval, "notify interval", "30", nil},
 		{&DLNAAllowIps, "allow ips", "", nil},
-		{&DLNADenyIps, "deny ips", "2001:1234:2234:abcd::1/64 2001:1234:2234:abcd::1", nil},
+		{&DLNADenyIps, "deny ips", "", nil},
 	}},
 }

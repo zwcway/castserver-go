@@ -50,8 +50,20 @@ func (s *DLNAServer) Close() {
 	s.upnp.Close()
 }
 
-func (s *DLNAServer) newUPnPServer(ctx utils.Context) (err error) {
-	s.upnp, err = upnp.NewDeviceServer(ctx, config.APPNAME)
+func (s *DLNAServer) AddNewInstance(name string) string {
+	return s.upnp.AddServer(name, "", "")
+}
+
+func (s *DLNAServer) ChangeName(uuid string, newName string) {
+	s.upnp.AddServer(newName, uuid, "")
+}
+
+func (s *DLNAServer) DelInstance(uuid string) {
+	s.upnp.DelServer(uuid)
+}
+
+func (s *DLNAServer) newUPnPServer(ctx utils.Context, name string) (err error) {
+	s.upnp, err = upnp.NewDeviceServer(ctx, name)
 	if err != nil {
 		return
 	}
@@ -87,7 +99,7 @@ func NewDLNAServer(ctx utils.Context, name string) (s *DLNAServer, err error) {
 	s.log = ctx.Logger("dlna")
 	s.c = make(chan int, 1)
 
-	err = s.newUPnPServer(ctx)
+	err = s.newUPnPServer(ctx, name)
 	if err != nil {
 		return
 	}

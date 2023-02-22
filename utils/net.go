@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"encoding/binary"
 	"net"
 	"net/netip"
 	"strings"
@@ -12,7 +11,7 @@ func IsConnectCloseError(err error) bool {
 }
 
 func MacIsValid(m net.HardwareAddr) bool {
-	return binary.BigEndian.Uint64(m) != 0
+	return m[0]+m[1]+m[2]+m[3]+m[4]+m[5] != 0
 }
 
 func PortIsValid(p uint16) bool {
@@ -79,7 +78,6 @@ func InterfaceAddrs(iface *net.Interface, filter func(net.Addr) bool) []*net.IPN
 	return addrStr
 }
 
-
 func InterfaceAddr(iface *net.Interface, ipv6 bool) *net.IPNet {
 	if iface == nil {
 		return nil
@@ -95,6 +93,35 @@ func InterfaceAddr(iface *net.Interface, ipv6 bool) *net.IPNet {
 			return a
 		}
 	}
+	return nil
+}
+
+func DefaultAddr() *netip.Addr {
+	ifis, err := net.Interfaces()
+	if err != nil {
+		return nil
+	}
+
+	for _, ifi := range ifis {
+		if !CheckInterface(&ifi) {
+			continue
+		}
+		addrs := InterfaceAddrs(&ifi, nil)
+		if addrs == nil {
+			continue
+		}
+		for _, addr := range addrs {
+			ip := addr.IP
+			if len(addr.Mask) == net.IPv4len {
+				ip = ip[len(ip)-4:]
+			}
+
+			if ip, ok := netip.AddrFromSlice(ip); ok {
+				return &ip
+			}
+		}
+	}
+
 	return nil
 }
 

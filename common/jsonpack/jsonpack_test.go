@@ -320,4 +320,22 @@ func TestUnmarshal(t *testing.T) {
 			t.Errorf("Marshal() = %v, want %v", val, want)
 		}
 	})
+	t.Run("struct", func(t *testing.T) {
+		type reqSubscribe struct {
+			evt int
+			act bool
+			sub int
+		}
+		var val reqSubscribe
+		want := reqSubscribe{2, true, 0}
+		wantErr := false
+		err := Unmarshal([]byte("Q\x021\x03evt\x11\x021\x03act!"), &val)
+		if (err != nil) != wantErr {
+			t.Errorf("Marshal() error = %v, wantErr %v", err, wantErr)
+			return
+		}
+		if !reflect.DeepEqual(val, want) {
+			t.Errorf("Marshal() = %v, want %v", val, want)
+		}
+	})
 }

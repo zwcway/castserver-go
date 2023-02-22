@@ -2,6 +2,7 @@ package service
 
 import (
 	"github.com/zwcway/castserver-go/decoder"
+	"github.com/zwcway/castserver-go/decoder/pipeline"
 	"github.com/zwcway/castserver-go/utils"
 	"github.com/zwcway/fasthttp-upnp/avtransport1"
 	"github.com/zwcway/fasthttp-upnp/service"
@@ -9,13 +10,13 @@ import (
 )
 
 var log *zap.Logger
-var audioDecoder *decoder.Decoder
+var audio decoder.FileStreamer
 
 func NewServiceList(ctx utils.Context) []*service.Controller {
 	log = ctx.Logger("dlna srv")
 
-	audioDecoder = decoder.NewDecoder(ctx)
-	
+	audio = pipeline.AddFileStreamer()
+
 	return []*service.Controller{
 		{
 			ServiceName: avtransport1.NAME,
