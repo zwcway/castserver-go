@@ -44,7 +44,7 @@
           >
             <router-link :to="`/line/${line.id}`">
               <svg-icon icon-class="music" class="icon" :size="0" />
-              <span>{{ line.name }}</span>
+              <span :id="'nav-' + line.id">{{ line.name }}</span>
               <svg-icon
                 icon-class="x"
                 class="icon delete-line"
@@ -282,6 +282,7 @@ nav {
       flex-direction: column;
       width: $nav-item-width;
       height: 100%;
+      background: #fafafa;
       a {
         height: 100%;
         text-decoration: none;

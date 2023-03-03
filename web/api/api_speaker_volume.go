@@ -10,9 +10,10 @@ import (
 type requestVolume struct {
 	ID     int32  `jp:"id"`
 	Volume uint32 `jp:"vol"`
+	Mute   bool   `jp:"mute"`
 }
 
-func apiSpeakerVolume(c *websocket.Conn, req *ReqMessage, log *zap.Logger) (any, error) {
+func apiSpeakerVolume(c *websocket.Conn, req Requester, log *zap.Logger) (any, error) {
 	var sp requestVolume
 	err := req.Unmarshal(&sp)
 	if err != nil {

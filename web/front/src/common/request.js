@@ -5,7 +5,7 @@ import store from '@/store';
 if (process.env.NODE_ENV !== 'production' && process.env.Mock) {
   require('../mock');
 }
-console.log(process.env.Mock)
+console.log(process.env.Mock);
 const Command = Object.freeze({
   Server: 1,
   Speaker: 2,
@@ -20,10 +20,10 @@ const Event = Object.freeze({
   SP_Edited: 0x06,
   SP_LevelMeter: 7,
   Line_Created: 8,
-	Line_Deleted:9,
-	Line_Edited:10,
-	Line_LevelMeter:11,
-	Line_Spectrum:12,
+  Line_Deleted: 9,
+  Line_Edited: 10,
+  Line_LevelMeter: 11,
+  Line_Spectrum: 12,
 });
 
-export { socket, Command, Event};
+export { socket, Command, Event };

@@ -43,13 +43,13 @@ const (
 )
 
 type Element interface {
+	Streamer
 	Name() string
 	Type() ElementType
-	Stream(*Samples)
 	Sample(*float64, int, int)
 }
 
-type FileStreamerOpenFileHandler func(format *audio.Format)
+type FileStreamerOpenFileHandler func(stream FileStreamer, format *audio.Format)
 
 type ChannelSamples []float64
 

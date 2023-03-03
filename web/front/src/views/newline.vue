@@ -1,13 +1,11 @@
 <template>
-    <div></div>
+  <div></div>
 </template>
 
 <script>
 export default {
   name: 'Create Line',
-}
+};
 </script>
 
-<style lang="scss" scoped>
-    
-</style>
+<style lang="scss" scoped></style>

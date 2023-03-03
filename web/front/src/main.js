@@ -1,16 +1,18 @@
 import Vue from 'vue';
-import Router from 'vue-router'
+import Router from 'vue-router';
+import Antd from 'ant-design-vue';
 import App from './App.vue';
 import router from './router';
 import store from './store';
+
+import 'ant-design-vue/dist/antd.css';
 import '@/assets/icons';
 import '@/assets/css/global.scss';
 import 'animate.css';
 import 'bulma';
 import 'ionicons';
 
-
-if (process.env.NODE_ENV !== "production") {
+if (process.env.NODE_ENV !== 'production') {
   window.resetApp = () => {
     localStorage.clear();
     indexedDB.deleteDatabase(process.env.AppID);
@@ -28,12 +30,14 @@ if (process.env.NODE_ENV !== "production") {
   );
 }
 
-const originalPush = Router.prototype.push
+const originalPush = Router.prototype.push;
 Router.prototype.push = function push(location) {
-  return originalPush.call(this, location).catch(err => err)
-}
+  return originalPush.call(this, location).catch(err => err);
+};
 
 Vue.config.productionTip = false;
+
+Vue.use(Antd);
 
 new Vue({
   router,

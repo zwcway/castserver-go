@@ -157,6 +157,7 @@ func channelsFromLayout(layout C.int64_t) (m audio.ChannelLayout) {
 }
 
 func New(ofh decoder.FileStreamerOpenFileHandler) decoder.FileStreamer {
+
 	return &avFormatContext{
 		openedHandler: ofh,
 	}
@@ -168,9 +169,9 @@ type avFormatContext struct {
 	fileName      string
 	pause         bool
 
+	ctx       *C.GOAVDecoder
 	outputFmt *audio.Format
 
-	cBuffer        *C.uint8_t
 	lastDecodeSize int
 	posPerCh       int // 每次读取后，buffer中还剩下的每声道的samples数量
 	pos            int // 当前已解码的位置
@@ -186,7 +187,7 @@ func (c *avFormatContext) OpenFile(fileName string) (err error) {
 	format := C.enum_AVSampleFormat(C.AV_SAMPLE_FMT_NONE)
 	channels := C.int(0)
 
-	ret := C.go_init(cFileName, &rate, &channels, &format)
+	ret := C.go_init(&c.ctx, cFileName, &rate, &channels, &format)
 
 	if ret < 0 {
 		switch ret {
@@ -212,7 +213,7 @@ func (c *avFormatContext) OpenFile(fileName string) (err error) {
 		return err
 	}
 
-	c.openedHandler(c.format)
+	c.openedHandler(c, c.format)
 
 	return nil
 }
@@ -242,7 +243,7 @@ func (c *avFormatContext) initOutputFormat() error {
 	rate := C.int(c.outputFmt.SampleRate.ToInt())
 	chs := C.int(c.outputFmt.Layout.Count)
 
-	ret := C.go_init_resample(rate, chs, outputFmt)
+	ret := C.go_init_resample(c.ctx, rate, chs, outputFmt)
 	if ret < 0 {
 		return newErrorFromCCode(ret)
 	}
@@ -275,10 +276,10 @@ func (c *avFormatContext) IsPaused() bool {
 
 func (c *avFormatContext) decode() (n int, err error) {
 	bufSize := C.int(0)
-	ret := C.go_decode(&c.cBuffer, &bufSize)
+	ret := C.go_decode(c.ctx)
 	if ret < 0 {
 		err = newErrorFromCCode(ret)
-	} else if c.cBuffer == nil {
+	} else if c.ctx.buffer == nil {
 		err = &AllocError{int(bufSize)}
 	} else {
 		n = int(ret)
@@ -300,7 +301,7 @@ func (c *avFormatContext) Stream(samples *decoder.Samples) {
 		samples.LastErr = err
 	}()
 
-	if chs <= 0 {
+	if c.ctx == nil || chs <= 0 {
 		return
 	}
 
@@ -326,7 +327,7 @@ func (c *avFormatContext) Stream(samples *decoder.Samples) {
 		}
 		pos = uintptr((c.posPerCh * 8 * chs))
 		for ch = 0; ch < samples.Format.Layout.Count && ch < chs; ch++ {
-			samples.Buffer[ch][i] = *(*float64)(unsafe.Pointer(uintptr(unsafe.Pointer(c.cBuffer)) + pos))
+			samples.Buffer[ch][i] = *(*float64)(unsafe.Pointer(uintptr(unsafe.Pointer(c.ctx.buffer)) + pos))
 			pos += uintptr(8)
 		}
 		nbSamples++
@@ -337,7 +338,7 @@ func (c *avFormatContext) Stream(samples *decoder.Samples) {
 func (c *avFormatContext) Seek(p time.Duration) error {
 	pos := p * time.Duration(c.format.SampleRate) / time.Second
 
-	ret := C.go_seek(C.int(pos))
+	ret := C.go_seek(c.ctx, C.int(pos))
 	if ret < 0 {
 		return fmt.Errorf("seek to '%d' failed", pos)
 	}
@@ -345,6 +346,8 @@ func (c *avFormatContext) Seek(p time.Duration) error {
 }
 
 func (c *avFormatContext) Close() error {
-	C.go_free()
+	c.pause = true
+	C.go_free(&c.ctx)
+	c.ctx = nil
 	return nil
 }

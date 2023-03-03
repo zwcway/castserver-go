@@ -28,8 +28,8 @@ class PackArray extends Array {
     return 0;
   }
   pushString(str) {
-    for (var i = 0; i < str.length; i ++) {
-      this.push(str.charCodeAt(i))
+    for (var i = 0; i < str.length; i++) {
+      this.push(str.charCodeAt(i));
     }
   }
   pushNumber(code) {
@@ -77,7 +77,7 @@ class PackArray extends Array {
     this.pushNumber(int);
   }
   encodeFloat32(float) {
-    float32.setFloat32(float)
+    float32.setFloat32(float);
     int = float32.getUint32();
     let size = this.numberSize(int);
     this.pushTypeFlag(JsonPackType.FLOAT, size);
@@ -218,9 +218,9 @@ class UnPackArray {
     throw 'decode failed';
   }
   decodeFloat32(flag) {
-    let i = this.decodeInteger(flag)
-    float32.setInt32(i)
-    return float32.getFloat32()
+    let i = this.decodeInteger(flag);
+    float32.setInt32(i);
+    return float32.getFloat32();
   }
 
   decodeBoolean(flag) {

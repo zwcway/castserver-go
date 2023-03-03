@@ -24,7 +24,7 @@ type responseSpeakerInfo struct {
 
 type requestSpeakerInfo uint32
 
-func apiSpeakerInfo(c *websocket.Conn, req *ReqMessage, log *zap.Logger) (any, error) {
+func apiSpeakerInfo(c *websocket.Conn, req Requester, log *zap.Logger) (any, error) {
 	var sp requestSpeakerInfo
 	err := req.Unmarshal(&sp)
 	if err != nil {

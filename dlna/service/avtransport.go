@@ -7,6 +7,7 @@ import (
 	"github.com/valyala/fasthttp"
 	"github.com/zwcway/castserver-go/decoder"
 	"github.com/zwcway/castserver-go/decoder/localspeaker"
+	"github.com/zwcway/castserver-go/decoder/pipeline"
 	"github.com/zwcway/fasthttp-upnp/avtransport1"
 	"github.com/zwcway/fasthttp-upnp/soap"
 	"go.uber.org/zap"
@@ -22,7 +23,9 @@ func setAVTransportURIHandler(input any, output any, ctx *fasthttp.RequestCtx, u
 	playUri = in.CurrentURI
 	metaData = in.CurrentURIMetaData
 
+	audio := pipeline.FileStreamer(uuid)
 	audio.Close()
+
 	var err error
 	if err = audio.OpenFile(playUri); err != nil {
 		log.Error("create decoder failed", zap.Error(err))
@@ -37,6 +40,8 @@ func setAVTransportURIHandler(input any, output any, ctx *fasthttp.RequestCtx, u
 
 func avtGetPositionInfo(input any, output any, ctx *fasthttp.RequestCtx, uuid string) error {
 	out := output.(*avtransport1.ArgOutGetPositionInfo)
+
+	audio := pipeline.FileStreamer(uuid)
 
 	dur := decoder.DurationFormat(audio.Duration())
 	out.TrackDuration = dur
@@ -57,6 +62,8 @@ func avtPlay(input any, output any, ctx *fasthttp.RequestCtx, uuid string) error
 	if playUri == "" {
 		return nil
 	}
+	audio := pipeline.FileStreamer(uuid)
+
 	if audio.CurrentFile() == "" { // 重新播放
 		var err error
 		if err = audio.OpenFile(playUri); err != nil {
@@ -74,7 +81,7 @@ func avtPause(input any, output any, ctx *fasthttp.RequestCtx, uuid string) erro
 	if playUri == "" {
 		return nil
 	}
-	audio.Pause(true)
+	pipeline.FileStreamer(uuid).Pause(true)
 
 	return nil
 }
@@ -84,7 +91,7 @@ func avtStop(input any, output any, ctx *fasthttp.RequestCtx, uuid string) error
 		return nil
 	}
 	localspeaker.Close()
-	audio.Close()
+	pipeline.FileStreamer(uuid).Close()
 	return nil
 }
 
@@ -100,7 +107,7 @@ func avtSeek(input any, output any, ctx *fasthttp.RequestCtx, uuid string) error
 		if err != nil {
 			return &soap.Error{Code: fasthttp.StatusBadRequest, Desc: err.Error()}
 		}
-		err = audio.Seek(d)
+		err = pipeline.FileStreamer(uuid).Seek(d)
 		if err != nil {
 			return &soap.Error{Code: fasthttp.StatusBadRequest, Desc: err.Error()}
 		}

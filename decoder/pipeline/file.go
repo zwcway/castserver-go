@@ -2,35 +2,42 @@ package pipeline
 
 import (
 	"github.com/zwcway/castserver-go/common/audio"
-	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/decoder"
 	"github.com/zwcway/castserver-go/decoder/ffmpeg"
-	"github.com/zwcway/castserver-go/decoder/streamer"
+	"github.com/zwcway/castserver-go/web/websockets"
 )
 
-var fileStream decoder.FileStreamer
+func FileStreamer(uuid string) decoder.FileStreamer {
+	p := FromUUID(uuid)
 
-func AddFileStreamer() decoder.FileStreamer {
-	fileStream = ffmpeg.New(onFileOpened)
+	fs := p.eleMixer.HasFileStreamer()
+	if fs == nil {
+		fs = ffmpeg.New(onFileOpened)
+		p.eleMixer.Add(fs)
+	}
 
-	return fileStream
+	return fs
 }
 
-func onFileOpened(format *audio.Format) {
+func findPL(stream decoder.FileStreamer) *PipeLine {
+	for _, p := range pipeLineList {
+		if p.eleMixer.Has(stream) {
+			return p
+		}
+	}
+	return nil
+}
+
+func onFileOpened(stream decoder.FileStreamer, format *audio.Format) {
 	bufSize := format.SampleBits.Size() * int(format.SampleRate.ToInt()) * 30 / 1000 * format.Layout.Count
 
-	globalPipeLine.Prepend(fileStream.(decoder.Element))
-	globalPipeLine.format = format
-	globalPipeLine.buffer = decoder.NewSamples(bufSize, format)
+	pl := findPL(stream)
+
+	pl.locker.Lock()
+	pl.buffer = decoder.NewSamples(bufSize, format)
+	pl.locker.Unlock()
 
 	// 通知输入格式
-	speaker.DefaultLine().Input = format
-}
-
-func SetOutputFormat(format *audio.Format) {
-	if fileStream == nil {
-		globalPipeLine.Add(streamer.ResampleSet(format))
-		return
-	}
-	fileStream.SetFormat(format)
+	pl.line.Input = format
+	websockets.BroadcastLineEvent(pl.line, websockets.Event_Line_Edited)
 }

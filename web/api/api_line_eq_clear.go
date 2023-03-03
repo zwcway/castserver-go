@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func apiLineClearEqualizer(c *websocket.Conn, req *ReqMessage, log *zap.Logger) (any, error) {
+func apiLineClearEqualizer(c *websocket.Conn, req Requester, log *zap.Logger) (any, error) {
 	var params requestLineInfo
 	err := req.Unmarshal(&params)
 	if err != nil {

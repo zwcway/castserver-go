@@ -5,6 +5,8 @@ import (
 
 	"github.com/fasthttp/websocket"
 	"github.com/zwcway/castserver-go/common/speaker"
+	"github.com/zwcway/castserver-go/receiver"
+	"github.com/zwcway/castserver-go/web/websockets"
 	"go.uber.org/zap"
 )
 
@@ -12,7 +14,7 @@ type requestLineCreate struct {
 	Name string `jp:"name"`
 }
 
-func apiLineCreate(c *websocket.Conn, req *ReqMessage, log *zap.Logger) (any, error) {
+func apiLineCreate(c *websocket.Conn, req Requester, log *zap.Logger) (any, error) {
 	var params requestLineCreate
 	err := req.Unmarshal(&params)
 	if err != nil {
@@ -32,6 +34,9 @@ func apiLineCreate(c *websocket.Conn, req *ReqMessage, log *zap.Logger) (any, er
 		Name:     nl.Name,
 		Speakers: []responseSpeakerList{},
 	}
+
+	receiver.AddDLNA(nl)
+	websockets.BroadcastLineEvent(nl, websockets.Event_Line_Created)
 
 	return line, nil
 }

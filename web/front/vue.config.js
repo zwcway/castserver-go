@@ -1,4 +1,5 @@
 const webpack = require('webpack');
+const {defineConfig} = require('@vue/cli-service');
 const path = require('path');
 
 function resolve(dir) {
@@ -12,7 +13,7 @@ process.env.AppTitle = "Castspeaker 管理后台";
 process.env.Lang = "zh";
 process.env.PLATFORM = "browser";
 
-module.exports = {
+module.exports = defineConfig({
   outputDir: path.resolve(__dirname, "../public"),
   lintOnSave: false,
   // 生产环境打包不输出 map
@@ -71,11 +72,13 @@ module.exports = {
       chunks: ['main', 'chunk-vendors', 'chunk-common', 'index'],
     },
   },
+  transpileDependencies: true,
   css: {
     loaderOptions: {
       less: {
         lessOptions: {
-          javascriptEnabled: true
+          javascriptEnabled: true,
+          math: "always",
         }
       }
     }
@@ -100,6 +103,12 @@ module.exports = {
       .test(/\.node$/)
       .use('node-loader')
       .loader('node-loader')
+      .end();
+    config.module
+      .rule('less')
+      .test(/\.less$/)
+      .use('less-loader')
+      .loader('less-loader')
       .end();
 
     // LimitChunkCountPlugin 可以通过合并块来对块进行后期处理。用以解决 chunk 包太多的问题
@@ -219,4 +228,4 @@ module.exports = {
       // mainProcessArgs: []
     },
   },
-};
+});

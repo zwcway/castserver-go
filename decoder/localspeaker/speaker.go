@@ -31,7 +31,7 @@ func Init() error {
 		SampleBits: audio.AudioBits_16LEF,
 	}
 
-	pipeline.SetOutputFormat(format)
+	pipeline.Default().EleResample().SetFormat(format)
 
 	samples := pl.Buffer()
 	size := 2 * samples.Size * format.SampleBits.Size()

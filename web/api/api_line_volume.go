@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func apiLineVolume(c *websocket.Conn, req *ReqMessage, log *zap.Logger) (any, error) {
+func apiLineVolume(c *websocket.Conn, req Requester, log *zap.Logger) (any, error) {
 	var p requestVolume
 	err := req.Unmarshal(&p)
 	if err != nil {
@@ -21,7 +21,7 @@ func apiLineVolume(c *websocket.Conn, req *ReqMessage, log *zap.Logger) (any, er
 		return nil, fmt.Errorf("add new line faild")
 	}
 
-	control.ControlLineVolume(nl, int(p.Volume))
+	control.ControlLineVolume(nl, float64(p.Volume)/100, p.Mute)
 
 	return true, nil
 }

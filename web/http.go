@@ -15,6 +15,7 @@ import (
 
 	"github.com/valyala/fasthttp"
 	"github.com/zwcway/castserver-go/utils"
+	"github.com/zwcway/castserver-go/web/api"
 	"github.com/zwcway/castserver-go/web/websockets"
 	"go.uber.org/zap"
 )
@@ -31,8 +32,6 @@ func startStaticServer(address string, root string) error {
 		return err
 	}
 
-	log.Info("start http on " + address)
-
 	goWsIPID := []byte("***Go-WS-IP***")
 	goWsPortID := []byte("***Go-WS-Port***")
 	var listenAddr netip.AddrPort
@@ -42,6 +41,9 @@ func startStaticServer(address string, root string) error {
 
 		log.Info("request", zap.String("path", uri), zap.String("src", ctx.RemoteAddr().String()))
 
+		if api.ApiDispatchDevel(ctx) {
+			return
+		}
 		switch uri {
 		case "/api":
 			websockets.WSHandler(ctx)
@@ -98,11 +100,9 @@ func startStaticServer(address string, root string) error {
 		listenAddr = netip.AddrPortFrom(*defaultAddr, listenAddr.Port())
 	}
 
-	err = s.Serve(ln)
-	if err != nil {
-		log.Error("http start error", zap.Error(err))
-		return err
-	}
+	log.Info("start http on " + listenAddr.String())
+
+	go s.Serve(ln)
 
 	return nil
 }

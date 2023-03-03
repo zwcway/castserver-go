@@ -9,12 +9,16 @@ export function getSpeakerList() {
   });
 }
 let evts = [
-  Event.SP_Deleted, Event.SP_Deleted, Event.SP_Edited, Event.SP_Online, Event.SP_Offline
+  Event.SP_Deleted,
+  Event.SP_Deleted,
+  Event.SP_Edited,
+  Event.SP_Online,
+  Event.SP_Offline,
 ];
 
 export function removeListenSpeakerEvent() {
   socket.sendSubscribe(Command.Speaker, false, evts);
-  socket.removeEvent(Command.Speaker, evts)
+  socket.removeEvent(Command.Speaker, evts);
 }
 
 export function listenSpeakerChanged(callback) {
@@ -22,13 +26,11 @@ export function listenSpeakerChanged(callback) {
 
   socket.sendSubscribe(Command.Speaker, true, evts);
 
-  return socket.receiveEvent(Command.Speaker, (act, speaker) => {
-    callback(act, formatSpeaker(speaker));
-  }, evts);
+  return socket.receiveCommand(Command.Speaker, callback, evts);
 }
 export function removeListenSpeakerLevelMeter() {
   socket.sendSubscribe(Command.Speaker, false, Event.SP_LevelMeter);
-  socket.removeEvent(Command.Speaker, Event.SP_LevelMeter)
+  socket.removeEvent(Command.Speaker, Event.SP_LevelMeter);
 }
 
 export function listenSpeakerLevelMeter(callback) {
@@ -36,7 +38,7 @@ export function listenSpeakerLevelMeter(callback) {
 
   socket.sendSubscribe(Command.Speaker, true, Event.SP_LevelMeter);
 
-  return socket.receiveEvent(Command.Speaker, callback, Event.SP_LevelMeter);
+  return socket.receiveEvent(Event.SP_LevelMeter, callback);
 }
 export function getSpeakerInfo(id) {
   return socket.send('speakerInfo', { id }).then(speaker => {
@@ -60,13 +62,23 @@ export function getSpeakersVolumeLevel(ids) {
     .catch((err, code, res) => { });
 }
 
-export function setChannel(id, ch) {
-  id = parseInt(id)
-  ch = parseInt(ch)
-  return socket.send('setChannel', { id, ch })
+export function setSpeaker(id, key, val) {
+  data = {};
+  if (typeof key === 'object') {
+    Object.assign(data, key);
+  } else if (typeof key === 'string') {
+    data[key] = val;
+  }
+  data['id'] = parseInt(id);
+
+  return socket.send('setSpeaker', data);
 }
 export function setVolume(id, vol) {
-  return socket.send('speakerVolume', { id, vol }, { noResponse: true });
+  let data = { id };
+  if (typeof vol === 'boolean') data['mute'] = vol;
+  else data['vol'] = vol;
+
+  return socket.send('speakerVolume', data, { noResponse: true });
 }
 
 export function sendServerInfo(id) {
@@ -74,4 +86,4 @@ export function sendServerInfo(id) {
 }
 export function reconnect(id) {
   return socket.send('spReconnect', id);
-}   
+}

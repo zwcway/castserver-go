@@ -16,7 +16,7 @@ type requestLineEQ struct {
 	Q         float32 `jp:"q"`
 }
 
-func apiLineSetEqualizer(c *websocket.Conn, req *ReqMessage, log *zap.Logger) (any, error) {
+func apiLineSetEqualizer(c *websocket.Conn, req Requester, log *zap.Logger) (any, error) {
 	var params requestLineEQ
 	err := req.Unmarshal(&params)
 	if err != nil {

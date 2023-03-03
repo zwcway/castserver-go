@@ -70,3 +70,20 @@ func LevelMeterUint32(data []byte, step int) float64 {
 
 	return rms
 }
+
+func LevelMeterFloat64(data []float64) float64 {
+	var (
+		sum float64
+		rms float64
+	)
+
+	for i := 0; i < len(data); i++ {
+		sum += data[i] * data[i]
+	}
+
+	rms = math.Sqrt(sum * 1.0 / float64(len(data)))
+	rms = math.Max(0.0, rms)
+	rms = math.Min(1.0, rms)
+
+	return rms
+}

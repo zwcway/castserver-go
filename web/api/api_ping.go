@@ -7,7 +7,10 @@ import (
 	"go.uber.org/zap"
 )
 
-func apiPing(c *websocket.Conn, req *ReqMessage, log *zap.Logger) (any, error) {
+func apiPing(c *websocket.Conn, req Requester, log *zap.Logger) (any, error) {
+	if c == nil {
+		return nil, nil
+	}
 	c.WriteMessage(websocket.TextMessage, []byte("pong"))
 	c.SetReadDeadline(time.Now().Add(60 * time.Second))
 	return nil, nil

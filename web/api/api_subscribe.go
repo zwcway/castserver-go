@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/fasthttp/websocket"
+	"github.com/zwcway/castserver-go/web/event"
 	"github.com/zwcway/castserver-go/web/websockets"
 	"go.uber.org/zap"
 )
@@ -18,7 +19,10 @@ type reqSubscribe struct {
 var SubscribeFunction func(c *websocket.Conn, evt int)
 var UnsubscribeFunction func(c *websocket.Conn, evt int)
 
-func apiSubscribe(c *websocket.Conn, req *ReqMessage, log *zap.Logger) (any, error) {
+func apiSubscribe(c *websocket.Conn, req Requester, log *zap.Logger) (any, error) {
+	if c == nil {
+		return nil, nil
+	}
 	params := reqSubscribe{}
 
 	err := req.Unmarshal(&params)
@@ -30,9 +34,10 @@ func apiSubscribe(c *websocket.Conn, req *ReqMessage, log *zap.Logger) (any, err
 	}
 
 	if params.Action {
-		websockets.Subscribe(c, params.Command, params.Event, params.Arg)
+		websockets.Subscribe(c, params.Command, params.Event, params.Arg, event.EventHandlerMap)
 	} else {
-		websockets.Unsubscribe(c, params.Command, params.Event, params.Arg)
+		websockets.Unsubscribe(c, params.Command, params.Event, params.Arg, event.EventHandlerMap)
 	}
+
 	return true, nil
 }

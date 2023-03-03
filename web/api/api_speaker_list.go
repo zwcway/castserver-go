@@ -22,7 +22,7 @@ type responseSpeakerList struct {
 	ConnectTime int      `jp:"cTime,omitempty"`
 }
 
-func apiSpeakerList(c *websocket.Conn, req *ReqMessage, log *zap.Logger) (any, error) {
+func apiSpeakerList(c *websocket.Conn, req Requester, log *zap.Logger) (any, error) {
 	list := []responseSpeakerList{}
 
 	speaker.All(func(s *speaker.Speaker) {

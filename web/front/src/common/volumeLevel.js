@@ -19,12 +19,13 @@ function VolumeLevel(duration) {
     delete eles[i];
   };
 
-  this.push = id => {
+  this.push = (id, ele) => {
     if (maps['' + id] !== undefined) return;
-
+    ele.innerHTML='<div class="level-meter"></div>'
+    ele = ele.querySelector('.level-meter')
     maps['' + id] = eles.length;
     vals.push('');
-    eles.push(undefined);
+    eles.push(ele);
     this.length++;
   };
 
@@ -45,24 +46,10 @@ function VolumeLevel(duration) {
   };
 
   this.commitWidth = i => {
-    if (i < 0 || i >= eles.length) {
-      return;
-    }
     if (eles[i] === undefined) return;
     let e = eles[i].style;
-    if (e.width !== vals[i]) {
-      e.width = vals[i];
-    }
-  };
-
-  this.commitTransitionDuration = i => {
-    if (i < 0 || i >= eles.length) {
-      return;
-    }
-    if (eles[i] === undefined) return;
-    let e = eles[i].style;
-    if (e.transitionDuration !== dur) {
-      e.transitionDuration = dur;
+    if (e.right !== vals[i]) {
+      e.right = vals[i];
     }
   };
 
@@ -70,11 +57,8 @@ function VolumeLevel(duration) {
     if (i < 0 || i >= eles.length) {
       return;
     }
-    if (val instanceof Number) val = val + '%';
-    if (
-      (val instanceof String || typeof val === 'string') &&
-      !val.endsWith('%')
-    )
+    if (typeof val === 'number') val = val + '%';
+    else if ( typeof val === 'string' && !val.endsWith('%'))
       val = val + '%';
 
     vals[i] = val;

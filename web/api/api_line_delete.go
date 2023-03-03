@@ -5,6 +5,8 @@ import (
 
 	"github.com/fasthttp/websocket"
 	"github.com/zwcway/castserver-go/common/speaker"
+	"github.com/zwcway/castserver-go/receiver"
+	"github.com/zwcway/castserver-go/web/websockets"
 	"go.uber.org/zap"
 )
 
@@ -13,7 +15,7 @@ type requestLineDelete struct {
 	Move uint8 `jp:"moveTo"`
 }
 
-func apiLineDelete(c *websocket.Conn, req *ReqMessage, log *zap.Logger) (any, error) {
+func apiLineDelete(c *websocket.Conn, req Requester, log *zap.Logger) (any, error) {
 	var params requestLineDelete
 	err := req.Unmarshal(&params)
 	if err != nil {
@@ -29,6 +31,9 @@ func apiLineDelete(c *websocket.Conn, req *ReqMessage, log *zap.Logger) (any, er
 	if err != nil {
 		return nil, err
 	}
+
+	receiver.DelDLNA(nl)
+	websockets.BroadcastLineEvent(nl, websockets.Event_Line_Deleted)
 
 	return nl.ID, nil
 }
