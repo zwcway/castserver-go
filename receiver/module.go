@@ -30,7 +30,7 @@ func (receiveModel) Init(ctx utils.Context) error {
 	pipeline.NewPipeLine(line)
 
 	if config.EnableDLNA {
-		dlnaInstance, err = dlna.NewDLNAServer(ctx, line.Name)
+		dlnaInstance, line.UUID, err = dlna.NewDLNAServer(ctx, line.Name)
 		if err != nil {
 			return err
 		}

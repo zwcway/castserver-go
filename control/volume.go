@@ -3,6 +3,8 @@ package control
 import (
 	"github.com/zwcway/castserver-go/common/protocol"
 	"github.com/zwcway/castserver-go/common/speaker"
+	"github.com/zwcway/castserver-go/decoder/pipeline"
+	"github.com/zwcway/castserver-go/web/websockets"
 	"go.uber.org/zap"
 )
 
@@ -39,6 +41,13 @@ func ControlSpeakerVolume(sp *speaker.Speaker, vol int) {
 	}
 }
 
-func ControlLineVolume(line *speaker.Line, vol int) {
-	// 使用 dsp 处理音量
+func ControlLineVolume(line *speaker.Line, vol float64, mute bool) {
+	p := pipeline.FromLine(line)
+	if p == nil || p.EleVolume() == nil {
+		return
+	}
+	p.EleVolume().SetVolume(vol)
+	p.EleVolume().SetMute(mute)
+
+	websockets.BroadcastLineEvent(line, websockets.Event_Line_Edited)
 }

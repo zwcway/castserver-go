@@ -11,9 +11,7 @@ import (
 var log *zap.Logger
 
 type apiRouter struct {
-	allowBinary bool
-	allowText   bool
-	cb          func(c *websocket.Conn, req *ReqMessage, log *zap.Logger) (any, error)
+	cb func(c *websocket.Conn, req Requester, log *zap.Logger) (any, error)
 }
 
 func writeText(c *websocket.Conn, text string) {
@@ -24,13 +22,13 @@ func writeText(c *websocket.Conn, text string) {
 	}
 }
 
-func writePack(c *websocket.Conn, pack any, req *ReqMessage, log *zap.Logger) {
+func writePack(c *websocket.Conn, pack any, req Requester, log *zap.Logger) {
 	data, err := jsonpack.Marshal(pack)
 	if err != nil {
 		log.Error("marshal failed", zap.Error(err))
 		return
 	}
-	msg := []byte(req.RequestId)
+	msg := []byte(req.RequestId())
 	msg = append(msg, 0)
 	msg = append(msg, data...)
 
@@ -39,8 +37,8 @@ func writePack(c *websocket.Conn, pack any, req *ReqMessage, log *zap.Logger) {
 		log.Error("write message error", zap.Error(err))
 	}
 }
-func writeError(c *websocket.Conn, err *Error, req *ReqMessage, log *zap.Logger) {
-	msg := []byte(req.RequestId)
+func writeError(c *websocket.Conn, err *Error, req Requester, log *zap.Logger) {
+	msg := []byte(req.RequestId())
 	msg = append(msg, byte(err.Code))
 
 	log.Error("api error", zap.Int("code", int(err.Code)), zap.Error(err.Err))
@@ -53,13 +51,27 @@ func writeError(c *websocket.Conn, err *Error, req *ReqMessage, log *zap.Logger)
 }
 
 type ReqMessage struct {
-	RequestId string
-	Command   string
-	Req       []byte
+	id   string
+	cmd  string
+	body []byte
+}
+
+func (r *ReqMessage) RequestId() string {
+	return r.id
+}
+
+func (r *ReqMessage) Command() string {
+	return r.cmd
 }
 
 func (r *ReqMessage) Unmarshal(v any) error {
-	return jsonpack.Unmarshal(r.Req, v)
+	return jsonpack.Unmarshal(r.body, v)
+}
+
+type Requester interface {
+	RequestId() string
+	Command() string
+	Unmarshal(v any) error
 }
 
 type Error struct {

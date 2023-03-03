@@ -1,11 +1,7 @@
 <template>
   <div class="speaker-list">
-    <div v-for="sp in speakers" :key="sp.ip">
-      <SpeakerRow
-        :speaker="sp"
-        ref="speakerRow"
-        @domReady="speakerRowReady($event, sp.id)"
-      />
+    <div v-for="sp in speakers" :key="sp.id" :id="'speaker-' + sp.id">
+      <SpeakerRow :speaker="sp" />
     </div>
     <div class="notification is-primary is-light" v-if="speakers.length === 0">
       当前还没有连接任何的扬声器。
@@ -37,7 +33,6 @@ function renderVolumeLevel() {
 
   if (level.length) {
     level.commitWidth(frameIndex);
-    level.commitTransitionDuration(frameIndex);
     frameIndex++;
   }
   renderVolumeLevel.timer = window.requestAnimationFrame(renderVolumeLevel);
@@ -69,24 +64,12 @@ export default {
   watch: {
     speakers(newVal, oldVal) {
       cancelAnimationFrame(renderVolumeLevel.timer);
-      if (newVal.length === 0) {
-        level.clear();
-        return;
-      }
-      let newids = newVal.map(s => {
-        return s.id;
-      });
-      let i;
-      oldVal.forEach(s => {
-        if ((i = newids.indexOf(s.id)) >= 0) {
-          delete newids[i];
-          return;
-        }
-        level.remove(s.id);
-      });
-      newids.forEach(s => {
-        level.push(s.id);
-      });
+      level.clear();
+      this.$nextTick(() => {
+        newVal.forEach(s => {
+          level.push(s.id, document.getElementById('speaker-' + s.id).querySelector('.vue-slider-process'));
+        })
+      })
     },
   },
   methods: {
@@ -112,7 +95,7 @@ export default {
             break;
         }
       });
-      listenSpeakerLevelMeter((evt, levels) => {
+      listenSpeakerLevelMeter(levels => {
         levels.forEach(s => level.setValById(s[0], s[1]));
       });
     },
@@ -126,14 +109,11 @@ export default {
       }
       return -1;
     },
-    speakerRowReady(el, id) {
-      level.setEle(id, el);
-    },
   },
 };
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .speaker-list {
   .notification {
     justify-content: center;
@@ -144,6 +124,26 @@ export default {
     display: flex;
     top: initial;
     z-index: -1;
+  }
+}
+
+.vue-slider-process {
+  width: 100% !important;
+  left: 0 !important;
+  transition: none !important;
+  overflow: hidden;
+  position: relative;
+  background-color: transparent !important;
+  .level-meter {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    right:0;
+    background-color: pink;
+    transition-property: right;
+    transition-duration: 200ms;
+  
   }
 }
 </style>

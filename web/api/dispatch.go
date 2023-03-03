@@ -6,21 +6,22 @@ import (
 	"go.uber.org/zap"
 )
 
-var apiRouterList map[string]apiRouter = map[string]apiRouter{
-	"subscribe":      {false, true, apiSubscribe},
-	"speakerList":    {true, false, apiSpeakerList},
-	"speakerInfo":    {true, false, apiSpeakerInfo},
-	"speakerVolume":  {false, true, apiSpeakerVolume},
-	"setChannel":     {false, true, apiSpeakerSetChannel},
-	"lineList":       {false, true, apiLineList},
-	"lineInfo":       {false, true, apiLineInfo},
-	"deleteLine":     {false, true, apiLineDelete},
-	"createLine":     {false, true, apiLineCreate},
-	"lineVolume":     {false, true, apiLineVolume},
-	"setLineEQ":      {false, true, apiLineSetEqualizer},
-	"clearLineEQ":    {false, true, apiLineClearEqualizer},
-	"sendServerInfo": {false, true, apiSendServerInfo},
-	"spReconnect":    {false, true, apiReconnect},
+var apiRouterList = map[string]apiRouter{
+	"subscribe":      {apiSubscribe},
+	"speakerList":    {apiSpeakerList},
+	"speakerInfo":    {apiSpeakerInfo},
+	"speakerVolume":  {apiSpeakerVolume},
+	"setSpeaker":     {apiSpeakerEdit},
+	"lineList":       {apiLineList},
+	"lineInfo":       {apiLineInfo},
+	"deleteLine":     {apiLineDelete},
+	"createLine":     {apiLineCreate},
+	"lineVolume":     {apiLineVolume},
+	"linePipeLine":   {apiLinePipeLineInfo},
+	"setLineEQ":      {apiLineSetEqualizer},
+	"clearLineEQ":    {apiLineClearEqualizer},
+	"sendServerInfo": {apiSendServerInfo},
+	"spReconnect":    {apiReconnect},
 }
 
 func ApiDispatch(mt int, msg []byte, conn *websocket.Conn) {
@@ -33,9 +34,9 @@ func ApiDispatch(mt int, msg []byte, conn *websocket.Conn) {
 		if b == 0 {
 			if idx == 0 {
 				idx = i + 1
-				jp.RequestId = string(msg[:i])
+				jp.id = string(msg[:i])
 			} else {
-				jp.Command = string(msg[idx:i])
+				jp.cmd = string(msg[idx:i])
 				idx = i + 1
 				break
 			}
@@ -44,30 +45,34 @@ func ApiDispatch(mt int, msg []byte, conn *websocket.Conn) {
 			return
 		}
 	}
-	if jp.RequestId == "" && string(msg) == "ping" {
+	if jp.id == "" && string(msg) == "ping" {
 		apiPing(conn, &jp, log)
 		return
 	}
 	if mt != websocket.BinaryMessage {
 		return
 	}
-	if len(jp.Command) <= 0 || len(jp.Command) > 24 {
-		log.Error("command invalid", zap.String("cmd", jp.Command))
+	if len(jp.cmd) <= 0 || len(jp.cmd) > 24 {
+		log.Error("command invalid", zap.String("cmd", jp.cmd))
 		return
 	}
-	jp.Req = msg[idx:]
+	jp.body = msg[idx:]
 
-	if r, ok := apiRouterList[jp.Command]; ok {
+	if r, ok := apiRouterList[jp.cmd]; ok {
 
 		ret, err := r.cb(conn, &jp, log)
 
 		if err != nil {
-			writeError(conn, &Error{1, err}, &jp, log)
+			if err, ok := err.(*Error); ok {
+				writeError(conn, err, &jp, log)
+			} else {
+				writeError(conn, &Error{1, err}, &jp, log)
+			}
 		} else if ret != nil {
 			writePack(conn, ret, &jp, log)
 		}
 	}
-	log.Debug("command complete", zap.String("cmd", jp.Command))
+	log.Debug("command complete", zap.String("cmd", jp.cmd))
 }
 
 func Init(ctx utils.Context) {

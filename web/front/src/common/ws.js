@@ -7,8 +7,7 @@ import { isIP46, isPort } from '@/common/format';
 let beforeSend = {};
 let receiver = {};
 
-
-let sockthis = this
+let sockthis = this;
 let callback = {};
 let ws = undefined;
 let retried = 0;
@@ -21,11 +20,9 @@ const connectRetry = 500;
 let retryConnectTimeout = 0;
 let connected = [];
 
-
-
 function onConnected() {
   return new Promise((resolve, reject) => {
-    if (beforeSend["wsconnect"]) {
+    if (beforeSend['wsconnect']) {
       resolve();
       return;
     }
@@ -33,26 +30,26 @@ function onConnected() {
       resolve();
     } else connected.push(resolve);
   });
-};
+}
 
 function wsonopen() {
   store.dispatch('wsConnected');
   retried = 0;
   sendPing();
 
-  for (; 0 < connected.length;) {
+  for (; 0 < connected.length; ) {
     connected[0](sockthis);
     delete connected[0];
     connected = connected.slice(1);
   }
-};
+}
 
 function wsonerror(event) {
   if (event.type === 'error') {
     store.dispatch('wsDisconnected');
     nav2Settings();
   }
-};
+}
 function wsonclose() {
   store.dispatch('wsDisconnected');
   if (retried++ >= connectRetry) {
@@ -62,14 +59,13 @@ function wsonclose() {
   }
   console.log('websocket closing. retrying', retried);
 
-  if (retryConnectTimeout)
-    clearTimeout(retryConnectTimeout);
+  if (retryConnectTimeout) clearTimeout(retryConnectTimeout);
 
   retryConnectTimeout = setTimeout(() => {
     retryConnectTimeout = 0;
     connect(true);
   }, 1000);
-};
+}
 
 function onresponse(id, code, data) {
   if (callback[id] !== undefined) {
@@ -80,10 +76,9 @@ function onresponse(id, code, data) {
     return;
   }
 
-
   if (callback[id]) {
     let cb = callback[id];
-    let cmd = cb['command']
+    let cmd = cb['command'];
     let resolve = cb['resolve'];
     let reject = cb['reject'];
     let st = cb['st'];
@@ -98,20 +93,21 @@ function onresponse(id, code, data) {
       store.dispatch('showToast', `Received error:${code} (${id})`);
       reject(code, data);
     }
-  } else {  // 未配置回调
+  } else {
+    // 未配置回调
     console.log('Received Message: ', id, code, data);
   }
 }
 function wsonmessage(evt) {
   if (evt.data instanceof Blob) {
-    readBlob(evt.data)
+    readBlob(evt.data);
     return;
   } else if (typeof evt.data === 'string') {
-    readText(evt.data)
+    readText(evt.data);
     return;
   }
   console.log('Received invalid', evt);
-};
+}
 
 function readBlob(data) {
   let fileReader = new FileReader();
@@ -122,11 +118,18 @@ function readBlob(data) {
       id += String.fromCharCode(result[i]);
     }
     // 事件格式： event+evt+sub+data
-    if (result[0] === 101 && result[1] === 118 && result[2] === 101 && result[3] === 110 && result[4] === 116) {
-      let cmd = result[5] + ''
-      let evt = result[6] + ''
-      let arg = result[7] + ''
-      let data = decode(result.slice(8))
+    if (
+      result[0] === 101 &&
+      result[1] === 118 &&
+      result[2] === 101 &&
+      result[3] === 110 &&
+      result[4] === 116
+    ) {
+      let cmd = result[5] + '';
+      let evt = result[6] + '';
+      let arg = result[7] + '';
+      let data = decode(result.slice(8));
+
       if (receiver[evt + '-' + arg] instanceof Function) {
         receiver[evt + '-' + arg].call(undefined, data, cmd, evt);
       }
@@ -136,7 +139,7 @@ function readBlob(data) {
       if (receiver[cmd] instanceof Function) {
         receiver[cmd].call(undefined, data, cmd, evt);
       }
-      return
+      return;
     }
     // 普通格式： id+code+data
     for (let i = 5; i < 11 && result[i]; i++) {
@@ -148,7 +151,7 @@ function readBlob(data) {
 }
 
 function readText(data) {
-  if (data === "pong") {
+  if (data === 'pong') {
     setTimeout(() => {
       sendPing();
     }, 30000);
@@ -160,8 +163,8 @@ function readText(data) {
   }
 }
 
-let GoWSIP = "***Go-WS-IP***"
-let GoWSPort = "***Go-WS-Port***"
+let GoWSIP = '***Go-WS-IP***';
+let GoWSPort = '***Go-WS-Port***';
 
 function connect(force) {
   wsHost = store.state.settings.serverHost || GoWSIP;
@@ -169,27 +172,26 @@ function connect(force) {
 
   disconnect();
 
-  let portValid = isPort(wsPort)
-  let hostValid = isIP46(wsHost)
+  let portValid = isPort(wsPort);
+  let hostValid = isIP46(wsHost);
 
   if ((!hostValid || !portValid) && !force) {
     nav2Settings();
     return;
   }
 
-  if (beforeSend["wsconnect"]) {
-    ws = beforeSend["wsconnect"]()
+  if (beforeSend['wsconnect']) {
+    ws = beforeSend['wsconnect']();
     return;
   }
 
-
   ws = new WebSocket(`ws://${wsHost}:${wsPort}/api`);
 
-  ws.onopen = wsonopen
-  ws.onmessage = wsonmessage
-  ws.onclose = wsonclose
-  ws.onerror = wsonerror
-};
+  ws.onopen = wsonopen;
+  ws.onmessage = wsonmessage;
+  ws.onclose = wsonclose;
+  ws.onerror = wsonerror;
+}
 
 function send(cmd, params, options) {
   let opt_nocallback = options && options.noResponse;
@@ -202,7 +204,7 @@ function send(cmd, params, options) {
   for (let i in beforeSend) {
     if (beforeSend.hasOwnProperty(i) && i === cmd) {
       return new Promise((resolve, reject) => {
-        let ret = beforeSend[i](params)
+        let ret = beforeSend[i](params);
         console.log('mock', i, params, ret);
         resolve(ret);
       });
@@ -220,68 +222,66 @@ function send(cmd, params, options) {
     ws.send(encodeReq(id, cmd, params));
   }
 
-  return opt_nocallback
-    ? true
-    : promiseCallback(id, cmd);
-};
+  return opt_nocallback ? true : promiseCallback(id, cmd);
+}
 
 function sendPing() {
-  return ws.send("ping");
-};
+  return ws.send('ping');
+}
 
 function sendSubscribe(evt, act, sub, arg) {
   if (sub && !(sub instanceof Array)) {
-    sub = [sub]
+    sub = [sub];
   }
   return send('subscribe', { evt, act, sub, arg }, { noResponse: true });
-};
+}
 
 function receiveCommand(command, cb, evt) {
-  if (!(cb instanceof Function)) return
+  if (!(cb instanceof Function)) return;
   if (evt === undefined) {
     receiver['' + command] = cb;
     return;
   }
-  if (!(evt instanceof Array)) evt = [evt]
+  if (!(evt instanceof Array)) evt = [evt];
 
   evt.forEach(e => {
     receiver['' + e] = cb;
-  })
-};
+  });
+}
 
 function receiveEvent(evt, cb, arg) {
-  if (!(cb instanceof Function)) return
-  if (!(evt instanceof Array)) evt = [evt]
+  if (!(cb instanceof Function)) return;
+  if (!(evt instanceof Array)) evt = [evt];
 
   if (arg === undefined) {
     evt.forEach(e => {
       receiver['' + e] = cb;
-    })
-    return
+    });
+    return;
   }
-  if (!(arg instanceof Array)) arg = [arg]
+  if (!(arg instanceof Array)) arg = [arg];
 
   evt.forEach(e => {
     arg.forEach(a => {
       receiver[e + '-' + a] = cb;
-    })
-  })
-};
+    });
+  });
+}
 
 function removeEvent(command, evt, arg) {
   if (!(evt instanceof Array)) {
-    evt = [evt]
+    evt = [evt];
   }
   if (!(arg instanceof Array)) {
-    arg = [arg]
+    arg = [arg];
   }
   delete receiver['' + command];
   evt.forEach(e => {
     delete receiver['' + e];
     arg.forEach(a => {
       delete receiver[e + '-' + a];
-    })
-  })
+    });
+  });
 }
 
 function disconnect() {
@@ -291,16 +291,16 @@ function disconnect() {
   }
   retried = 0;
   callback = {};
-};
+}
 
 function addBeforeSend(cmd, mock) {
   if (mock instanceof Function) {
     beforeSend['' + cmd] = mock;
   }
-};
+}
 
 function getReceiver() {
-  return receiver
+  return receiver;
 }
 
 function promiseCallback(id, command) {
@@ -347,12 +347,14 @@ function encodeRaw(id, command, params) {
 
 function nav2Settings() {
   if (router.currentRoute.name === 'settings') return;
-  router.push({
-    name: 'settings',
-    params: {
-      forceTo: 'server',
-    },
-  }).catch(err => err);
+  router
+    .push({
+      name: 'settings',
+      params: {
+        forceTo: 'server',
+      },
+    })
+    .catch(err => err);
 }
 
 export default {

@@ -5,7 +5,8 @@
  * @returns {(function(*): void)|*}
  */
 export function throttleFunction(fn, delay) {
-  let timer, ret = undefined;
+  let timer,
+    ret = undefined;
   let func = function () {
     let _this = this;
     let args = arguments;
@@ -13,7 +14,7 @@ export function throttleFunction(fn, delay) {
       clearTimeout(timer);
       timer = null;
       fn.apply(_this, args);
-    }
+    };
     if (timer) {
       return ret;
     }
@@ -23,5 +24,5 @@ export function throttleFunction(fn, delay) {
     }, delay);
   };
 
-  return func
+  return func;
 }

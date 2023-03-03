@@ -1,5 +1,11 @@
 package websockets
 
+import (
+	"context"
+
+	"go.uber.org/zap"
+)
+
 const (
 	Command_MIN uint8 = iota
 	Command_SERVER
@@ -70,4 +76,10 @@ func findBEvent(es []broadcastEvent, e uint8) bool {
 	}
 
 	return false
+}
+
+// 事件开关回调
+type EventHandler struct {
+	On  func(evt uint8, arg int, ctx context.Context, log *zap.Logger)
+	Off func(evt uint8, arg int)
 }

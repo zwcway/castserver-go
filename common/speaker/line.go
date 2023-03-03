@@ -12,14 +12,16 @@ type Input struct {
 type Line struct {
 	ID   LineID
 	Name string
+	UUID string // dlna 标识
 
 	channels audio.ChannelMask
 
 	Input  *audio.Format // 输入格式
 	Output *audio.Format // 输出格式
 
-	Volume   int
-	Spectrum []float32
+	Volume     int
+	Spectrum   []float32
+	LevelMeter float64
 
 	Equalizer []dsp.FreqEqualizer
 }

@@ -11,8 +11,11 @@
           <div class="columns is-vcentered">
             <div class="column">
               <p class="title is-5">
-                <router-link :to="`/speaker/${speaker.id}`">
+                <router-link class="speaker-name" :to="`/speaker/${speaker.id}`">
                   {{ speaker.name }}
+                </router-link>
+                <router-link class="line-name" :to="`/line/${speaker.line.id}`">
+                  <a-button type="link">{{ speaker.line.name }}</a-button>
                 </router-link>
               </p>
               <p class="subtitle is-6">
@@ -110,8 +113,8 @@ export default {
       return `/channel/${item.channel.id}`;
     },
     showRateBits(sp) {
-      return formatRate(sp.rate) + '/' + formatBits(sp.bits)
-    }
+      return formatRate(sp.rate) + '/' + formatBits(sp.bits);
+    },
   },
 };
 </script>
@@ -129,5 +132,7 @@ export default {
   border-color: $scheme-main;
   background-color: $primary;
 }
-
+.line-name {
+  align-self: flex-end;
+}
 </style>

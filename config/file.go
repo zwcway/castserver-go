@@ -453,7 +453,7 @@ var configStruct = []cfgSection{
 	{"receive", []cfgKey{
 		{nil, "listen", "4416", parseReceiveListen},
 		{&ReceiveTempDir, "tempdir", "", parseTempDir},
-		{&EnableDLNA, "dlna", "true", nil},
+		{&EnableDLNA, "dlna", "false", nil},
 	}},
 	{"dlna", []cfgKey{
 		{nil, "listen", "4416", parseDLNAListen},

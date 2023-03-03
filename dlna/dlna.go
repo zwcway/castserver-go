@@ -15,8 +15,9 @@ type DLNAServer struct {
 	ctx utils.Context
 	log *zap.Logger
 
-	upnp *upnp.DeviceServer
-	c    chan int
+	defaultUUID string
+	upnp        *upnp.DeviceServer
+	c           chan int
 }
 
 func (s *DLNAServer) ListenAndServe() {
@@ -63,7 +64,7 @@ func (s *DLNAServer) DelInstance(uuid string) {
 }
 
 func (s *DLNAServer) newUPnPServer(ctx utils.Context, name string) (err error) {
-	s.upnp, err = upnp.NewDeviceServer(ctx, name)
+	s.upnp, s.defaultUUID, err = upnp.NewDeviceServer(ctx, name)
 	if err != nil {
 		return
 	}
@@ -90,7 +91,7 @@ func (s *DLNAServer) newUPnPServer(ctx utils.Context, name string) (err error) {
 	return nil
 }
 
-func NewDLNAServer(ctx utils.Context, name string) (s *DLNAServer, err error) {
+func NewDLNAServer(ctx utils.Context, name string) (s *DLNAServer, uuid string, err error) {
 	if name == "" {
 		name = config.APPNAME
 	}
@@ -103,6 +104,8 @@ func NewDLNAServer(ctx utils.Context, name string) (s *DLNAServer, err error) {
 	if err != nil {
 		return
 	}
+
+	uuid = s.defaultUUID
 
 	err = s.upnp.Init()
 

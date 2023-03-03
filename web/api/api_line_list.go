@@ -6,7 +6,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func apiLineList(c *websocket.Conn, req *ReqMessage, log *zap.Logger) (any, error) {
+func apiLineList(c *websocket.Conn, req Requester, log *zap.Logger) (any, error) {
 	list := []responseLineInfo{}
 
 	for id, l := range speaker.LineList() {

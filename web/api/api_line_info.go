@@ -21,12 +21,13 @@ type responseLineInfo struct {
 	ID     uint8  `jp:"id"`
 	Name   string `jp:"name"`
 	Volume int    `jp:"vol"`
+	Mute   bool   `jp:"mute"`
 
 	Speakers []responseSpeakerList `jp:"speakers,omitempty"`
 	Input    *responseSource       `jp:"source,omitempty"`
 }
 
-func apiLineInfo(c *websocket.Conn, req *ReqMessage, log *zap.Logger) (any, error) {
+func apiLineInfo(c *websocket.Conn, req Requester, log *zap.Logger) (any, error) {
 	var params requestLineInfo
 	err := req.Unmarshal(&params)
 	if err != nil {
