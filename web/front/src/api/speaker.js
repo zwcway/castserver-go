@@ -54,16 +54,11 @@ export function getSpeakerInfos(ids) {
 }
 
 export function getSpeakersVolumeLevel(ids) {
-  return socket
-    .send('volumeLevel', { ids })
-    .then(data => {
-      return data;
-    })
-    .catch((err, code, res) => { });
+  return socket.send('volumeLevel', { ids });
 }
 
 export function setSpeaker(id, key, val) {
-  data = {};
+  let data = {};
   if (typeof key === 'object') {
     Object.assign(data, key);
   } else if (typeof key === 'string') {

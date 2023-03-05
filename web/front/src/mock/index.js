@@ -59,6 +59,7 @@ Socket.addBeforeSend('speakerInfo', params => {
 });
 Socket.addBeforeSend('speakerVolume', params => {});
 Socket.addBeforeSend('setChannel', params => {});
+Socket.addBeforeSend('setSpeaker', params => {});
 Socket.addBeforeSend('lineVolume', params => {});
 Socket.addBeforeSend('setLineEQ', params => {});
 Socket.addBeforeSend('clearLineEQ', params => {});
@@ -85,7 +86,7 @@ Socket.addBeforeSend('lineInfo', function (params) {
     },
     'speakers|0-20': [
       {
-        id: '@integer(1,1000)',
+        'id|+1': 1,
         name: '@ctitle',
         channel: '@integer(1,11)',
         volume: '@integer(0, 100)',
@@ -135,4 +136,4 @@ setInterval(() => {
   let receiver = Socket.getReceiver();
   splevelmeter(receiver);
   linespectrum(receiver);
-}, 1000);
+}, 100);

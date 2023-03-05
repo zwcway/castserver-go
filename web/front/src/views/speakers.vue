@@ -60,6 +60,7 @@ export default {
   destroyed() {
     removeListenSpeakerEvent();
     removeListenSpeakerLevelMeter();
+    level.clear();
   },
   watch: {
     speakers(newVal, oldVal) {

@@ -1,20 +1,10 @@
 import { Command, Event, socket } from '@/common/request';
 
 export function getLineList() {
-  return socket
-    .send('lineList', {})
-    .then(data => {
-      return data;
-    })
-    .catch((err, code, res) => {});
+  return socket.send('lineList', {});
 }
 export function getLineInfo(id) {
-  return socket
-    .send('lineInfo', { id })
-    .then(data => {
-      return data;
-    })
-    .catch((err, code, res) => {});
+  return socket.send('lineInfo', { id });
 }
 
 export function setVolume(id, vol) {
