@@ -49,7 +49,7 @@
                 icon-class="x"
                 class="icon delete-line"
                 :size="0"
-                v-show="isLineRoute(line.id)"
+                v-show="line.id > 0 && isLineRoute(line.id)"
                 v-on:click.native.stop.prevent="
                   // 需要使用 native ，否则组件无法监听事件
                   deleteLine(line.id);
@@ -205,21 +205,38 @@ export default {
     },
     deleteLine(id) {
       if (id === undefined) return;
-      deleteLine(id, 0).then(() => {
-        let i = 0;
-        for (i = 0; i < this.lines.length; i++) {
-          if (this.lines[i].id == id) {
-            this.lines.splice(i, 1);
-            break;
-          }
-        }
-        if (this.lines.length === 0) {
-          this.$router.replace('/speakers');
-          return;
-        }
-        if (i > 0) i--;
+      if (!id) {
+        this.$alert();
+      }
+      this.$confirm({
+        title: '确定要移除该线路吗？',
+        content: h =>
+          h(
+            'div',
+            { style: 'color:red;' },
+            '移除线路后，该线路下的所有扬声器将自动移动至默认线路中。'
+          ),
+        okText: '是',
+        okType: 'danger',
+        cancelText: '否',
+        onOk() {
+          deleteLine(id, 0).then(() => {
+            let i = 0;
+            for (i = 0; i < this.lines.length; i++) {
+              if (this.lines[i].id == id) {
+                this.lines.splice(i, 1);
+                break;
+              }
+            }
+            if (this.lines.length === 0) {
+              this.$router.replace('/speakers');
+              return;
+            }
+            if (i > 0) i--;
 
-        this.$router.replace('/line/' + this.lines[i].id);
+            this.$router.replace('/line/' + this.lines[i].id);
+          });
+        },
       });
     },
     submitNewLine() {
