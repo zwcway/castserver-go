@@ -11,7 +11,7 @@ import (
 type Sample struct {
 	f       Control
 	bit     audio.Bits
-	rate    audio.AudioRate
+	rate    audio.Rate
 	channel audio.Channel
 }
 
@@ -43,7 +43,7 @@ func ControlSample(sp *speaker.Speaker) {
 	}
 }
 
-func ControlRate(sp *speaker.Speaker, rate audio.AudioRate) {
+func ControlRate(sp *speaker.Speaker, rate audio.Rate) {
 	sp.Rate = rate
 	ControlSample(sp)
 }

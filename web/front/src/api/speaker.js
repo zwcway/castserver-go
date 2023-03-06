@@ -73,7 +73,7 @@ export function setVolume(id, vol) {
   if (typeof vol === 'boolean') data['mute'] = vol;
   else data['vol'] = vol;
 
-  return socket.send('speakerVolume', data, { noResponse: true });
+  return socket.send('speakerVolume', data);
 }
 
 export function sendServerInfo(id) {

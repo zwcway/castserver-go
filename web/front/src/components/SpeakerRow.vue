@@ -11,27 +11,28 @@
           <div class="columns is-vcentered">
             <div class="column">
               <p class="title is-5">
-                <router-link class="speaker-name" :to="`/speaker/${speaker.id}`">
-                  {{ speaker.name }}
+                <router-link class="speaker-name" :to="`/speaker/${spInfo.id}`">
+                  {{ spInfo.name }}
                 </router-link>
-                <router-link class="line-name" :to="`/line/${speaker.line.id}`">
-                  <a-button type="link">{{ speaker.line.name }}</a-button>
+                <router-link
+                  v-if="spInfo.line"
+                  class="line-name"
+                  :to="`/line/${spInfo.line.id}`"
+                >
+                  <a-button type="link">{{ spInfo.line.name }}</a-button>
                 </router-link>
               </p>
               <p class="subtitle is-6">
-                <span>{{ speaker.ip }}</span>
+                <span>{{ spInfo.ip }}</span>
                 <span class="ratebits">{{ showRateBits(speaker) }}</span>
               </p>
             </div>
             <div class="column" v-on:click.stop="">
-              <vue-slider
-                v-model="volume"
-                :min="0"
-                :max="100"
-                :process="volumeLevelProcess"
-                ref="volumeSlider"
-                @change="volumeChanged"
-                @drag-end="volumeChanged('finally')"
+              <Volume
+                :volume="volume"
+                :mute="mute"
+                @change="setSpeakerVolume"
+                @mute="setSpeakerMute"
               />
             </div>
           </div>
@@ -47,61 +48,73 @@
 <script>
 import VueSlider from 'vue-slider-component';
 import 'vue-slider-component/theme/antd.css';
-import { setVolume as setSpeakerVolume } from '@/api/speaker';
-import { throttleFunction } from '@/common/throttle';
+import Volume from '@/components/Volume';
+import { setVolume as setSpeakerVolume, setSpeaker } from '@/api/speaker';
 import { formatRate, formatBits } from '@/common/format';
 import '@/assets/css/speaker.scss';
-
-let throttleTimer;
 
 export default {
   components: {
     VueSlider,
+    Volume,
   },
   props: {
     speaker: { type: Object, required: true },
   },
-  emits: ['domReady'],
   data() {
     let that = this;
     return {
       show: false,
+      spInfo: {},
       volumeLevelProcess(dotsPos) {
         return [[0, 0, { backgroundColor: 'pink' }]];
       },
     };
   },
-  watch: {},
+  watch: {
+    speaker(newVal, oldVal) {
+      this.spInfo = newVal;
+    },
+  },
   mounted() {
-    let that = this;
-    let si = setInterval(() => {
-      if (that.$refs.volumeSlider) {
-        that.$emit(
-          'domReady',
-          that.$refs.volumeSlider.$el.querySelector('.vue-slider-process')
-        );
-        clearInterval(si);
-      }
-    }, 100);
-
-    throttleTimer = throttleFunction(vol => {
-      setSpeakerVolume(this.speaker.id, vol);
-    }, 200);
+    this.spInfo = this.speaker;
   },
   computed: {
     volume: {
       get() {
-        return this.speaker.volume || 0;
+        return this.spInfo.vol || 0;
       },
       set(value) {
-        this.speaker.volume = value;
+        this.spInfo.vol = value;
+      },
+    },
+    mute: {
+      get() {
+        return this.spInfo.mute || false;
+      },
+      set(value) {
+        this.$set(this.spInfo, 'mute', value);
       },
     },
   },
   methods: {
-    volumeChanged(v) {
-      if (v === 'finally') return throttleTimer.finally();
-      throttleTimer(v);
+    setSpeakerVolume(v) {
+      setSpeakerVolume(this.spInfo.id, v)
+        .then(() => {
+          this.$set(this.spInfo, 'vol', v);
+        })
+        .catch(() => {
+          this.$set(this.spInfo, 'vol', this.volume);
+        });
+    },
+    setSpeakerMute(v) {
+      setSpeaker(this.spInfo.id, 'mute', v)
+        .then(() => {
+          this.$set(this.spInfo, 'mute', v);
+        })
+        .catch(() => {
+          this.$set(this.spInfo, 'mute', this.mute);
+        });
     },
     getTitleLink(item) {
       return `/${this.type}/${item.id}`;
@@ -110,6 +123,9 @@ export default {
       return `/line/${item.line.id}`;
     },
     getChannelLink(item) {
+      if (!item.channel) {
+        return '';
+      }
       return `/channel/${item.channel.id}`;
     },
     showRateBits(sp) {

@@ -12,149 +12,8 @@ import (
 
 	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/decoder"
+	"github.com/zwcway/castserver-go/decoder/ffmpeg/avutil"
 )
-
-func newErrorFromCCode(code C.int) error {
-	size := C.size_t(256)
-	buf := (*C.char)(C.av_mallocz(size))
-	defer C.av_free(unsafe.Pointer(buf))
-
-	if C.go_averror_is_eof(code) == 1 {
-		return &EofError{}
-	}
-
-	var err string
-	if C.av_strerror(code, buf, size-1) == 0 {
-		err = C.GoString(buf)
-	} else {
-		err = "Unknown error"
-	}
-	return &Error{
-		code: int(code),
-		err:  err,
-	}
-}
-
-type Error struct {
-	code int
-	err  string
-}
-
-func (e *Error) Error() string {
-	return fmt.Sprintf("[%d] %s", e.code, e.err)
-}
-
-type EofError struct{}
-
-func (e *EofError) Error() string {
-	return "eof error"
-}
-
-type AllocError struct {
-	Size int
-}
-
-func (e *AllocError) Error() string {
-	return fmt.Sprintf("alloc[%d] error", e.Size)
-}
-
-func IsEof(err error) bool {
-	_, ok := err.(*EofError)
-	return ok
-}
-
-func channelFromAV(ch C.uint64_t) audio.Channel {
-	switch ch {
-	case C.AV_CH_FRONT_LEFT:
-		return audio.AudioChannel_FRONT_LEFT
-	case C.AV_CH_FRONT_RIGHT:
-		return audio.AudioChannel_FRONT_RIGHT
-	case C.AV_CH_FRONT_CENTER:
-		return audio.AudioChannel_FRONT_CENTER
-	case C.AV_CH_LOW_FREQUENCY:
-		return audio.AudioChannel_LOW_FREQUENCY
-	case C.AV_CH_BACK_LEFT:
-		return audio.AudioChannel_BACK_LEFT
-	case C.AV_CH_BACK_RIGHT:
-		return audio.AudioChannel_BACK_RIGHT
-	case C.AV_CH_FRONT_LEFT_OF_CENTER:
-		return audio.AudioChannel_FRONT_LEFT_OF_CENTER
-	case C.AV_CH_FRONT_RIGHT_OF_CENTER:
-		return audio.AudioChannel_FRONT_RIGHT_OF_CENTER
-	case C.AV_CH_BACK_CENTER:
-		return audio.AudioChannel_BACK_CENTER
-	case C.AV_CH_SIDE_LEFT:
-		return audio.AudioChannel_SIDE_LEFT
-	case C.AV_CH_SIDE_RIGHT:
-		return audio.AudioChannel_SIDE_RIGHT
-	case C.AV_CH_TOP_CENTER:
-		return audio.AudioChannel_TOP_CENTER
-	case C.AV_CH_TOP_FRONT_LEFT:
-		return audio.AudioChannel_TOP_FRONT_LEFT
-	case C.AV_CH_TOP_FRONT_CENTER:
-		return audio.AudioChannel_TOP_FRONT_CENTER
-	case C.AV_CH_TOP_FRONT_RIGHT:
-		return audio.AudioChannel_TOP_FRONT_RIGHT
-	case C.AV_CH_TOP_BACK_LEFT:
-		return audio.AudioChannel_TOP_BACK_LEFT
-	case C.AV_CH_TOP_BACK_CENTER:
-		return audio.AudioChannel_TOP_BACK_CENTER
-	case C.AV_CH_TOP_BACK_RIGHT:
-		return audio.AudioChannel_TOP_BACK_RIGHT
-	case C.AV_CH_STEREO_LEFT:
-	case C.AV_CH_STEREO_RIGHT:
-	case C.AV_CH_WIDE_LEFT:
-	case C.AV_CH_WIDE_RIGHT:
-	}
-	return audio.AudioChannel_NONE
-}
-
-func bitsFromAV(b C.enum_AVSampleFormat) audio.Bits {
-	switch b {
-	case C.AV_SAMPLE_FMT_U8, C.AV_SAMPLE_FMT_U8P:
-		return audio.AudioBits_U8
-	case C.AV_SAMPLE_FMT_S16, C.AV_SAMPLE_FMT_S16P:
-		return audio.AudioBits_S16LE
-	case C.AV_SAMPLE_FMT_S32, C.AV_SAMPLE_FMT_S32P:
-		return audio.AudioBits_S32LE
-	case C.AV_SAMPLE_FMT_FLT, C.AV_SAMPLE_FMT_FLTP:
-		return audio.AudioBits_32LEF
-	case C.AV_SAMPLE_FMT_DBL:
-	case C.AV_SAMPLE_FMT_DBLP:
-	case C.AV_SAMPLE_FMT_S64:
-	case C.AV_SAMPLE_FMT_S64P:
-	}
-	return audio.AudioBits_NONE
-}
-
-func formatFromBits(b audio.Bits) C.enum_AVSampleFormat {
-	switch b {
-	case audio.AudioBits_U8:
-		return C.AV_SAMPLE_FMT_U8
-	case audio.AudioBits_S16LE:
-		return C.AV_SAMPLE_FMT_S16
-	case audio.AudioBits_S32LE, audio.AudioBits_S24LE:
-		return C.AV_SAMPLE_FMT_S32
-	case audio.AudioBits_32LEF:
-		return C.AV_SAMPLE_FMT_FLT
-	case audio.AudioBits_64LEF:
-		return C.AV_SAMPLE_FMT_DBL
-	}
-	return C.AV_SAMPLE_FMT_NONE
-}
-
-func channelsFromLayout(layout C.int64_t) (m audio.ChannelLayout) {
-	acSlice := []audio.Channel{}
-	for i := 0; i < 64; i++ {
-		ch := C.av_channel_layout_extract_channel(C.uint64_t(layout), C.int(i))
-		ac := channelFromAV(ch)
-		if !ac.IsValid() {
-			continue
-		}
-		acSlice = append(acSlice, ac)
-	}
-	return audio.NewChannelLayout(acSlice)
-}
 
 func New(ofh decoder.FileStreamerOpenFileHandler) decoder.FileStreamer {
 
@@ -192,14 +51,14 @@ func (c *avFormatContext) OpenFile(fileName string) (err error) {
 	if ret < 0 {
 		switch ret {
 		case -1:
-			return &AllocError{0}
+			return &avutil.AllocError{0}
 		}
 	}
 
-	bit := bitsFromAV(format)
+	bit := avutil.BitsFromAV(format)
 	c.format = &audio.Format{
 		SampleRate: audio.NewAudioRate(int(rate)),
-		Layout:     channelsFromLayout(C.av_get_default_channel_layout(channels)),
+		Layout:     avutil.ChannelsFromLayout(uint64(C.av_get_default_channel_layout(channels))),
 		SampleBits: bit,
 	}
 
@@ -239,13 +98,13 @@ func (c *avFormatContext) SetFormat(format *audio.Format) {
 }
 
 func (c *avFormatContext) initOutputFormat() error {
-	outputFmt := formatFromBits(audio.AudioBits_64LEF)
+	outputFmt := avutil.FormatFromBits(audio.AudioBits_64LEF)
 	rate := C.int(c.outputFmt.SampleRate.ToInt())
 	chs := C.int(c.outputFmt.Layout.Count)
 
 	ret := C.go_init_resample(c.ctx, rate, chs, outputFmt)
 	if ret < 0 {
-		return newErrorFromCCode(ret)
+		return avutil.NewErrorFromCCode(int(ret))
 	}
 	return nil
 }
@@ -278,9 +137,9 @@ func (c *avFormatContext) decode() (n int, err error) {
 	bufSize := C.int(0)
 	ret := C.go_decode(c.ctx)
 	if ret < 0 {
-		err = newErrorFromCCode(ret)
+		err = avutil.NewErrorFromCCode(int(ret))
 	} else if c.ctx.buffer == nil {
-		err = &AllocError{int(bufSize)}
+		err = &avutil.AllocError{Size: int(bufSize)}
 	} else {
 		n = int(ret)
 	}

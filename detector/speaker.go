@@ -11,7 +11,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func initSpeaker(sp *speaker.Speaker, res *speakerResponse) {
+func initSpeaker(sp *speaker.Speaker, res *SpeakerResponse) {
 	sp.ID = res.ID
 	sp.Name = res.MAC.String()
 	sp.RateMask = res.RateMask
@@ -24,7 +24,7 @@ func initSpeaker(sp *speaker.Speaker, res *speakerResponse) {
 	sp.ConnTime = utils.ZeroTime
 }
 
-func isSupport(res *speakerResponse) bool {
+func isSupport(res *SpeakerResponse) bool {
 	if !res.BitsMask.CombineSlice(config.SupportAudioBits) {
 		return false
 	}
@@ -35,7 +35,7 @@ func isSupport(res *speakerResponse) bool {
 	return true
 }
 
-func updateSpeaker(sp *speaker.Speaker, support bool, res *speakerResponse, isFirstConn bool) error {
+func updateSpeaker(sp *speaker.Speaker, support bool, res *SpeakerResponse, isFirstConn bool) error {
 	sp.Supported = support
 
 	sp.Timeout = config.OfflineValue()
@@ -59,7 +59,7 @@ func updateSpeaker(sp *speaker.Speaker, support bool, res *speakerResponse, isFi
 	return nil
 }
 
-func checkSpeaker(res *speakerResponse) error {
+func CheckSpeaker(res *SpeakerResponse) error {
 	support := isSupport(res)
 
 	sp := speaker.FindSpeakerByID(res.ID)

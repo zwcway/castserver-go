@@ -63,7 +63,9 @@ func (c *wsConnection) readFromClient() {
 			}
 			break
 		}
-		log.Debug("receive", zap.String("ip", c.Conn.RemoteAddr().String()), zap.ByteString("data", message))
+		if t != websocket.TextMessage || string(message) != "ping" {
+			log.Debug("receive", zap.String("ip", c.Conn.RemoteAddr().String()), zap.ByteString("data", message))
+		}
 		if ApiDispatch != nil {
 			ApiDispatch(t, message, c.Conn)
 		}

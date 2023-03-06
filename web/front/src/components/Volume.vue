@@ -18,8 +18,8 @@
       :disabled="isMute"
       :tooltip-placement="this.tooltipPlacement"
       ref="volumeSlider"
-      @change="onVolumeChanged"
-      @drag-end="onVolumeChanged('finally')"
+      @change="throttleTimer"
+      @drag-end="throttleTimer(curVolume)"
     />
   </div>
 </template>
@@ -40,17 +40,26 @@ export default {
     tooltipPlacement: { type: String, required: false },
   },
   emits: ['mute', 'change'],
+  watch: {
+    volume(newVal, oldVal) {
+      this.curVolume = newVal;
+    },
+    mute(newVal, oldVal) {
+      this.isMute = newVal;
+    }
+  },
   data() {
     return {
       isMute: false,
       curVolume: 0,
+      throttleTimer: () => {}
     };
   },
   mounted() {
-    this.isMute = this.mute;
     this.curVolume = this.volume;
+    this.isMute = this.mute;
 
-    throttleTimer = throttleFunction(vol => {
+    this.throttleTimer = throttleFunction(vol => {
       this.$emit('change', vol);
     }, 200);
   },
@@ -61,10 +70,6 @@ export default {
     onVolumeMute() {
       this.isMute = !this.isMute;
       this.$emit('mute', this.isMute);
-    },
-    onVolumeChanged(v) {
-      if (v === 'finally') return throttleTimer.finally();
-      throttleTimer(v);
     },
   },
 };

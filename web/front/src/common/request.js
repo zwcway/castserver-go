@@ -1,9 +1,10 @@
-import router from '@/router';
 import socket from '@/common/ws';
-import store from '@/store';
 
-if (process.env.NODE_ENV !== 'production' && process.env.Mock) {
-  require('../mock');
+if (process.env.NODE_ENV !== 'production') {
+  window.socket = socket
+  if ( process.env.Mock) {
+    require('../mock');
+  }
 }
 console.log(process.env.Mock);
 const Command = Object.freeze({

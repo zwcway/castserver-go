@@ -11,21 +11,28 @@ import (
 type Volume struct {
 	f      Control
 	Volume int
+	Mute   bool
 }
 
 func (s *Volume) Pack() (p *protocol.Package, err error) {
 	p, _ = s.f.Pack()
 	p.WriteUint8(uint8(s.Volume))
+	if s.Mute {
+		p.WriteUint8(1)
+	} else {
+		p.WriteUint8(0)
+	}
 
 	return
 }
 
-func ControlSpeakerVolume(sp *speaker.Speaker, vol int) {
+func ControlSpeakerVolume(sp *speaker.Speaker) {
 	if !sp.AbsoluteVol {
 		return
 	}
 	s := Volume{
-		Volume: vol,
+		Volume: sp.Volume,
+		Mute:   sp.IsMute,
 	}
 
 	p, err := s.Pack()

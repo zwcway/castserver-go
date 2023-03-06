@@ -5,6 +5,7 @@ import (
 	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/jsonpack"
 	"github.com/zwcway/castserver-go/common/speaker"
+	"go.uber.org/zap"
 )
 
 type notifySpeakerMoved struct {
@@ -45,7 +46,7 @@ func BroadcastSpeakerLineMovedEvent(sp *speaker.Speaker, from speaker.LineID, to
 }
 
 func BroadcastSpeakerEvent(sp *speaker.Speaker, evt uint8) error {
-	msg, err := jsonpack.Marshal(sp)
+	msg, err := jsonpack.Marshal(NewResponseSpeakerInfo(sp))
 	if err != nil {
 		return err
 	}
@@ -54,7 +55,7 @@ func BroadcastSpeakerEvent(sp *speaker.Speaker, evt uint8) error {
 }
 
 func BroadcastLineEvent(line *speaker.Line, evt uint8) error {
-	msg, err := jsonpack.Marshal(line)
+	msg, err := jsonpack.Marshal(NewResponseLineInfo(line))
 	if err != nil {
 		return err
 	}
@@ -77,6 +78,13 @@ func Broadcast(cmd, evt uint8, arg int, msg []byte) error {
 	for i, v := range msg {
 		id[7+i] = v
 	}
+
+	log.Debug("broadcast event",
+		zap.Uint8("cmd", cmd),
+		zap.Uint8("evt", evt),
+		zap.Int("arg", arg),
+		zap.Int("length", len(msg)),
+	)
 
 	for c, b := range WSHub.broadcast {
 		for _, e := range b {

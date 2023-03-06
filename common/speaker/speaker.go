@@ -24,11 +24,12 @@ type Speaker struct {
 	RateMask audio.AudioRateMask // 设备支持的采样率列表
 	BitsMask audio.BitsMask      // 设备支持的位宽列表
 	Channel  audio.Channel       // 当前设置的声道
-	Rate     audio.AudioRate     // 当前指定的采样率
+	Rate     audio.Rate          // 当前指定的采样率
 	Bits     audio.Bits          // 当前指定的位宽
 
 	AbsoluteVol bool // 支持绝对音量控制
 	Volume      int  // 音量
+	IsMute      bool
 
 	PowerSave bool       // 是否支持电源控制
 	PowerSate PowerState // 电源状态
@@ -121,7 +122,7 @@ func (sp *Speaker) ChangeLine(line LineID) {
 	refreshLine(line)
 }
 
-var list []Speaker
+var list []*Speaker
 var listByID map[ID]*Speaker
 
 var lock sync.Mutex
@@ -129,7 +130,7 @@ var lock sync.Mutex
 func Init() error {
 	maxSize := 0
 
-	list = make([]Speaker, maxSize)
+	list = make([]*Speaker, maxSize)
 	listByID = make(map[ID]*Speaker, 0)
 
 	initLine()
@@ -141,9 +142,13 @@ func CountSpeaker() int {
 	return len(list)
 }
 
+func AllSpeakers() []*Speaker {
+	return list
+}
+
 func All(cb func(*Speaker)) {
 	for _, sp := range list {
-		cb(&sp)
+		cb(sp)
 	}
 }
 
@@ -161,7 +166,7 @@ func AddSpeaker(id ID, line LineID, channel audio.Channel) (*Speaker, error) {
 	sp.Channel = channel
 	sp.State = State_OFFLINE
 
-	list = append(list, sp)
+	list = append(list, &sp)
 
 	listByID[sp.ID] = &sp
 	appendSpeakerToLine(&sp)
@@ -180,7 +185,7 @@ func DelSpeaker(id ID) error {
 
 	// 删除原始数据
 	for i, s := range list {
-		if &s == sp {
+		if s == sp {
 			list[i] = list[len(list)-1]
 			list = list[:len(list)-1]
 			break

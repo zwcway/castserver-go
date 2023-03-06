@@ -11,9 +11,10 @@ const JsonPackType = Object.freeze({
 let stringEncoder = new TextEncoder();
 let stringDecoder = new TextDecoder();
 
-let float32 = new DataView(new ArrayBuffer(4));
+let dataV = new DataView(new ArrayBuffer(4));
 class PackArray extends Array {
   numberSize(code) {
+    code = code > 0 ? code : -code;
     if (code < 0xff) {
       return 1;
     } else if (code <= 0xffff) {
@@ -33,12 +34,13 @@ class PackArray extends Array {
     }
   }
   pushNumber(code) {
+    code = code > 0 ? code : -code;
     if (code < 0xff) {
       this.push(code);
       return 1;
     } else if (code <= 0xffff) {
       this.push(code & 0xff);
-      this.push(code >> 8);
+      this.push((code >> 8) & 0xff);
       return 2;
     }
     // else if (code <= 0xffffff) {
@@ -73,12 +75,13 @@ class PackArray extends Array {
 
   encodeInteger(int) {
     let size = this.numberSize(int);
+    if (int < 0) size |= 0x08;
     this.pushTypeFlag(JsonPackType.INTEGER, size);
     this.pushNumber(int);
   }
   encodeFloat32(float) {
-    float32.setFloat32(float);
-    int = float32.getUint32();
+    dataV.setFloat32(0, float);
+    int = dataV.getUint32();
     let size = this.numberSize(int);
     this.pushTypeFlag(JsonPackType.FLOAT, size);
     this.pushNumber(int);
@@ -173,25 +176,20 @@ class UnPackArray {
     return this.r(0);
   }
   r16() {
-    return this.r(0) | (this.r(0) << 8);
+    return (this.r(0) << 8) | (this.r(0) << 0);
   }
   r24() {
-    return this.r(0) | (this.r(0) << 8) | (this.r(0) << 16);
+    return (this.r(0) << 16) | (this.r(0) << 8) | (this.r(0) << 0);
   }
   r32() {
-    return this.r(0) | (this.r(0) << 8) | (this.r(0) << 16) | (this.r(0) << 24);
+    return (this.r(0) << 24) | (this.r(0) << 16) | (this.r(0) << 8) | (this.r(0) << 0);
   }
   rNumber(flag) {
-    switch (flag) {
-      case 1:
-        return this.r8();
-      case 2:
-        return this.r16();
-      // case 3: return this.r24()
-      case 4:
-        return this.r32();
+    dataV.setUint32(0, 0);
+    for (let i = 0; i < (flag & 0x07); i++) {
+      dataV.setUint8(3 - i, this.r(0))
     }
-    throw 'unknown flag';
+    return dataV.getUint32()
   }
   slice(len) {
     return this.array.slice(this.pos, this.pos + len);
@@ -205,22 +203,15 @@ class UnPackArray {
   }
 
   decodeInteger(flag) {
-    switch (flag) {
-      case 1:
-        return this.r8();
-      case 2:
-        return this.r16();
-      case 3:
-        return this.r24();
-      case 4:
-        return this.r32();
-    }
-    throw 'decode failed';
+    let i = this.rNumber(flag)
+    if ((flag & 0x08) === 0) return i;
+    return -i;
   }
   decodeFloat32(flag) {
+    this.array.slice(this.pos, this.pos + 4)
     let i = this.decodeInteger(flag);
-    float32.setInt32(i);
-    return float32.getFloat32();
+    dataV.setUint32(0, i);
+    return dataV.getFloat32();
   }
 
   decodeBoolean(flag) {

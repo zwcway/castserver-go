@@ -22,13 +22,14 @@ func TestMarshal(t *testing.T) {
 	}{
 		{"uint8", args{uint8(1)}, []byte{0x11, 0x01}, false},
 		{"uint8_256", args{uint8(0xff)}, []byte{0x11, 0xff}, false},
-		{"uint8-1", args{uint8(intn)}, []byte{0x11, 0xff}, false},
+		{"uint8-1", args{int8(intn)}, []byte{0x19, 0x01}, false},
 
 		{"uint16", args{uint16(1)}, []byte{0x11, 0x01}, false},
-		{"int16-1", args{uint16(intn)}, []byte{0x12, 0xff, 0xff}, false},
+		{"int16-1", args{int16(intn)}, []byte{0x19, 0x01}, false},
 
 		{"uint32", args{uint32(1)}, []byte{0x11, 0x01}, false},
-		{"int32-1", args{uint32(intn)}, []byte{0x14, 0xff, 0xff, 0xff, 0xff}, false},
+		{"uint32-1144422400", args{uint32(1144422400)}, []byte{0x14, 0x00, 0x80, 0x36, 0x44}, false},
+		{"int32-1", args{int32(intn)}, []byte{0x19, 0x01}, false},
 
 		{"bool0", args{false}, []byte{0x20}, false},
 		{"bool1", args{true}, []byte{0x21}, false},

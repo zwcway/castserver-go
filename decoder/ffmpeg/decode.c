@@ -44,7 +44,7 @@ static const int go_init_resample(GOAVDecoder *ctx, int rate, int channels, enum
     {
         return -250;
     }
-    int64_t inChannelLayout = av_get_default_channel_layout(ctx->codecCtx->channels);
+    int64_t inChannelLayout = av_get_default_channel_layout(channels);
 
     if (ctx->swrCtx == NULL)
     {

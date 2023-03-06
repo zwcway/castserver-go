@@ -31,7 +31,12 @@
         </span>
       </div>
       <div>
-        <Volume :volume="volume" :mute="line.mute || false" @change="onVolumeChanged" tooltip-placement="bottom"/>
+        <Volume
+          :volume="volume"
+          :mute="line.mute || false"
+          @change="onVolumeChanged"
+          tooltip-placement="bottom"
+        />
         <a-select
           :value="layout"
           class="layout-select"
@@ -104,10 +109,10 @@
             </span>
             <span
               class="channel-name user-select-none"
-              @click.stop.prevent="onShowChannelInfo(sp.channel)"
-              v-show="channelAttr[sp.channel]"
+              v-if="sp.ch && channelAttr[sp.ch]"
+              @click.stop.prevent="onShowChannelInfo(sp.ch)"
             >
-              {{ showChannelName(sp.channel) }}
+              {{ showChannelName(sp.ch) }}
               <a-button
                 icon="close"
                 @click.stop.prevent="onRemoveSPChannel(sp)"
@@ -115,7 +120,7 @@
             </span>
             <a-button
               type="link"
-              v-show="!infomation.channelId && !channelAttr[sp.channel]"
+              v-if="!sp.ch || (!infomation.channelId && !channelAttr[sp.ch])"
               @click.stop.prevent="onSpecifyChannel(sp.id)"
             >
               指定声道
@@ -123,14 +128,12 @@
           </div>
           <span class="ip">{{ sp.ip }}</span>
           <span class="ratebits">{{ showRatebits(sp) }}</span>
-          <vue-slider
-            v-model="sp.volume"
-            :min="0"
-            :max="100"
-            :process="speakerVolumeLevelProcess"
+          <Volume
+            :volume="sp.vol"
+            :mute="sp.mute"
             tooltip-placement="top"
             @change="onSpeakerVolumeChanged($event, sp.id)"
-            @drag-end="onSpeakerVolumeChanged('finally', sp.id)"
+            @mute="onSpeakerVolumeMute($event, sp.id)"
           />
         </li>
       </ul>
@@ -149,6 +152,7 @@
       <equalizer
         id="equalizer"
         :bands="equalizerBands"
+        :eq="line.eq"
         ref="equalizer"
         @change="onEQChange"
       />
@@ -200,14 +204,11 @@ import {
   listenSpeakerLevelMeter,
   removeListenSpeakerLevelMeter,
 } from '@/api/speaker';
-import { throttleFunction } from '@/common/throttle';
 import { createPopper } from '@popperjs/core';
 import { formatRate, formatBits, formatLayout } from '@/common/format';
 import { scrollTo } from '@/common/window';
 import '@/assets/css/popper.scss';
 import '@/assets/css/speaker.scss';
-
-let speakerThrottleTimer;
 
 var SP, ctx;
 let spdata = [];
@@ -272,7 +273,7 @@ export default {
   components: {
     VueSlider,
     Equalizer,
-    Volume
+    Volume,
   },
   data() {
     return {
@@ -314,6 +315,7 @@ export default {
         this.specifyChannel = 0;
         return;
       }
+      this.$set(this.line, 'eq', [])
       this.specifyChannel = 0;
       this.infomation = {};
       this.loadData();
@@ -346,10 +348,10 @@ export default {
   computed: {
     volume: {
       get() {
-        return this.line.volume || 0;
+        return this.line.vol || 0;
       },
       set(value) {
-        this.line.volume = value;
+        this.line.vol = value;
       },
     },
     eqBandsSelected: {
@@ -367,6 +369,16 @@ export default {
   mounted() {
     this.initSpectrum();
     socket.onConnected().then(() => this.loadData());
+    this.$nextTick(function () {
+      document.addEventListener(
+        'keyup',
+        (this.onKeyUp = e => {
+          if (e.key === 'Escape') {
+            this.isLineNameEdit = false;
+          }
+        })
+      );
+    });
   },
   destroyed() {
     cancelAnimationFrame(spRequestId);
@@ -374,6 +386,7 @@ export default {
     removeListenSpeakerLevelMeter();
     level.clear();
     this.$destroyAll();
+    document.removeEventListener('keyup', this.onKeyUp);
   },
   activated() {
     // keep-alived 开启后生效
@@ -423,10 +436,11 @@ export default {
       this.channelSpeakers = {};
       let speakers = {};
       this.line.speakers.forEach((sp, i) => {
-        if (speakers[sp.channel] === undefined) {
-          speakers[sp.channel] = [];
+        if (!sp.ch) return;
+        if (speakers[sp.ch] === undefined) {
+          speakers[sp.ch] = [];
         }
-        speakers[sp.channel].push(sp);
+        speakers[sp.ch].push(sp);
       });
       this.channelSpeakers = speakers;
 
@@ -495,14 +509,12 @@ export default {
       setLineVolume(this.line.id, v);
     },
     onSpeakerVolumeChanged(v, id) {
-      if (v === 'finally') return speakerThrottleTimer.finally();
-      speakerThrottleTimer(id, v);
+      setSpeakerVolume(id, v);
+    },
+    onSpeakerVolumeMute(v, id) {
+      setSpeaker(id, 'mute', v);
     },
     initSpectrum() {
-      speakerThrottleTimer = throttleFunction((id, vol) => {
-        setSpeakerVolume(id, vol);
-      }, 200);
-
       cancelAnimationFrame(spRequestId);
 
       SP = document.getElementById('spectrum');
@@ -543,7 +555,7 @@ export default {
         cancelText: '否',
         onOk() {
           setSpeaker(speaker.id, 'ch', -1).then(() => {
-            that.changeSpeakerAttrById(speaker.id, 'channel', 0);
+            that.changeSpeakerAttrById(speaker.id, 'ch', 0);
             that.onShowChannelInfo(that.shownChannelId);
           });
         },
@@ -555,7 +567,7 @@ export default {
       if (spid) {
         setSpeaker(spid, 'ch', ch)
           .then(() => {
-            this.changeSpeakerAttrById(spid, 'channel', ch);
+            this.changeSpeakerAttrById(spid, 'ch', ch);
           })
           .finally(() => {
             // this.$router.go(-1);
@@ -603,7 +615,7 @@ export default {
     showSourceFormat(src) {
       if (src === undefined) return '';
       return (
-        formatRate(src.rate) + '/' + src.bits + '/' + formatLayout(src.channel)
+        formatRate(src.rate) + '/' + src.bits + '/' + formatLayout(src.channels)
       );
     },
     onChannelMouseHover(id, shown) {

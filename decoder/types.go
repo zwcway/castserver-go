@@ -55,7 +55,7 @@ type ChannelSamples []float64
 
 // 对应ffmpeg中的planar类型
 type Samples struct {
-	Size     int
+	Size     int //每声道样本数量
 	Format   *audio.Format
 	Buffer   []ChannelSamples
 	LastErr  error

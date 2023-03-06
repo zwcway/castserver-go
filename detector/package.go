@@ -10,8 +10,7 @@ import (
 	utils "github.com/zwcway/castserver-go/utils"
 )
 
-type speakerResponse struct {
-	PT        protocol.Type
+type SpeakerResponse struct {
 	Ver       uint8
 	ID        speaker.ID
 	Connected bool
@@ -38,7 +37,7 @@ func bool2byte(b bool) byte {
 	return 0
 }
 
-func (r *speakerResponse) Unpack(p *protocol.Package) (err error) {
+func (r *SpeakerResponse) Unpack(p *protocol.Package) (err error) {
 	var (
 		i8  uint8
 		i16 uint16
@@ -50,7 +49,10 @@ func (r *speakerResponse) Unpack(p *protocol.Package) (err error) {
 		err = newUnpackError("protocol type", p.LastBytes(1), err)
 		return
 	}
-	r.PT = protocol.Type(i8)
+	if protocol.PT_SpeakerInfo == protocol.Type(i8) {
+		err = newUnpackError("protocol type error", p.LastBytes(1), nil)
+		return
+	}
 
 	i8, err = p.ReadUint8()
 	if err != nil {

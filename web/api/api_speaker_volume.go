@@ -9,21 +9,22 @@ import (
 
 type requestVolume struct {
 	ID     int32  `jp:"id"`
-	Volume uint32 `jp:"vol"`
-	Mute   bool   `jp:"mute"`
+	Volume uint32 `jp:"vol,omitempty"`
+	Mute   bool   `jp:"mute,omitempty"`
 }
 
 func apiSpeakerVolume(c *websocket.Conn, req Requester, log *zap.Logger) (any, error) {
-	var sp requestVolume
-	err := req.Unmarshal(&sp)
+	var p requestVolume
+	err := req.Unmarshal(&p)
 	if err != nil {
 		return nil, err
 	}
-	s := speaker.FindSpeakerByID(speaker.ID(sp.ID))
-	if s == nil {
+	sp := speaker.FindSpeakerByID(speaker.ID(p.ID))
+	if sp == nil {
 		return nil, nil
 	}
 
-	control.ControlSpeakerVolume(s, int(sp.Volume))
-	return nil, nil
+	sp.Volume = int(p.Volume)
+	control.ControlSpeakerVolume(sp)
+	return true, nil
 }

@@ -12,14 +12,15 @@ export function setVolume(id, vol) {
   if (typeof vol === 'boolean') data['mute'] = vol;
   else data['vol'] = vol;
 
-  return socket.send('lineVolume', data, { noResponse: true });
+  return socket.send('lineVolume', data);
 }
 
 export function setEqualizer(id, freq, gain, q) {
-  return socket.send('setLineEQ', { id, freq, gain, q }, { noResponse: true });
+  if (q === undefined) q = 0;
+  return socket.send('setLineEQ', { id, freq, gain, q });
 }
 export function clearEqualizer(id) {
-  return socket.send('clearLineEQ', { id }, { noResponse: true });
+  return socket.send('clearLineEQ', { id });
 }
 
 let evts = [Event.Line_Created, Event.Line_Deleted, Event.Line_Edited];

@@ -29,11 +29,7 @@ func apiLineCreate(c *websocket.Conn, req Requester, log *zap.Logger) (any, erro
 		return nil, fmt.Errorf("add new line faild")
 	}
 
-	line := responseLineInfo{
-		ID:       uint8(nl.ID),
-		Name:     nl.Name,
-		Speakers: []responseSpeakerList{},
-	}
+	line := websockets.NewResponseLineInfo(nl)
 
 	receiver.AddDLNA(nl)
 	websockets.BroadcastLineEvent(nl, websockets.Event_Line_Created)

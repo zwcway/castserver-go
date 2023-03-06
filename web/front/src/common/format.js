@@ -89,9 +89,10 @@ export function formatRate(rate) {
 }
 
 export function formatBits(bit) {
-  if (typeof bit !== 'number') {
-    bit = parseInt(bit);
+  if (typeof bit === 'string') {
+    return bit;
   }
+  bit = parseInt(bit);
   return bit + '';
 }
 

@@ -38,6 +38,7 @@ func (d *Decoder) readInt32(s uint32) (uint32, error) {
 	if len(d.d) < int(d.pos)+1 {
 		return 0, &endError{}
 	}
+	s &= 0x07
 	i := d.d[d.pos : d.pos+s]
 
 	d.pos += s
@@ -46,9 +47,9 @@ func (d *Decoder) readInt32(s uint32) (uint32, error) {
 	case 1:
 		return uint32(i[0]), nil
 	case 2:
-		return uint32(i[0]) | (uint32(i[1]) << 8), nil
+		return (uint32(i[0])) | (uint32(i[1]) << 8), nil
 	case 4:
-		return uint32(i[0]) | (uint32(i[1]) << 8) | (uint32(i[2]) << 16) | (uint32(i[3]) << 24), nil
+		return (uint32(i[0])) | (uint32(i[1]) << 8) | (uint32(i[2]) << 16) | (uint32(i[3]) << 24), nil
 	}
 
 	return 0, &InvalidJsonPackError{d.pos - 1, byte(s), []byte{1, 2, 4}}
@@ -154,11 +155,23 @@ func (d *Decoder) decodeInt32(r reflect.Value, s uint32, f string, skip bool) er
 	}
 	switch r.Kind() {
 	case reflect.Int8, reflect.Int, reflect.Int16, reflect.Int32, reflect.Int64:
-		r.SetInt(int64(i))
+		if s&0x08 > 0 {
+			r.SetInt(-int64(i))
+		} else {
+			r.SetInt(int64(i))
+		}
 	case reflect.Uint8, reflect.Uint, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		r.SetUint(uint64(i))
+		if s&0x08 > 0 {
+			r.SetUint(uint64(-int64(i)))
+		} else {
+			r.SetUint(uint64(i))
+		}
 	case reflect.Float32, reflect.Float64:
-		r.SetFloat(float64(i))
+		if s&0x08 > 0 {
+			r.SetFloat(-float64(i))
+		} else {
+			r.SetFloat(float64(i))
+		}
 	}
 
 	return nil
@@ -203,7 +216,7 @@ func (d *Decoder) decodeBool(r reflect.Value, s uint32, f string, skip bool) err
 }
 
 func (d *Decoder) decodeArray(r reflect.Value, s uint32, f string, skip bool) error {
-	err := needReflectKind(skip, f, r, reflect.Slice)
+	err := needReflectKind(skip, f, r, reflect.Slice, reflect.Array)
 	if err != nil {
 		return err
 	}
@@ -272,7 +285,13 @@ func (d *Decoder) reflectMap2Struct(r reflect.Value, l uint32, f string, skip bo
 			if _, ok := sf.tags["stop"]; ok {
 				return nil
 			}
-			err = d.reflectObject(sf.r, key, skip)
+			if sf.r.Kind() == reflect.Pointer {
+				spr := reflect.New(sf.r.Type().Elem())
+				err = d.reflectObject(spr.Elem(), key, skip)
+				sf.r.Set(spr)
+			} else {
+				err = d.reflectObject(sf.r, key, skip)
+			}
 			delete(fields, key)
 		} else {
 			// struct中没有该键，但是解码需要继续
@@ -284,7 +303,7 @@ func (d *Decoder) reflectMap2Struct(r reflect.Value, l uint32, f string, skip bo
 		}
 	}
 
-	// 对于未指定 omit 的键，需要抛出异常
+	// 对于未指定 omitempty 的键，需要抛出异常
 	for k, f := range fields {
 		if _, ok := f.tags["omitempty"]; !ok {
 			return &EmptyUnmarshalError{k}

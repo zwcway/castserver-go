@@ -26,9 +26,10 @@ type jsonResp struct {
 
 func ApiDispatchDevel(ctx *fasthttp.RequestCtx) bool {
 	path := string(ctx.Path())
-	if path[:5] != "/api/" {
+	if len(path) < 5 || path[:5] != "/api/" {
 		return false
 	}
+	apiRouterList["addSpeaker"] = apiRouter{apiSpeakerCreate}
 	r, ok := apiRouterList[path[5:]]
 	if !ok {
 		return false
