@@ -17,6 +17,7 @@ var apiRouterList = map[string]apiRouter{
 	"deleteLine":     {apiLineDelete},
 	"createLine":     {apiLineCreate},
 	"lineVolume":     {apiLineVolume},
+	"setLine":        {apiLineEdit},
 	"linePipeLine":   {apiLinePipeLineInfo},
 	"setLineEQ":      {apiLineSetEqualizer},
 	"clearLineEQ":    {apiLineClearEqualizer},
@@ -63,8 +64,8 @@ func ApiDispatch(mt int, msg []byte, conn *websocket.Conn) {
 		ret, err := r.cb(conn, &jp, log)
 
 		if err != nil {
-			if err, ok := err.(*Error); ok {
-				writeError(conn, err, &jp, log)
+			if e, ok := err.(*Error); ok {
+				writeError(conn, e, &jp, log)
 			} else {
 				writeError(conn, &Error{1, err}, &jp, log)
 			}
@@ -72,7 +73,7 @@ func ApiDispatch(mt int, msg []byte, conn *websocket.Conn) {
 			writePack(conn, ret, &jp, log)
 		}
 	}
-	log.Debug("command complete", zap.String("cmd", jp.cmd))
+	// log.Debug("command complete", zap.String("cmd", jp.cmd))
 }
 
 func Init(ctx utils.Context) {

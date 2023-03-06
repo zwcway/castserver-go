@@ -24,11 +24,12 @@ func (j *Encoder) writeType(t uint32, size uint32) {
 }
 
 func (j *Encoder) writeInteger(t uint32, size uint32) {
-	if size == 1 {
+	switch size & 0x07 {
+	case 1:
 		*j = append(*j, byte(t))
-	} else if size == 2 {
+	case 2:
 		*j = append(*j, byte(t), byte(t>>8))
-	} else if size == 4 {
+	case 4:
 		*j = append(*j, byte(t), byte(t>>8), byte(t>>16), byte(t>>24))
 	}
 }
@@ -37,15 +38,40 @@ func (j *Encoder) writeFloat(t float32) {
 	j.writeInteger(bits, 4)
 }
 
-func (j *Encoder) encodeInt8(val uint8) {
-	j.encodeInt32(uint32(val))
+func (j *Encoder) encodeInt8(val int8) {
+	if val >= 0 {
+		j.encodeUint32(uint32(val))
+	} else {
+		j.encodeInt32(-int32(-val))
+	}
+}
+func (j *Encoder) encodeUint8(val uint8) {
+	j.encodeUint32(uint32(val))
 }
 
-func (j *Encoder) encodeInt16(val uint16) {
-	j.encodeInt32(uint32(val))
+func (j *Encoder) encodeInt16(val int16) {
+	if val >= 0 {
+		j.encodeUint32(uint32(val))
+	} else {
+		j.encodeInt32(-int32(-val))
+	}
+}
+func (j *Encoder) encodeUint16(val uint16) {
+	j.encodeUint32(uint32(val))
 }
 
-func (j *Encoder) encodeInt32(val uint32) {
+func (j *Encoder) encodeInt32(val int32) {
+	var i uint32 = uint32(val)
+	var size uint32 = j.intSize(i)
+	if val < 0 {
+		i = uint32(-val)
+		size = j.intSize(i) | 0x08
+	}
+
+	j.writeType(JSONPACK_NUMBER, size)
+	j.writeInteger(i, size)
+}
+func (j *Encoder) encodeUint32(val uint32) {
 	size := j.intSize(val)
 	j.writeType(JSONPACK_NUMBER, size)
 	j.writeInteger(val, size)
@@ -99,14 +125,32 @@ func (j *Encoder) reflectArray(r reflect.Value, t reflect.Type) {
 type structFieldInfo struct {
 	name string
 	idx  int
+	tr   reflect.Value
+	tf   reflect.Type
 }
 
-func (j *Encoder) reflectMap(r reflect.Value, t reflect.Type) {
+func isEmpty(r reflect.Value) bool {
+	switch r.Kind() {
+	case reflect.Slice:
+		return r.Len() == 0
+	case reflect.Pointer:
+		return r.IsNil()
+	}
+
+	return false
+}
+
+func (j *Encoder) collectMap(r reflect.Value, t reflect.Type) []structFieldInfo {
 	l := r.NumField()
 	ss := []structFieldInfo{}
 
 	for i := 0; i < l; i++ {
 		tf := t.Field(i)
+		if tf.Anonymous {
+			as := j.collectMap(r.Field(i), tf.Type)
+			ss = append(ss, as...)
+			continue
+		}
 		name := tf.Tag.Get("jp")
 		tags := strings.Split(name, ",")
 		if name == "" {
@@ -125,32 +169,29 @@ func (j *Encoder) reflectMap(r reflect.Value, t reflect.Type) {
 		}
 		field := r.Field(i)
 
-		if omitempty {
-			switch field.Kind() {
-			case reflect.Slice:
-				if field.Len() == 0 {
-					continue
-				}
-			case reflect.Pointer:
-				if field.IsNil() {
-					continue
-				}
-			}
+		if omitempty && isEmpty(field) {
+			continue
 		}
 
 		ss = append(ss, structFieldInfo{
 			name: name,
 			idx:  i,
+			tf:   tf.Type,
+			tr:   r.Field(i),
 		})
 	}
 
+	return ss
+}
+
+func (j *Encoder) reflectMap(r reflect.Value, t reflect.Type) {
+	ss := j.collectMap(r, t)
+
 	j.EncodeMap(uint32(len(ss)))
 	for _, s := range ss {
-		tf := t.Field(s.idx)
-		name := s.name
-
-		j.encodeString(name)
-		j.reflectValue(r.Field(s.idx), tf.Name)
+		tf := s.tf
+		j.encodeString(s.name)
+		j.reflectValue(s.tr, tf.Name())
 	}
 }
 
@@ -170,17 +211,17 @@ func (j *Encoder) reflectValue(r reflect.Value, field string) error {
 	case reflect.Bool:
 		j.encodeBool(r.Bool())
 	case reflect.Int, reflect.Int32:
-		j.encodeInt32(uint32(r.Int()))
+		j.encodeInt32(int32(r.Int()))
 	case reflect.Uint, reflect.Uint32:
-		j.encodeInt32(uint32(r.Uint()))
+		j.encodeUint32(uint32(r.Uint()))
 	case reflect.Int8:
-		j.encodeInt8(uint8(r.Int()))
+		j.encodeInt8(int8(r.Int()))
 	case reflect.Uint8:
-		j.encodeInt8(uint8(r.Uint()))
+		j.encodeUint8(uint8(r.Uint()))
 	case reflect.Int16:
-		j.encodeInt16(uint16(r.Int()))
+		j.encodeInt16(int16(r.Int()))
 	case reflect.Uint16:
-		j.encodeInt16(uint16(r.Uint()))
+		j.encodeUint16(uint16(r.Uint()))
 	case reflect.Float32:
 		j.encodeFloat32(float32(r.Float()))
 	default:

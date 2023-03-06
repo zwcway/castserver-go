@@ -21,7 +21,7 @@ type DLNAServer struct {
 }
 
 func (s *DLNAServer) ListenAndServe() {
-	if s.upnp == nil {
+	if s == nil || s.upnp == nil {
 		return
 	}
 
@@ -46,20 +46,32 @@ func (s *DLNAServer) ListenAndServe() {
 }
 
 func (s *DLNAServer) Close() {
+	if s == nil {
+		return
+	}
 	s.c <- 1
 	close(s.c)
 	s.upnp.Close()
 }
 
 func (s *DLNAServer) AddNewInstance(name string) string {
+	if s == nil || s.upnp == nil {
+		return ""
+	}
 	return s.upnp.AddServer(name, "", "")
 }
 
 func (s *DLNAServer) ChangeName(uuid string, newName string) {
+	if s == nil || s.upnp == nil {
+		return
+	}
 	s.upnp.AddServer(newName, uuid, "")
 }
 
 func (s *DLNAServer) DelInstance(uuid string) {
+	if s == nil || s.upnp == nil {
+		return
+	}
 	s.upnp.DelServer(uuid)
 }
 

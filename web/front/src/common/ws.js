@@ -82,10 +82,11 @@ function onresponse(id, code, data) {
     let resolve = cb['resolve'];
     let reject = cb['reject'];
     let st = cb['st'];
+    let params = cb['params'];
     clearTimeout(st);
     delete callback[id];
 
-    console.log('Received Message: ', cmd, id, code, data);
+    console.log('Received Message: ', cmd, id, params, code, data);
 
     if (code === 0) {
       resolve(data);
@@ -222,7 +223,7 @@ function send(cmd, params, options) {
     ws.send(encodeReq(id, cmd, params));
   }
 
-  return opt_nocallback ? true : promiseCallback(id, cmd);
+  return opt_nocallback ? true : promiseCallback(id, cmd, params);
 }
 
 function sendPing() {
@@ -303,15 +304,15 @@ function getReceiver() {
   return receiver;
 }
 
-function promiseCallback(id, command) {
+function promiseCallback(id, command, params) {
   return new Promise((resolve, reject) => {
     let st = setTimeout(() => {
-      console.log('websocket timeout', id, command);
+      console.log('websocket timeout', id, command, params);
       store.dispatch('showToast', `request timeout ${id}`);
       delete callback[id];
       reject();
     }, 1000);
-    callback[id] = { command, resolve, reject, st };
+    callback[id] = { command, resolve, reject, st, params};
   });
 }
 

@@ -165,6 +165,16 @@ export default {
   },
   mounted() {
     socket.onConnected().then(() => this.loadData());
+    this.$nextTick(function () {
+      document.addEventListener(
+        'keyup',
+        (this.onKeyUp = e => {
+          if (e.key === 'Escape') {
+            this.newLine = false;
+          }
+        })
+      );
+    });
   },
   methods: {
     loadData() {

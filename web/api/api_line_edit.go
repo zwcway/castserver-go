@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"unicode/utf8"
 
 	"github.com/fasthttp/websocket"
 	"github.com/zwcway/castserver-go/common/speaker"
@@ -19,7 +20,7 @@ func apiLineEdit(c *websocket.Conn, req Requester, log *zap.Logger) (ret any, er
 	if err != nil {
 		return
 	}
-	if len(p.Name) == 0 || len(p.Name) > 10 {
+	if len(p.Name) == 0 || utf8.RuneCountInString(p.Name) > 10 {
 		err = fmt.Errorf("name invalid")
 		return
 	}

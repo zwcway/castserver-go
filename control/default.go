@@ -6,7 +6,7 @@ func DefaultChannel() audio.Channel {
 	return audio.AudioChannel_NONE
 }
 
-func DefaultRate() audio.AudioRate {
+func DefaultRate() audio.Rate {
 	return audio.AudioRate_44100
 }
 

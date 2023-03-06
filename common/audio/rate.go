@@ -2,10 +2,10 @@ package audio
 
 import "errors"
 
-type AudioRate uint8 // uint4
+type Rate uint8 // uint4
 
 const (
-	AudioRate_NONE AudioRate = iota
+	AudioRate_NONE Rate = iota
 	AudioRate_44100
 	AudioRate_48000
 	AudioRate_96000
@@ -14,13 +14,13 @@ const (
 	AudioRate_MAX
 )
 
-func NewAudioRate(i int) AudioRate {
-	var a AudioRate
+func NewAudioRate(i int) Rate {
+	var a Rate
 	a.FromInt(i)
 	return a
 }
 
-func (a *AudioRate) FromInt(i int) {
+func (a *Rate) FromInt(i int) {
 	switch i {
 	case 44100:
 		*a = AudioRate_44100
@@ -37,7 +37,7 @@ func (a *AudioRate) FromInt(i int) {
 	}
 }
 
-func (a *AudioRate) ToInt() int {
+func (a *Rate) ToInt() int {
 	switch *a {
 	case AudioRate_44100:
 		return 44100
@@ -54,8 +54,12 @@ func (a *AudioRate) ToInt() int {
 	}
 }
 
-func (a *AudioRate) IsValid() bool {
+func (a *Rate) IsValid() bool {
 	return *a > AudioRate_NONE && *a < AudioRate_MAX
+}
+
+func (a *Rate) ResampleTo(r Rate, s int) int {
+	return a.ToInt() / r.ToInt() * s
 }
 
 type AudioRateMask uint16
@@ -98,7 +102,7 @@ func (m *AudioRateMask) Slice() []int {
 	s := []int{}
 	for i := 0; i < 16; i++ {
 		if (*m>>i)&0x01 == 1 {
-			b := AudioRate(i + 1)
+			b := Rate(i + 1)
 			s = append(s, b.ToInt())
 		}
 	}

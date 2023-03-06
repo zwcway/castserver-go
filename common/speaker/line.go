@@ -19,15 +19,12 @@ type Line struct {
 	Input  *audio.Format // 输入格式
 	Output *audio.Format // 输出格式
 
-	Volume     int
+	Volume     float64
+	IsMute     bool
 	Spectrum   []float32
 	LevelMeter float64
 
 	Equalizer []dsp.FreqEqualizer
-}
-
-func (l *Line) SetVolume(vol int) {
-	l.Volume = vol
 }
 
 func (l *Line) Channels() audio.ChannelMask {

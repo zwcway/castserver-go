@@ -5,7 +5,7 @@
       <div class="body">
         <div class="axis-db"></div>
         <div class="sliders" :class="`band-${eqbands}`">
-          <div class="slider" v-for="(eq, i) in defaultEQs[eqbands]" :key="i">
+          <div class="slider" v-for="(eq, i) in equalizes" :key="i">
             <vue-slider
               v-model="eq[2]"
               :direction="`btt`"
@@ -37,7 +37,7 @@ export default {
   },
   emits: ['change'],
   props: {
-    equalizes: { type: Array, required: false },
+    eq: { type: Array, required: false },
     bands: { type: Number, required: false },
   },
   data() {
@@ -96,29 +96,54 @@ export default {
           [20000, 1, 0],
         ],
       },
+      equalizes:[],
       gainProcess(dotsPos) {
         return [[0, dotsPos, { backgroundColor: 'pink' }]];
       },
     };
   },
   watch: {
+    eq(newVal, oldVal) {
+      this.setNewEQ(newVal)
+    },
     bands: {
       handler() {
         if (this.bands in this.defaultEQs) {
           this.eqbands = this.bands;
+          this.setNewEQ(this.eq)
         }
       },
     },
   },
   mounted() {
-    if (this.bands in this.defaultEQs) {
-      this.eqbands = this.bands;
-    }
+    this.setNewEQ(this.eq)
     throttleTimer = throttleFunction((i, gain) => {
       this.setGain(i, gain);
     }, 200);
   },
   methods: {
+    setNewEQ(newVal) {
+      this.equalizes = Array.from(this.defaultEQs[this.eqbands]);
+      if (newVal === undefined) return;
+      newVal.forEach(e => {
+        let freq = 0;
+        if (!(e instanceof Array)) {
+          freq = e;
+        } else if (e.length != 3) {
+            return;
+        }
+        freq = e[0];
+
+        for(let i = 0; i < this.equalizes.length; i ++) {
+          if (this.equalizes[i][0] == freq) {
+            this.equalizes[i][1] = e[2];
+            this.equalizes[i][2] = e[1];
+            this.equalizes = this.equalizes;
+            return;
+          }
+        }
+      })
+    },
     bandList() {
       let keys = [];
       for (let k in this.defaultEQs) {
@@ -127,11 +152,13 @@ export default {
       return keys;
     },
     gainChanged(i, v) {
-      if (v === 'finally') return throttleTimer.finally();
+      if (v === 'finally') return throttleTimer.finally(this.equalizes[i][2]);
+      this.equalizes[i][2] = v;
+      this.equalizes = this.equalizes;
       throttleTimer(i, v);
     },
     setGain(i, gain) {
-      let eq = this.defaultEQs[this.eqbands][i];
+      let eq = this.equalizes[i];
       if (eq === undefined) return;
       this.$emit('change', eq[0], gain);
     },

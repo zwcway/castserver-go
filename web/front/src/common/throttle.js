@@ -23,6 +23,11 @@ export function throttleFunction(fn, delay) {
       timer = null;
     }, delay);
   };
-
+  func.finally = () => {
+    clearTimeout(timer);
+    timer = null;
+    fn.apply(func, arguments);
+  }
+  
   return func;
 }

@@ -66,7 +66,7 @@ func readUDP(p *recvData) {
 	case protocol.PT_SpeakerInfo:
 	}
 
-	res := &speakerResponse{}
+	res := &SpeakerResponse{}
 	err := res.Unpack(p.pack)
 	if err != nil {
 		log.Error("receive data is invalid", zap.Int("len", p.pack.Size()), zap.String("from", p.src.String()), zap.Error(err))
@@ -77,7 +77,7 @@ func readUDP(p *recvData) {
 		return
 	}
 
-	if err = checkSpeaker(res); err != nil {
+	if err = CheckSpeaker(res); err != nil {
 		log.Error("invalid speaker", zap.String("from", p.src.String()))
 	}
 

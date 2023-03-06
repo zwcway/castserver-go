@@ -21,6 +21,8 @@ func apiLineVolume(c *websocket.Conn, req Requester, log *zap.Logger) (any, erro
 		return nil, fmt.Errorf("add new line faild")
 	}
 
+	nl.Volume = float64(p.Volume) / 100
+
 	control.ControlLineVolume(nl, float64(p.Volume)/100, p.Mute)
 
 	return true, nil

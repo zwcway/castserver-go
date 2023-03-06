@@ -9,7 +9,10 @@ import (
 
 func FileStreamer(uuid string) decoder.FileStreamer {
 	p := FromUUID(uuid)
+	return FileStreamerFromPL(p)
+}
 
+func FileStreamerFromPL(p *PipeLine) decoder.FileStreamer {
 	fs := p.eleMixer.HasFileStreamer()
 	if fs == nil {
 		fs = ffmpeg.New(onFileOpened)

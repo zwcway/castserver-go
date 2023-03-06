@@ -24,13 +24,18 @@ Socket.addBeforeSend('speakerList', () => {
     name: '@ctitle',
     ip: '@ip',
     mac: '@mac',
+    ch: '@integer(0,8)',
     rate: '@integer(8000, 384000)',
     bits: '@integer(8, 32)',
-    volume: '@integer(0, 99)',
+    vol: '@integer(0, 99)',
+    mute: '@boolean',
     line: {
       id: "@integer(0,10)",
       name: "@ctitle",
-    }
+    },
+    'rateList|0-5': [44100, 48000, 96000],
+    'bitsList|0-5': [8, 16, 24, 32],
+
   });
 });
 Socket.addBeforeSend('wsconnect', () => {
@@ -47,12 +52,17 @@ Socket.addBeforeSend('speakerInfo', params => {
   return mock.mock({
     id: params.id,
     name: '@ctitle',
-    channel: '@integer(0,10)',
+    ch: '@integer(0,10)',
     ip: '@ip',
     mac: '@mac',
     rate: '@integer(8000, 384000)',
     bits: '@integer(8, 32)',
-    volume: '@integer(0, 99)',
+    vol: '@integer(0, 99)',
+    mute: '@boolean',
+    line: {
+      id: "@integer(0,10)",
+      name: "@ctitle",
+    },
     'rateList|0-5': [44100, 48000, 96000],
     'bitsList|0-5': [8, 16, 24, 32],
   });
@@ -69,27 +79,31 @@ Socket.addBeforeSend('lineList', function () {
     {
       'id|+1': 0,
       name: '@ctitle',
+      vol: '@integer(0,100)',
+      mute: '@boolean',
     },
-    '1-20'
+    '0-20'
   );
 });
 Socket.addBeforeSend('lineInfo', function (params) {
   return mock.mock({
     id: params.id,
     name: '@ctitle',
-    vol: 1,
+    vol: '@integer(0,100)',
     mute: false,
     source: {
       rate: '@integer(44100, 384000)',
       bits: '@integer(8,64)',
-      channels: '@interger(1, 16)',
+      channels: '@integer(1, 16)',
     },
+    eq: [['@integer(20,20000)','@float(-15,15)', '@float(0,1)']],
     'speakers|0-20': [
       {
         'id|+1': 1,
         name: '@ctitle',
-        channel: '@integer(1,11)',
-        volume: '@integer(0, 100)',
+        ch: '@integer(1,11)',
+        vol: '@integer(0, 100)',
+        mute: '@boolean',
         ip: '@ip',
         mac: '@mac',
         rate: '@integer(8000, 384000)',
