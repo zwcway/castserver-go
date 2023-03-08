@@ -12,15 +12,17 @@ import (
 	"go.uber.org/zap"
 )
 
-func lineSpectrumRoutine(arg int, ctx context.Context, log *zap.Logger, ctrl chan int) {
-	var ls *element.LineSpectrum
+type notifyLineLevelMeter [2]float32
+
+func lineLevelMeterRoutine(arg int, ctx context.Context, log *zap.Logger, ctrl chan int) {
+	var ls *element.LineLevelMeter
 
 	line := speaker.FindLineByID(speaker.LineID(arg))
 	pl := pipeline.FromLine(line)
 	if pl == nil {
 		return
 	}
-	if ls = pl.EleLineSpectrum(); ls == nil {
+	if ls = pl.EleLineLM(); ls == nil {
 		return
 	}
 	if ls.State() {
@@ -28,10 +30,10 @@ func lineSpectrumRoutine(arg int, ctx context.Context, log *zap.Logger, ctrl cha
 	}
 	ls.On()
 
-	log.Info("start line spectrum routine")
+	log.Info("start line level meter routine")
 	defer func() {
 		ls.Off()
-		log.Info("stop line spectrum routine")
+		log.Info("stop line level meter routine")
 	}()
 
 	for {
@@ -42,21 +44,20 @@ func lineSpectrumRoutine(arg int, ctx context.Context, log *zap.Logger, ctrl cha
 			return
 		case <-ticker.C:
 		}
+
 		runtime.Gosched()
 
-		if pl == nil || line == nil {
+		if line.LevelMeter == 0 {
 			continue
 		}
 
-		if len(line.Spectrum) == 0 {
-			continue
+		resp := notifyLineLevelMeter{
+			float32(line.ID), float32(line.LevelMeter),
 		}
-
-		resp := line.Spectrum
 
 		msg, err := jsonpack.Marshal(resp)
 		if err == nil {
-			websockets.Broadcast(websockets.Command_LINE, websockets.Event_Line_Spectrum, arg, msg)
+			websockets.Broadcast(websockets.Command_LINE, websockets.Event_Line_LevelMeter, 0, msg)
 		}
 	}
 }

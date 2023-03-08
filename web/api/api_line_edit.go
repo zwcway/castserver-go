@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"unicode/utf8"
 
-	"github.com/fasthttp/websocket"
 	"github.com/zwcway/castserver-go/common/speaker"
+	"github.com/zwcway/castserver-go/web/websockets"
 	"go.uber.org/zap"
 )
 
@@ -14,7 +14,7 @@ type requestLineEdit struct {
 	Name string `jp:"name"`
 }
 
-func apiLineEdit(c *websocket.Conn, req Requester, log *zap.Logger) (ret any, err error) {
+func apiLineEdit(c *websockets.WSConnection, req Requester, log *zap.Logger) (ret any, err error) {
 	var p requestLineEdit
 	err = req.Unmarshal(&p)
 	if err != nil {

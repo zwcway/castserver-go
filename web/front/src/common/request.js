@@ -13,18 +13,19 @@ const Command = Object.freeze({
   Line: 3,
 });
 const Event = Object.freeze({
-  SP_Detected: 0x01,
-  SP_Online: 0x02,
-  SP_Offline: 0x03,
-  SP_Deleted: 0x04,
-  SP_Moved: 0x05,
-  SP_Edited: 0x06,
-  SP_LevelMeter: 7,
-  Line_Created: 8,
-  Line_Deleted: 9,
-  Line_Edited: 10,
-  Line_LevelMeter: 11,
-  Line_Spectrum: 12,
+  SP_Detected: 11,
+  SP_Online: 12,
+  SP_Offline: 13,
+  SP_Deleted: 14,
+  SP_Moved: 15,
+  SP_Edited: 16,
+  SP_LevelMeter: 17,
+  Line_Created: 18,
+  Line_Deleted: 19,
+  Line_Edited: 20,
+  Line_LevelMeter: 21,
+  Line_Spectrum: 22,
+  Line_Input: 23,
 });
 
 export { socket, Command, Event };

@@ -1,6 +1,8 @@
 package dlna
 
 import (
+	"strings"
+
 	"github.com/zwcway/castserver-go/config"
 	"github.com/zwcway/castserver-go/dlna/service"
 	"github.com/zwcway/castserver-go/utils"
@@ -40,7 +42,9 @@ func (s *DLNAServer) ListenAndServe() {
 				s.log.Error("error", zap.Error(err))
 			}
 		case err := <-s.upnp.InfoChan:
-			s.log.Info(err)
+			if !strings.Contains(err, "request from") {
+				s.log.Info(err)
+			}
 		}
 	}
 }

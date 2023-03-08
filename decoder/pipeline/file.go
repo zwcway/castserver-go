@@ -32,7 +32,7 @@ func findPL(stream decoder.FileStreamer) *PipeLine {
 }
 
 func onFileOpened(stream decoder.FileStreamer, format *audio.Format) {
-	bufSize := format.SampleBits.Size() * int(format.SampleRate.ToInt()) * 30 / 1000 * format.Layout.Count
+	bufSize := format.SampleBits.Size() * int(format.SampleRate.ToInt()) * 10 / 1000 * format.Layout.Count
 
 	pl := findPL(stream)
 

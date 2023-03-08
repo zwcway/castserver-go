@@ -30,14 +30,16 @@ type PipeLine struct {
 	wholeStreams []*PipeLineStreamer
 	oneStreams   []*PipeLineStreamer
 
-	locker sync.Mutex
+	cost    time.Duration
+	maxCost time.Duration
+	locker  sync.Mutex
 
 	eleMixer     *element.Mixer
 	eleVolume    *element.Volume
 	eleResample  *element.Resample
 	eleLineLM    *element.LineLevelMeter
 	eleSpeakerLM *element.LineLevelMeter
-	eleLineSPT   *element.LineLevelMeter
+	eleLineSPT   *element.LineSpectrum
 }
 
 func (p *PipeLine) Len() int {
@@ -53,11 +55,11 @@ func (p *PipeLine) Prepend(s decoder.Element) {
 		cost:   0,
 	}}
 
-	if s.Type() == decoder.ET_OneSample {
-		p.oneStreams = append(ps, p.wholeStreams...)
-	} else if s.Type() == decoder.ET_WholeSamples {
-		p.wholeStreams = append(ps, p.wholeStreams...)
-	}
+	// if s.Type() == decoder.ET_OneSample {
+	// 	p.oneStreams = append(ps, p.wholeStreams...)
+	// } else if s.Type() == decoder.ET_WholeSamples {
+	p.wholeStreams = append(ps, p.wholeStreams...)
+	// }
 }
 
 func (p *PipeLine) Add(s ...decoder.Element) {
@@ -66,11 +68,11 @@ func (p *PipeLine) Add(s ...decoder.Element) {
 			stream: ss,
 			cost:   0,
 		}
-		if ss.Type() == decoder.ET_OneSample {
-			p.oneStreams = append(p.oneStreams, ps)
-		} else if ss.Type() == decoder.ET_WholeSamples {
-			p.wholeStreams = append(p.wholeStreams, ps)
-		}
+		// if ss.Type() == decoder.ET_OneSample {
+		// 	p.oneStreams = append(p.oneStreams, ps)
+		// } else if ss.Type() == decoder.ET_WholeSamples {
+		p.wholeStreams = append(p.wholeStreams, ps)
+		// }
 	}
 }
 
@@ -89,11 +91,6 @@ func (p *PipeLine) Close() error {
 			sc.Close()
 		}
 	}
-	for _, s := range p.oneStreams {
-		if sc, ok := s.stream.(decoder.StreamCloser); ok {
-			sc.Close()
-		}
-	}
 	return nil
 }
 
@@ -108,19 +105,31 @@ func (p *PipeLine) Stream() (int, error) {
 		s.cost = time.Since(t)
 	}
 
-	t = time.Now()
-	for ch := 0; ch < p.buffer.Format.Layout.Count; ch++ {
-		for i := 0; i < p.buffer.Size; i++ {
-			for _, s := range p.oneStreams {
-				s.stream.Sample(&p.buffer.Buffer[ch][i], ch, i)
-			}
-		}
-	}
-	for _, s := range p.oneStreams {
-		s.cost = time.Since(t)
+	// t = time.Now()
+	// for ch := 0; ch < p.buffer.Format.Layout.Count; ch++ {
+	// 	for i := 0; i < p.buffer.Size; i++ {
+	// 		for _, s := range p.oneStreams {
+	// 			s.stream.Sample(&p.buffer.Buffer[ch][i], ch, i)
+	// 		}
+	// 	}
+	// }
+	// for _, s := range p.oneStreams {
+	// 	s.cost = time.Since(t)
+	// }
+	p.cost = time.Since(t)
+	if p.cost > p.maxCost {
+		p.maxCost = p.cost
 	}
 
 	return p.buffer.LastSize, p.buffer.LastErr
+}
+
+func (p *PipeLine) LastCost() time.Duration {
+	return p.cost
+}
+
+func (p *PipeLine) LastMaxCost() time.Duration {
+	return p.maxCost
 }
 
 func (p *PipeLine) Streamers() []*PipeLineStreamer {
@@ -141,6 +150,9 @@ func (p *PipeLine) EleResample() *element.Resample {
 
 func (p *PipeLine) EleLineLM() *element.LineLevelMeter {
 	return p.eleLineLM
+}
+func (p *PipeLine) EleLineSpectrum() *element.LineSpectrum {
+	return p.eleLineSPT
 }
 
 var pipeLineList = make([]*PipeLine, 0)
@@ -172,15 +184,15 @@ func NewPipeLine(line *speaker.Line) *PipeLine {
 		line: line,
 	}
 	p.eleMixer = element.NewMixer()
-	p.eleVolume = element.NewVolume(0.5)
+	p.eleVolume = element.NewVolume(0)
 	p.eleResample = element.NewResample(nil)
 	p.eleLineLM = element.NewLineLevelMeter(line)
 
 	p.Add(
 		p.eleMixer,
 
-		p.eleLineLM,
 		p.eleVolume,
+		p.eleLineLM,
 
 		p.eleResample,
 	)

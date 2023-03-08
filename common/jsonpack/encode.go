@@ -5,6 +5,9 @@ import (
 	"math"
 	"reflect"
 	"strings"
+
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 )
 
 type Encoder []byte
@@ -114,12 +117,16 @@ func (j *Encoder) EncodeMap(len uint32) {
 	j.writeInteger(len, size)
 }
 
-func (j *Encoder) reflectArray(r reflect.Value, t reflect.Type) {
+func (j *Encoder) reflectArray(r reflect.Value, t reflect.Type) error {
 	len := r.Len()
 	j.EncodeArray(uint32(len))
 	for i := 0; i < len; i++ {
-		j.reflectValue(r.Index(i), fmt.Sprintf("%d", i))
+		err := j.reflectValue(r.Index(i), fmt.Sprintf("%d", i))
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 type structFieldInfo struct {
@@ -184,28 +191,32 @@ func (j *Encoder) collectMap(r reflect.Value, t reflect.Type) []structFieldInfo 
 	return ss
 }
 
-func (j *Encoder) reflectMap(r reflect.Value, t reflect.Type) {
+func (j *Encoder) reflectMap(r reflect.Value, t reflect.Type) error {
 	ss := j.collectMap(r, t)
 
 	j.EncodeMap(uint32(len(ss)))
 	for _, s := range ss {
 		tf := s.tf
 		j.encodeString(s.name)
-		j.reflectValue(s.tr, tf.Name())
+		err := j.reflectValue(s.tr, tf.Name())
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func (j *Encoder) reflectValue(r reflect.Value, field string) error {
+func (j *Encoder) reflectValue(r reflect.Value, field string) (err error) {
 	if !r.IsValid() {
 		return &InvalidValueError{}
 	}
 	switch r.Kind() {
 	case reflect.Pointer:
-		j.reflectValue(r.Elem(), field)
+		err = j.reflectValue(r.Elem(), field)
 	case reflect.Struct:
-		j.reflectMap(r, r.Type())
+		err = j.reflectMap(r, r.Type())
 	case reflect.Array, reflect.Slice:
-		j.reflectArray(r, r.Type())
+		err = j.reflectArray(r, r.Type())
 	case reflect.String:
 		j.encodeString(r.String())
 	case reflect.Bool:
@@ -222,10 +233,16 @@ func (j *Encoder) reflectValue(r reflect.Value, field string) error {
 		j.encodeInt16(int16(r.Int()))
 	case reflect.Uint16:
 		j.encodeUint16(uint16(r.Uint()))
+	case reflect.Int64: // js 不支持64位整数，转为千分字符串
+		j.encodeString(comma.Sprintf("%f", r.Int()))
+	case reflect.Uint64:
+		j.encodeString(comma.Sprintf("%f", r.Uint()))
 	case reflect.Float32:
 		j.encodeFloat32(float32(r.Float()))
 	default:
 		return &InvalidValueError{field, r.Kind()}
 	}
-	return nil
+	return
 }
+
+var comma = message.NewPrinter(language.English)

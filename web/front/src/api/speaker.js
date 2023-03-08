@@ -17,31 +17,25 @@ let evts = [
 ];
 
 export function removeListenSpeakerEvent() {
-  socket.sendSubscribe(Command.Speaker, false, evts);
   socket.removeEvent(Command.Speaker, evts);
 }
 
 export function listenSpeakerChanged(callback) {
   if (!(callback instanceof Function)) return;
 
-  socket.sendSubscribe(Command.Speaker, true, evts);
-
-  return socket.receiveCommand(Command.Speaker, callback, evts);
+  return socket.receiveCommand(Command.Speaker, evts, callback);
 }
 export function removeListenSpeakerLevelMeter() {
-  socket.sendSubscribe(Command.Speaker, false, Event.SP_LevelMeter);
   socket.removeEvent(Command.Speaker, Event.SP_LevelMeter);
 }
 
 export function listenSpeakerLevelMeter(callback) {
   if (!(callback instanceof Function)) return;
-
-  socket.sendSubscribe(Command.Speaker, true, Event.SP_LevelMeter);
-
-  return socket.receiveEvent(Event.SP_LevelMeter, callback);
+  return socket.receiveCommand(Command.Speaker, Event.SP_LevelMeter, callback);
 }
+
 export function getSpeakerInfo(id) {
-  return socket.send('speakerInfo', { id }).then(speaker => {
+  return socket.send('speakerInfo', id).then(speaker => {
     return formatSpeaker(speaker);
   });
 }

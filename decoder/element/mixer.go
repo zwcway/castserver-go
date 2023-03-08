@@ -60,32 +60,29 @@ func (m *Mixer) Stream(samples *decoder.Samples) {
 		return
 	}
 
-	var tmp = decoder.NewSamples(512, samples.Format)
+	var tmp = decoder.NewSamples(samples.Size, samples.Format)
 
-	j := 0
-	for j < samples.Size {
-		mixed := 0
-		for si := 0; si < len(m.streamers); si++ {
-			// 混合音频流
-			m.streamers[si].Stream(tmp)
-			for ch := 0; ch < tmp.Format.Layout.Count; ch++ {
-				for i := 0; i < tmp.LastSize; i++ {
-					samples.Buffer[ch][j+i] += tmp.Buffer[ch][i]
-				}
-			}
-			if mixed < tmp.LastSize {
-				mixed = tmp.LastSize
-			}
-			if tmp.LastErr != nil {
-				// 移除出有问题的音频流
-				sj := len(m.streamers) - 1
-				m.streamers[si] = m.streamers[sj]
-				m.streamers = m.streamers[:sj]
-				si--
+	mixed := 0
+	for si := 0; si < len(m.streamers); si++ {
+		// 混合音频流
+		m.streamers[si].Stream(tmp)
+		for ch := 0; ch < tmp.Format.Layout.Count; ch++ {
+			for i := 0; i < tmp.LastSize; i++ {
+				tmp.Buffer[ch][i] += tmp.Buffer[ch][i]
 			}
 		}
-		j += mixed
+		if mixed < tmp.LastSize {
+			mixed = tmp.LastSize
+		}
 	}
+	// 复制所有的buffer
+	for ch := 0; ch < samples.Format.Layout.Count; ch++ {
+		for i := 0; i < samples.LastSize; i++ {
+			samples.Buffer[ch][i] = tmp.Buffer[ch][i]
+		}
+	}
+	samples.Format = tmp.Format
+	samples.LastSize = mixed
 }
 
 func (m *Mixer) Sample(*float64, int, int) {}

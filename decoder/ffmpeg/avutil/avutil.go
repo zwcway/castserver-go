@@ -11,6 +11,10 @@ static int go_averror_is_eof(int code)
 {
     return code == AVERROR_EOF;
 }
+static void *go_malloc(int size)
+{
+    return av_malloc(size);
+}
 */
 import "C"
 import (
@@ -166,7 +170,7 @@ func ChannelsFromLayout(layout uint64) (m audio.ChannelLayout) {
 func NewPointerArray(one int, two int) unsafe.Pointer {
 	ptrSize := unsafe.Sizeof(uintptr(0))
 	cahead := one * int(ptrSize)
-	c := (**C.uint8_t)(C.av_malloc(C.ulong(one*two + cahead)))
+	c := (**C.uint8_t)(C.go_malloc(C.int(one*two + cahead)))
 	if c == nil {
 		return nil
 	}

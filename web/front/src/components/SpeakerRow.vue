@@ -1,10 +1,15 @@
 <template>
-  <div class="card" @click.stop="show = !show">
+  <div
+    class="card"
+    @click.stop="show = !show"
+    :class="{ 'not-connect': !spInfo.cTime }"
+  >
     <div class="card-content speaker">
       <div class="media">
         <div class="media-left">
           <figure class="image is-48x48">
             <svg-icon icon-class="speaker" />
+            <i v-if="!spInfo.cTime" class="codicon codicon-close"></i>
           </figure>
         </div>
         <div class="media-content">
@@ -14,20 +19,22 @@
                 <router-link class="speaker-name" :to="`/speaker/${spInfo.id}`">
                   {{ spInfo.name }}
                 </router-link>
-                <router-link
+                <a-button
+                  type="link"
                   v-if="spInfo.line"
                   class="line-name"
-                  :to="`/line/${spInfo.line.id}`"
+                  @click.stop="$router.push(`/line/${spInfo.line.id}`)"
                 >
-                  <a-button type="link">{{ spInfo.line.name }}</a-button>
-                </router-link>
+                  {{ spInfo.line.name }}
+                </a-button>
               </p>
               <p class="subtitle is-6">
+                <span v-if="!spInfo.cTime" class="connect-info">未连接</span>
                 <span>{{ spInfo.ip }}</span>
                 <span class="ratebits">{{ showRateBits(speaker) }}</span>
               </p>
             </div>
-            <div class="column" v-on:click.stop="">
+            <div class="column level-meter-slider" v-on:click.stop="">
               <Volume
                 :volume="volume"
                 :mute="mute"
@@ -150,5 +157,31 @@ export default {
 }
 .line-name {
   align-self: flex-end;
+}
+.subtitle {
+  span {
+    padding: 0 3px;
+  }
+}
+.not-connect {
+  .media-left {
+    .svg-icon {
+      color: grey;
+    }
+    .codicon {
+      color: red;
+      position: absolute;
+      top: -0.5rem;
+      left: -0.5rem;
+      font-size: 3rem;
+    }
+  }
+
+  .connect-info {
+    color: red;
+  }
+  .speaker {
+    background-color: #efefef;
+  }
 }
 </style>

@@ -43,8 +43,15 @@ func speakerLevelMeterRoutine(arg int, ctx context.Context, log *zap.Logger, ctr
 
 		resp := make(notifySpeakerLevelMeter, 0)
 		speaker.All(func(s *speaker.Speaker) {
+			if s.LevelMeter == 0 {
+				return
+			}
 			resp = append(resp, [2]float32{float32(s.ID), float32(s.LevelMeter)})
 		})
+		if len(resp) == 0 {
+			continue
+		}
+
 		msg, err := jsonpack.Marshal(resp)
 		if err == nil {
 			websockets.Broadcast(websockets.Command_SPEAKER, websockets.Event_SP_LevelMeter, 0, msg)

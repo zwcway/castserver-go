@@ -4,10 +4,10 @@ import (
 	"net"
 	"net/netip"
 
-	"github.com/fasthttp/websocket"
 	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/detector"
+	"github.com/zwcway/castserver-go/web/websockets"
 	"go.uber.org/zap"
 )
 
@@ -22,7 +22,7 @@ type requestSpeakerCreate struct {
 	AVol     bool
 }
 
-func apiSpeakerCreate(c *websocket.Conn, req Requester, log *zap.Logger) (any, error) {
+func apiSpeakerCreate(c *websockets.WSConnection, req Requester, log *zap.Logger) (any, error) {
 	p := requestSpeakerCreate{}
 	if err := req.Unmarshal(&p); err != nil {
 		return nil, err

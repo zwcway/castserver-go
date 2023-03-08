@@ -12,13 +12,14 @@ import (
 
 type cbHandler func(arg int, ctx context.Context, log *zap.Logger, ctrl chan int)
 
-var ticker = time.NewTicker(200 * time.Millisecond)
+var ticker = time.NewTicker(50 * time.Millisecond)
 var handler = websockets.EventHandler{On: start, Off: stop}
 
 // 事件回调列表
 var EventHandlerMap = map[uint8]websockets.EventHandler{
-	websockets.Event_Line_Spectrum: handler,
-	websockets.Event_SP_LevelMeter: handler,
+	websockets.Event_Line_Spectrum:   handler,
+	websockets.Event_Line_LevelMeter: handler,
+	websockets.Event_SP_LevelMeter:   handler,
 }
 
 var services = []eventService{}
@@ -48,6 +49,8 @@ func start(evt uint8, arg int, ctx context.Context, log *zap.Logger) {
 	switch evt {
 	case websockets.Event_Line_Spectrum:
 		es.on = lineSpectrumRoutine
+	case websockets.Event_Line_LevelMeter:
+		es.on = lineLevelMeterRoutine
 	case websockets.Event_SP_LevelMeter:
 		es.on = speakerLevelMeterRoutine
 	default:

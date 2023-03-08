@@ -3,26 +3,18 @@ package api
 import (
 	"fmt"
 
-	"github.com/fasthttp/websocket"
 	"github.com/zwcway/castserver-go/common/jsonpack"
+	"github.com/zwcway/castserver-go/web/websockets"
 	"go.uber.org/zap"
 )
 
 var log *zap.Logger
 
 type apiRouter struct {
-	cb func(c *websocket.Conn, req Requester, log *zap.Logger) (any, error)
+	cb func(c *websockets.WSConnection, req Requester, log *zap.Logger) (any, error)
 }
 
-func writeText(c *websocket.Conn, text string) {
-	err := c.WriteMessage(websocket.TextMessage, []byte(text))
-
-	if err != nil {
-		log.Error("write message error", zap.Error(err))
-	}
-}
-
-func writePack(c *websocket.Conn, pack any, req Requester, log *zap.Logger) {
+func writePack(c *websockets.WSConnection, pack any, req Requester, log *zap.Logger) {
 	data, err := jsonpack.Marshal(pack)
 	if err != nil {
 		log.Error("marshal failed", zap.Error(err))
@@ -32,18 +24,22 @@ func writePack(c *websocket.Conn, pack any, req Requester, log *zap.Logger) {
 	msg = append(msg, 0)
 	msg = append(msg, data...)
 
-	err = c.WriteMessage(websocket.BinaryMessage, msg)
+	err = c.Write(msg)
 	if err != nil {
 		log.Error("write message error", zap.Error(err))
 	}
 }
-func writeError(c *websocket.Conn, err *Error, req Requester, log *zap.Logger) {
+func writeError(c *websockets.WSConnection, err *Error, req Requester, log *zap.Logger) {
 	msg := []byte(req.RequestId())
 	msg = append(msg, byte(err.Code))
 
-	log.Error("api error", zap.Int("code", int(err.Code)), zap.Error(err.Err))
+	log.Error(req.Command()+" api error",
+		zap.Int("code", int(err.Code)),
+		zap.Error(err.Err),
+		zap.String("reqid", req.RequestId()),
+	)
 
-	e := c.WriteMessage(websocket.BinaryMessage, msg)
+	e := c.Write(msg)
 
 	if e != nil {
 		log.Error("write message error", zap.Error(err))

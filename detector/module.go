@@ -6,10 +6,10 @@ import (
 
 	"github.com/zwcway/castserver-go/common/protocol"
 	"github.com/zwcway/castserver-go/common/speaker"
-	config "github.com/zwcway/castserver-go/config"
+	"github.com/zwcway/castserver-go/config"
 	"github.com/zwcway/castserver-go/mutexer"
 	"github.com/zwcway/castserver-go/pusher"
-	utils "github.com/zwcway/castserver-go/utils"
+	"github.com/zwcway/castserver-go/utils"
 	"github.com/zwcway/castserver-go/web/websockets"
 
 	"go.uber.org/zap"

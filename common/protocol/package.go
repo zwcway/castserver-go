@@ -139,6 +139,10 @@ func (p *Package) DataSize() int {
 	return p.pos
 }
 
+func (p *Package) Reset() {
+	p.pos = 0
+}
+
 func (p *Package) Type() Type {
 	if len(p.d) > 0 {
 		return Type(p.d[0])

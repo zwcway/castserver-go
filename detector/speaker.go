@@ -45,7 +45,7 @@ func updateSpeaker(sp *speaker.Speaker, support bool, res *SpeakerResponse, isFi
 	}
 
 	sp.CheckOnline()
-	pusher.Connect(sp)
+	go pusher.Connect(sp)
 
 	if isFirstConn {
 		if !support {

@@ -57,6 +57,10 @@ func (r *LineSpectrum) Off() {
 	r.power = false
 }
 
+func (r *LineSpectrum) State() bool {
+	return r.power
+}
+
 func NewLineSpectrum(line *speaker.Line) *LineSpectrum {
 	return &LineSpectrum{power: false, line: line}
 }

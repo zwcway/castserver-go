@@ -73,6 +73,12 @@ func (a *Bits) ToInt() int32 {
 		return 32
 	case AudioBits_32LEF:
 		return 32
+	case AudioBits_16LEF:
+		return 16
+	case AudioBits_24LEF:
+		return 24
+	case AudioBits_64LEF:
+		return 64
 	default:
 		return 0
 	}

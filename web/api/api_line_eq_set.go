@@ -3,9 +3,9 @@ package api
 import (
 	"fmt"
 
-	"github.com/fasthttp/websocket"
 	"github.com/zwcway/castserver-go/common/dsp"
 	"github.com/zwcway/castserver-go/common/speaker"
+	"github.com/zwcway/castserver-go/web/websockets"
 	"go.uber.org/zap"
 )
 
@@ -16,7 +16,7 @@ type requestLineEQ struct {
 	Q         float32 `jp:"q"`
 }
 
-func apiLineSetEqualizer(c *websocket.Conn, req Requester, log *zap.Logger) (any, error) {
+func apiLineSetEqualizer(c *websockets.WSConnection, req Requester, log *zap.Logger) (any, error) {
 	var params requestLineEQ
 	err := req.Unmarshal(&params)
 	if err != nil {

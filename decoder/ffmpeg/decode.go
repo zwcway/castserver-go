@@ -7,6 +7,7 @@ package ffmpeg
 import "C"
 import (
 	"fmt"
+	"sync"
 	"time"
 	"unsafe"
 
@@ -17,16 +18,17 @@ import (
 
 func New(ofh decoder.FileStreamerOpenFileHandler) decoder.FileStreamer {
 
-	return &avFormatContext{
+	return &AVFormatContext{
 		openedHandler: ofh,
 	}
 }
 
-type avFormatContext struct {
+type AVFormatContext struct {
 	openedHandler decoder.FileStreamerOpenFileHandler
 	format        *audio.Format
 	fileName      string
 	pause         bool
+	finished      bool
 
 	ctx       *C.GOAVDecoder
 	outputFmt *audio.Format
@@ -34,13 +36,22 @@ type avFormatContext struct {
 	lastDecodeSize int
 	posPerCh       int // 每次读取后，buffer中还剩下的每声道的samples数量
 	pos            int // 当前已解码的位置
+
+	lock sync.Mutex
 }
 
-func (c *avFormatContext) OpenFile(fileName string) (err error) {
+func (c *AVFormatContext) OpenFile(fileName string) (err error) {
 	c.fileName = fileName
 	cFileName := C.CString(fileName)
 
-	defer C.free(unsafe.Pointer(cFileName))
+	defer func() {
+		C.free(unsafe.Pointer(cFileName))
+		if err != nil {
+			c.Close()
+		}
+	}()
+
+	c.Close()
 
 	rate := C.int(0)
 	format := C.enum_AVSampleFormat(C.AV_SAMPLE_FMT_NONE)
@@ -51,8 +62,9 @@ func (c *avFormatContext) OpenFile(fileName string) (err error) {
 	if ret < 0 {
 		switch ret {
 		case -1:
-			return &avutil.AllocError{0}
+			return &avutil.AllocError{Size: 0}
 		}
+		return fmt.Errorf("unknown error")
 	}
 
 	bit := avutil.BitsFromAV(format)
@@ -62,7 +74,12 @@ func (c *avFormatContext) OpenFile(fileName string) (err error) {
 		SampleBits: bit,
 	}
 
+	if !c.format.IsValid() {
+		return fmt.Errorf("file format invalid: %s", c.format.String())
+	}
+
 	if c.outputFmt == nil {
+		c.outputFmt = &audio.Format{}
 		*c.outputFmt = *c.format
 		c.outputFmt.SampleBits = audio.AudioBits_64LEF
 	}
@@ -77,19 +94,19 @@ func (c *avFormatContext) OpenFile(fileName string) (err error) {
 	return nil
 }
 
-func (c *avFormatContext) Name() string {
+func (c *AVFormatContext) Name() string {
 	return "ffmpeg"
 }
 
-func (c *avFormatContext) Type() decoder.ElementType {
+func (c *AVFormatContext) Type() decoder.ElementType {
 	return decoder.ET_WholeSamples
 }
 
-func (c *avFormatContext) AudioFormat() *audio.Format {
+func (c *AVFormatContext) AudioFormat() *audio.Format {
 	return c.format
 }
 
-func (c *avFormatContext) SetFormat(format *audio.Format) {
+func (c *AVFormatContext) SetFormat(format *audio.Format) {
 	if !format.SampleRate.IsValid() || !format.SampleBits.IsValid() || format.Layout.Count == 0 {
 		return
 	}
@@ -97,7 +114,7 @@ func (c *avFormatContext) SetFormat(format *audio.Format) {
 	c.initOutputFormat()
 }
 
-func (c *avFormatContext) initOutputFormat() error {
+func (c *AVFormatContext) initOutputFormat() error {
 	outputFmt := avutil.FormatFromBits(audio.AudioBits_64LEF)
 	rate := C.int(c.outputFmt.SampleRate.ToInt())
 	chs := C.int(c.outputFmt.Layout.Count)
@@ -109,44 +126,62 @@ func (c *avFormatContext) initOutputFormat() error {
 	return nil
 }
 
-func (c *avFormatContext) Duration() time.Duration {
-	return 0
+func (c *AVFormatContext) Duration() time.Duration {
+	if c.ctx == nil {
+		return 0
+	}
+	return time.Duration(c.ctx.duration) * time.Second
 }
 
-func (c *avFormatContext) CurrentFile() string {
+func (c *AVFormatContext) CurrentFile() string {
 	return c.fileName
 }
 
-func (c *avFormatContext) Len() int {
-	return 0
+func (c *AVFormatContext) TotalDuration() time.Duration {
+	if c.ctx == nil || c.ctx.formatCtx == nil {
+		return 0
+	}
+	return time.Duration(c.ctx.formatCtx.duration) * time.Microsecond
 }
 
-func (c *avFormatContext) Position() int {
-	return 0
+func (c *AVFormatContext) Len() int {
+	if c.ctx == nil || c.ctx.stream == nil {
+		return 0
+	}
+
+	return int(c.ctx.stream.nb_frames)
 }
 
-func (c *avFormatContext) Pause(p bool) {
+func (c *AVFormatContext) Position() int {
+	if c.ctx == nil || c.ctx.avFrame == nil {
+		return 0
+	}
+
+	return int(c.ctx.avFrame.pkt_pos)
+}
+
+func (c *AVFormatContext) Pause(p bool) {
 	c.pause = p
 }
 
-func (c *avFormatContext) IsPaused() bool {
+func (c *AVFormatContext) IsPaused() bool {
 	return c.pause
 }
 
-func (c *avFormatContext) decode() (n int, err error) {
-	bufSize := C.int(0)
+func (c *AVFormatContext) decode() (n int, err error) {
 	ret := C.go_decode(c.ctx)
 	if ret < 0 {
 		err = avutil.NewErrorFromCCode(int(ret))
-	} else if c.ctx.buffer == nil {
-		err = &avutil.AllocError{Size: int(bufSize)}
 	} else {
 		n = int(ret)
 	}
 	return
 }
 
-func (c *avFormatContext) Stream(samples *decoder.Samples) {
+func (c *AVFormatContext) Stream(samples *decoder.Samples) {
+	if c == nil || c.format == nil || c.ctx == nil {
+		return
+	}
 	nbSamples := 0
 	var (
 		chs = c.format.Layout.Count
@@ -155,6 +190,7 @@ func (c *avFormatContext) Stream(samples *decoder.Samples) {
 		ch  int
 		err error
 	)
+
 	defer func() {
 		samples.LastSize = nbSamples
 		samples.LastErr = err
@@ -167,8 +203,10 @@ func (c *avFormatContext) Stream(samples *decoder.Samples) {
 	if samples.Format.Layout.Count >= chs {
 		samples.Format = c.format
 	}
+	c.lock.Lock()
+	defer c.lock.Unlock()
 
-	if c.pause {
+	if c.pause || c.finished {
 		for ch = 0; ch < samples.Format.Layout.Count; ch++ {
 			for i = 0; i < samples.Size; i++ {
 				samples.Buffer[ch][i] = float64(0)
@@ -180,6 +218,15 @@ func (c *avFormatContext) Stream(samples *decoder.Samples) {
 	for i = 0; i < samples.Size; i++ {
 		if c.posPerCh >= c.lastDecodeSize {
 			if c.lastDecodeSize, err = c.decode(); err != nil {
+				if c.ctx.finished > C.int(0) {
+					c.finished = true
+				}
+				// 余下数据置零
+				for j := i; j < samples.Size; j++ {
+					for ch = 0; ch < samples.Format.Layout.Count && ch < chs; ch++ {
+						samples.Buffer[ch][j] = 0
+					}
+				}
 				return
 			}
 			c.posPerCh = 0
@@ -194,9 +241,11 @@ func (c *avFormatContext) Stream(samples *decoder.Samples) {
 	}
 }
 
-func (c *avFormatContext) Seek(p time.Duration) error {
-	pos := p * time.Duration(c.format.SampleRate) / time.Second
+func (c *AVFormatContext) Seek(p time.Duration) error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 
+	pos := p * time.Duration(c.format.SampleRate) / time.Second
 	ret := C.go_seek(c.ctx, C.int(pos))
 	if ret < 0 {
 		return fmt.Errorf("seek to '%d' failed", pos)
@@ -204,9 +253,26 @@ func (c *avFormatContext) Seek(p time.Duration) error {
 	return nil
 }
 
-func (c *avFormatContext) Close() error {
+func (c *AVFormatContext) Close() error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	c.finished = false
+	c.lastDecodeSize = 0
+	c.posPerCh = 0
 	c.pause = true
 	C.go_free(&c.ctx)
 	c.ctx = nil
 	return nil
+}
+
+func (c *AVFormatContext) Debug(d bool) {
+	if c.ctx == nil {
+		return
+	}
+	if d {
+		c.ctx.debug = C.int(1)
+	} else {
+		c.ctx.debug = C.int(0)
+	}
 }

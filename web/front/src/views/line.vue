@@ -30,7 +30,7 @@
           }}</span>
         </span>
       </div>
-      <div>
+      <div :id="'line-' + line.id" class="level-meter-slider">
         <Volume
           :volume="volume"
           :mute="line.mute || false"
@@ -97,7 +97,7 @@
         v-show="infomation.speakers && infomation.speakers.length"
       >
         <li
-          class="speaker"
+          class="speaker level-meter-slider"
           v-for="sp in infomation.speakers"
           :key="sp.id"
           :id="'speaker-' + sp.id"
@@ -192,6 +192,8 @@ import {
   getLineInfo,
   listenLineSpectrum,
   removeListenLineSpectrum,
+  listenLineLevelMeter,
+  removeListenLineLevelMeter,
   setEqualizer,
   setVolume as setLineVolume,
   setLine,
@@ -315,7 +317,7 @@ export default {
         this.specifyChannel = 0;
         return;
       }
-      this.$set(this.line, 'eq', [])
+      this.$set(this.line, 'eq', []);
       this.specifyChannel = 0;
       this.infomation = {};
       this.loadData();
@@ -382,6 +384,7 @@ export default {
   },
   destroyed() {
     cancelAnimationFrame(spRequestId);
+    removeListenLineLevelMeter(this.line.id);
     removeListenLineSpectrum(this.line.id);
     removeListenSpeakerLevelMeter();
     level.clear();
@@ -410,12 +413,21 @@ export default {
           this.initChannelSpeakers();
           this.onShowChannelInfo(-1);
 
+          listenLineLevelMeter(this.line.id, levels => {
+            level.setValById('line-' + levels[0], levels[1]);
+          });
           listenLineSpectrum(this.line.id, this.onSpectrumChange);
           listenSpeakerLevelMeter(levels => {
             levels.forEach(s => level.setValById(s[0], s[1]));
           });
           this.$nextTick(() => {
             level.clear();
+            level.push(
+              'line-' + this.line.id,
+              document.querySelector(
+                '#line-' + this.line.id + ' .vue-slider-process'
+              )
+            );
             this.line.speakers.forEach((sp, i) => {
               level.push(
                 i,

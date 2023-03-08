@@ -3,7 +3,6 @@ package api
 import (
 	"fmt"
 
-	"github.com/fasthttp/websocket"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/receiver"
 	"github.com/zwcway/castserver-go/web/websockets"
@@ -14,7 +13,7 @@ type requestLineCreate struct {
 	Name string `jp:"name"`
 }
 
-func apiLineCreate(c *websocket.Conn, req Requester, log *zap.Logger) (any, error) {
+func apiLineCreate(c *websockets.WSConnection, req Requester, log *zap.Logger) (any, error) {
 	var params requestLineCreate
 	err := req.Unmarshal(&params)
 	if err != nil {
