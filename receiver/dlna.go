@@ -5,13 +5,29 @@ import (
 )
 
 func AddDLNA(line *speaker.Line) {
+	if dlnaInstance == nil {
+		return
+	}
 	line.UUID = dlnaInstance.AddNewInstance(line.Name)
 }
 
 func DelDLNA(line *speaker.Line) {
+	if dlnaInstance == nil {
+		return
+	}
 	dlnaInstance.DelInstance(line.UUID)
 }
 
 func EditDLNA(line *speaker.Line) {
+	if dlnaInstance == nil {
+		return
+	}
 	dlnaInstance.ChangeName(line.UUID, line.Name)
+}
+
+func SetDLNAName(uuid string, name string) {
+	if dlnaInstance == nil {
+		return
+	}
+	dlnaInstance.ChangeName(uuid, name)
 }

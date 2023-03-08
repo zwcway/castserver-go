@@ -81,7 +81,7 @@ class PackArray extends Array {
   }
   encodeFloat32(float) {
     dataV.setFloat32(0, float);
-    int = dataV.getUint32();
+    let int = dataV.getUint32();
     let size = this.numberSize(int);
     this.pushTypeFlag(JsonPackType.FLOAT, size);
     this.pushNumber(int);

@@ -23,29 +23,46 @@ export function clearEqualizer(id) {
   return socket.send('clearLineEQ', { id });
 }
 
-let evts = [Event.Line_Created, Event.Line_Deleted, Event.Line_Edited];
+let listEvts = [Event.Line_Created, Event.Line_Deleted, Event.Line_Edited];
+let evts = [Event.Line_Created, Event.Line_Deleted, Event.Line_Edited, Event.Line_Input];
 
-export function listenLineChanged(callback) {
-  return socket.receiveCommand(Command.Line, evts, callback);
+export function listenLineListChanged(callback) {
+  return socket.receiveEvent(listEvts, callback);
 }
-export function removelistenLineChanged() {
-  socket.removeEvent(Command.Line, evts);
+export function removelistenLineListChanged() {
+  socket.removeEvent(listEvts);
+}
+
+export function listenLineChanged(id, callback) {
+  return socket.receiveEvent(evts, id, callback);
+}
+
+export function removelistenLineChanged(id) {
+  socket.removeEvent(evts, id);
+}
+
+export function listenLineSpeakerChanged(id, callback) {
+  return socket.receiveEvent(Event.Line_Speaker, id, callback);
+}
+
+export function removelistenLineSpeakerChanged(id) {
+  socket.removeEvent(Event.Line_Speaker, id);
 }
 
 export function listenLineSpectrum(id, callback) {
-  return socket.receiveEvent(Command.Line, Event.Line_Spectrum, id, callback);
+  return socket.receiveEvent(Event.Line_Spectrum, id, callback);
 }
 
 export function removeListenLineSpectrum(id) {
-  socket.removeEvent(Command.Line, Event.Line_Spectrum, id);
+  socket.removeEvent(Event.Line_Spectrum, id);
 }
 
 export function listenLineLevelMeter(id, callback) {
-  return socket.receiveEvent(Command.Line, Event.Line_LevelMeter, id, callback);
+  return socket.receiveEvent(Event.Line_LevelMeter, id, callback);
 }
 
 export function removeListenLineLevelMeter(id) {
-  socket.removeEvent(Command.Line, Event.Line_LevelMeter, id);
+  socket.removeEvent(Event.Line_LevelMeter, id);
 }
 
 export function createLine(name) {

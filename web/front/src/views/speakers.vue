@@ -1,7 +1,7 @@
 <template>
   <div class="speaker-list">
-    <div v-for="sp in speakers" :key="sp.id" :id="'speaker-' + sp.id">
-      <SpeakerRow :speaker="sp" />
+    <div v-for="(sp, i) in speakers" :key="i" :id="'speaker-' + sp.id">
+      <SpeakerRow :speaker="sp" :class="sp.__class ? sp.__class : ''" />
     </div>
     <div class="notification is-primary is-light" v-if="speakers.length === 0">
       当前还没有连接任何的扬声器。
@@ -20,7 +20,7 @@ import {
   removeListenSpeakerEvent,
   removeListenSpeakerLevelMeter,
 } from '@/api/speaker';
-import { socket } from '@/common/request';
+import { socket, Event as SrvEvent } from '@/common/request';
 
 let level = new VolumeLevel('200ms');
 window.level = level;
@@ -68,9 +68,14 @@ export default {
       level.clear();
       this.$nextTick(() => {
         newVal.forEach(s => {
-          level.push(s.id, document.getElementById('speaker-' + s.id).querySelector('.vue-slider-process'));
-        })
-      })
+          level.push(
+            s.id,
+            document
+              .getElementById('speaker-' + s.id)
+              .querySelector('.vue-slider-process')
+          );
+        });
+      });
     },
   },
   methods: {
@@ -78,21 +83,26 @@ export default {
       getSpeakerList().then(result => {
         this.speakers = result || [];
       });
-      listenSpeakerChanged((act, speaker) => {
+      listenSpeakerChanged((speaker, evt) => {
         let i = this.findSpeaker(speaker.id);
-        switch (act) {
-          case 1:
+        switch (evt) {
+          case SrvEvent.SP_Detected:
+            speaker.__class = 'animate__bounceIn';
             this.speakers.unshift(speaker);
             break;
-          case 2:
+          case SrvEvent.SP_Edited:
+          case SrvEvent.SP_Online:
+          case SrvEvent.SP_Offline:
+          case SrvEvent.SP_Moved:
             if (i >= 0) this.speakers[i] = speaker;
-            else this.speakers.unshift(speaker);
             break;
-          case 3:
-            if (i >= 0) this.speakers[i] = speaker;
-            break;
-          case 4:
-            if (i >= 0) delete this.speakers[i];
+          case SrvEvent.SP_Deleted:
+            if (i >= 0) {
+              this.speakers[i].__class = 'animate__bounceOut';
+              setTimeout(() => {
+                this.speakers.splice(i, 1);
+              }, 750);
+            }
             break;
         }
       });
@@ -127,6 +137,4 @@ export default {
     z-index: -1;
   }
 }
-
-
 </style>

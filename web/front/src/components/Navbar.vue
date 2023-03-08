@@ -113,7 +113,7 @@ import LinuxTitlebar from '@/components/LinuxTitlebar.vue';
 import { socket } from '@/common/request';
 import {
   getLineList,
-  listenLineChanged,
+  listenLineListChanged,
   createLine,
   deleteLine,
 } from '@/api/line';
@@ -181,7 +181,7 @@ export default {
       getLineList().then(data => {
         this.lines = data;
       });
-      listenLineChanged(data => {});
+      listenLineListChanged(data => {});
     },
     go(where) {
       if (where === 'back') this.$router.go(-1);

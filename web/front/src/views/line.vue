@@ -186,19 +186,8 @@ import Volume from '@/components/Volume';
 // import icons for win32 title bar
 // icons by https://github.com/microsoft/vscode-codicons
 import '@vscode/codicons/dist/codicon.css';
-import {
-  channelList,
-  clearEqualizer,
-  getLineInfo,
-  listenLineSpectrum,
-  removeListenLineSpectrum,
-  listenLineLevelMeter,
-  removeListenLineLevelMeter,
-  setEqualizer,
-  setVolume as setLineVolume,
-  setLine,
-} from '@/api/line';
-import { socket } from '@/common/request';
+import '@/api/line';
+import { socket, Event } from '@/common/request';
 import VolumeLevel from '@/common/volumeLevel';
 import {
   setVolume as setSpeakerVolume,
@@ -317,12 +306,7 @@ export default {
         this.specifyChannel = 0;
         return;
       }
-      this.$set(this.line, 'eq', []);
-      this.specifyChannel = 0;
-      this.infomation = {};
-      this.loadData();
-      this.initSpectrum();
-      this.$destroyAll();
+      this.init();
     },
     isShowEqualizer(newVal) {
       if (!newVal) return;
@@ -369,8 +353,7 @@ export default {
     },
   },
   mounted() {
-    this.initSpectrum();
-    socket.onConnected().then(() => this.loadData());
+    socket.onConnected().then(() => this.init());
     this.$nextTick(function () {
       document.addEventListener(
         'keyup',
@@ -383,21 +366,79 @@ export default {
     });
   },
   destroyed() {
-    cancelAnimationFrame(spRequestId);
-    removeListenLineLevelMeter(this.line.id);
-    removeListenLineSpectrum(this.line.id);
-    removeListenSpeakerLevelMeter();
-    level.clear();
-    this.$destroyAll();
-    document.removeEventListener('keyup', this.onKeyUp);
+    this.deinit();
   },
   activated() {
     // keep-alived 开启后生效
-    this.loadData();
+    this.init();
   },
   methods: {
-    loadData() {
+    deinit() {
+      cancelAnimationFrame(spRequestId);
+      removelistenLineChanged(this.line.id);
+      removeListenLineLevelMeter(this.line.id);
+      removeListenLineSpectrum(this.line.id);
+      removeListenSpeakerLevelMeter();
+      removeListenLineSpeakerChanged(this.line.id);
+      level.clear();
+      this.$destroyAll();
+      document.removeEventListener('keyup', this.onKeyUp);
+    },
+    init() {
+      this.deinit();
       this.line.id = parseInt(this.$route.params.id);
+      this.$set(this.line, 'eq', []);
+      this.specifyChannel = 0;
+      this.isLineNameEdit = false;
+      this.infomation = {};
+      this.initSpectrum();
+      this.$destroyAll();
+
+      listenLineChanged(this.line.id, line => {
+        this.line = line;
+      });
+      listenLineSpeakerChanged(this.line.id, (speaker, evt, sub) => {
+        let found = -1;
+        for (let i = 0; i < this.line.speakers.length; i++) {
+          let sp = this.line.speakers[i];
+          if (sp.id === speaker.id) {
+            found = i;
+            break;
+          }
+        }
+        switch (sub) {
+          case Event.SP_Detected:
+            speaker.__class = 'animate__bounceIn';
+            this.line.speakers.unshift(speaker);
+            break;
+          case Event.SP_Deleted:
+            if (found >= 0) {
+              this.speakers[found].__class = 'animate__bounceOut';
+              setTimeout(() => {
+                this.speakers.splice(found, 1);
+              }, 750);
+            }
+            break;
+          case Event.SP_Online:
+          case Event.SP_Offline:
+          case Event.SP_Edited:
+          case Event.SP_Edited:
+            if (found < 0) {
+              speaker.__class = 'animate__bounceIn';
+              this.line.speakers.unshift(speaker);
+            } else {
+              this.speakers[found] = speaker;
+            }
+            break;
+        }
+      });
+      listenLineLevelMeter(this.line.id, levels => {
+        level.setValById('line-' + levels[0], levels[1]);
+      });
+      listenLineSpectrum(this.line.id, this.onSpectrumChange);
+      listenSpeakerLevelMeter(levels => {
+        levels.forEach(s => level.setValById(s[0], s[1]));
+      });
 
       getLineInfo(this.line.id)
         .then(data => {
@@ -413,13 +454,6 @@ export default {
           this.initChannelSpeakers();
           this.onShowChannelInfo(-1);
 
-          listenLineLevelMeter(this.line.id, levels => {
-            level.setValById('line-' + levels[0], levels[1]);
-          });
-          listenLineSpectrum(this.line.id, this.onSpectrumChange);
-          listenSpeakerLevelMeter(levels => {
-            levels.forEach(s => level.setValById(s[0], s[1]));
-          });
           this.$nextTick(() => {
             level.clear();
             level.push(

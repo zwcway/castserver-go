@@ -126,19 +126,19 @@ function readBlob(data) {
       result[3] === 110 &&
       result[4] === 116
     ) {
-      let cmd = result[5] + '';
-      let evt = result[6] + '';
-      let arg = result[7] + '';
+      let evt = result[5];
+      let sub = result[6];
+      let arg = result[7];
       let data = decode(result.slice(8));
 
+      if (receiver[evt + '.' + sub + '-' + arg] instanceof Function) {
+        receiver[evt + '.' + sub + '-' + arg].call(undefined, data, evt, sub);
+      }
       if (receiver[evt + '-' + arg] instanceof Function) {
-        receiver[evt + '-' + arg].call(undefined, data, cmd, evt);
+        receiver[evt + '-' + arg].call(undefined, data, evt, sub);
       }
       if (receiver['' + evt] instanceof Function) {
-        receiver['' + evt].call(undefined, data, cmd, evt);
-      }
-      if (receiver[cmd] instanceof Function) {
-        receiver[cmd].call(undefined, data, cmd, evt);
+        receiver['' + evt].call(undefined, data, evt, sub);
       }
       return;
     }
@@ -231,65 +231,57 @@ function sendPing() {
 }
 
 function sendSubscribe(evt, act, sub, arg) {
-  if (sub && !(sub instanceof Array)) {
-    sub = [sub];
+  let data = { evt, act }
+
+  if (sub) {
+    data['sub'] = sub;
   }
-  if (arg === undefined) arg = 0
-  else arg = parseInt(arg)
-  
+  if (arg !== undefined) {
+    data['arg'] = parseInt(arg)
+  }
+
   return send('subscribe', { evt, act, sub, arg }, { noResponse: true });
 }
 
-function receiveCommand(command, evt, cb) {
-  if (!(cb instanceof Function)) return;
-  if (evt === undefined) {
-    receiver['' + command] = cb;
-    return;
-  }
+function receiveEvent(evt, arg, cb, sub) {
   if (!(evt instanceof Array)) evt = [evt];
 
-  evt.forEach(e => {
-    receiver['' + e] = cb;
-  });
-
-  sendSubscribe(command, true, evt)
-}
-
-function receiveEvent(command, evt, arg, cb) {
-  if (!(cb instanceof Function)) return;
-  if (!(evt instanceof Array)) evt = [evt];
-
-  if (arg === undefined) {
+  if (arg instanceof Function) {
+    cb = arg;
     evt.forEach(e => {
       receiver['' + e] = cb;
     });
-    return;
+    sendSubscribe(true, evt, undefined, sub)
+    return
   }
-  if (!(arg instanceof Array)) 
+  if (!(cb instanceof Function)) return;
+  if (!(arg instanceof Array))
     arg = [arg];
 
   evt.forEach(e => {
     arg.forEach(a => {
       a = parseInt(a)
-      receiver[e + '-' + a] = cb;
-      sendSubscribe(command, true, evt, a)
+      if (sub)
+        receiver[e + '.' + sub + '-' + a] = cb;
+      else
+        receiver[e + '-' + a] = cb;
+      sendSubscribe(true, evt, a, sub)
     });
   });
 }
 
-function removeEvent(command, evt, arg) {
+function removeEvent(evt, sub, arg) {
   if (!(evt instanceof Array)) {
     evt = [evt];
   }
   if (!(arg instanceof Array)) {
     arg = [arg];
   }
-  delete receiver['' + command];
   evt.forEach(e => {
     delete receiver['' + e];
     arg.forEach(a => {
       delete receiver[e + '-' + a];
-      sendSubscribe(command, false, evt, arg)
+      sendSubscribe(false, evt, arg, sub)
     });
   });
 }

@@ -23,9 +23,10 @@ const Event = Object.freeze({
   Line_Created: 18,
   Line_Deleted: 19,
   Line_Edited: 20,
-  Line_LevelMeter: 21,
-  Line_Spectrum: 22,
-  Line_Input: 23,
+  Line_Speaker: 21,
+  Line_LevelMeter: 22,
+  Line_Spectrum: 23,
+  Line_Input: 24,
 });
 
 export { socket, Command, Event };

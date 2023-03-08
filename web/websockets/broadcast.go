@@ -25,7 +25,7 @@ func BroadcastSpeakerChannelMovedEvent(sp *speaker.Speaker, from audio.Channel, 
 		return err
 	}
 
-	return Broadcast(Command_SPEAKER, Event_SP_Moved, resp.Speaker, msg)
+	return Broadcast(Event_SP_Moved, 0, resp.Speaker, msg)
 }
 
 func BroadcastSpeakerLineMovedEvent(sp *speaker.Speaker, from speaker.LineID, to speaker.LineID) error {
@@ -40,7 +40,7 @@ func BroadcastSpeakerLineMovedEvent(sp *speaker.Speaker, from speaker.LineID, to
 		return err
 	}
 
-	return Broadcast(Command_SPEAKER, Event_SP_Moved, resp.Speaker, msg)
+	return Broadcast(Event_SP_Moved, 0, resp.Speaker, msg)
 }
 
 func BroadcastSpeakerEvent(sp *speaker.Speaker, evt uint8) error {
@@ -48,8 +48,8 @@ func BroadcastSpeakerEvent(sp *speaker.Speaker, evt uint8) error {
 	if err != nil {
 		return err
 	}
-
-	return Broadcast(Command_SPEAKER, evt, int(sp.ID), msg)
+	Broadcast(Event_Line_Speaker, evt, int(sp.Line), msg)
+	return Broadcast(evt, 0, int(sp.ID), msg)
 }
 
 func BroadcastLineEvent(line *speaker.Line, evt uint8) error {
@@ -58,10 +58,10 @@ func BroadcastLineEvent(line *speaker.Line, evt uint8) error {
 		return err
 	}
 
-	return Broadcast(Command_LINE, evt, int(line.ID), msg)
+	return Broadcast(evt, 0, int(line.ID), msg)
 }
 
-func Broadcast(cmd, evt uint8, arg int, msg []byte) error {
+func Broadcast(evt uint8, sub uint8, arg int, msg []byte) error {
 	// 格式： event+cmd+evt+data
 	id := make([]byte, 8+len(msg))
 	id[0] = 'e'
@@ -69,8 +69,8 @@ func Broadcast(cmd, evt uint8, arg int, msg []byte) error {
 	id[2] = 'e'
 	id[3] = 'n'
 	id[4] = 't'
-	id[5] = byte(cmd)
-	id[6] = byte(evt)
+	id[5] = byte(evt)
+	id[6] = byte(sub)
 	id[7] = byte(arg)
 
 	for i, v := range msg {
@@ -102,15 +102,18 @@ func SetEventHandler(hs map[uint8]EventHandler) {
 	eventHandlers = hs
 }
 
-func Subscribe(c *WSConnection, cmd uint8, evt []uint8, arg int) {
+func Subscribe(c *WSConnection, evt []uint8, sub uint8, arg int) {
 	ses, ok := WSHub.broadcast[c]
 	if !ok { // 设备已断开
+		return
+	}
+	if len(evt) == 0 {
 		return
 	}
 	addEvts := []uint8{}
 	for _, ee := range evt {
 		// 检查已经已经订阅过
-		if findBEvent(ses, (ee)) {
+		if findBEvent(ses, ee, sub, arg) {
 			continue
 		}
 
@@ -124,18 +127,6 @@ func Subscribe(c *WSConnection, cmd uint8, evt []uint8, arg int) {
 		}
 		addEvts = append(addEvts, (ee))
 	}
-	if len(evt) == 0 {
-		es, ok := CommandEventMap[cmd]
-		if !ok {
-			return
-		}
-		for _, e := range es {
-			if findBEvent(ses, e) {
-				continue
-			}
-			addEvts = append(addEvts, e)
-		}
-	}
 
 	if len(addEvts) == 0 { // 所有事件都已经订阅过了
 		return
@@ -143,14 +134,14 @@ func Subscribe(c *WSConnection, cmd uint8, evt []uint8, arg int) {
 
 	// 事件为空，表示接收该cmd下的所有事件
 	for _, e := range addEvts {
-		WSHub.broadcast[c] = append(WSHub.broadcast[c], broadcastEvent{e, arg})
+		WSHub.broadcast[c] = append(WSHub.broadcast[c], broadcastEvent{e, sub, arg})
 		if h, ok := eventHandlers[e]; ok {
 			h.On(e, arg, ctx, log)
 		}
 	}
 }
 
-func Unsubscribe(c *WSConnection, cmd uint8, evt []uint8, arg int) {
+func Unsubscribe(c *WSConnection, evt []uint8, sub uint8, arg int) {
 	ses, ok := WSHub.broadcast[c]
 	if !ok {
 		return
@@ -159,16 +150,14 @@ func Unsubscribe(c *WSConnection, cmd uint8, evt []uint8, arg int) {
 	ne := []broadcastEvent{}
 
 	for _, ee := range evt {
-		if findBEvent(ses, (ee)) {
-			if h, ok := eventHandlers[ee]; ok {
-				h.Off(ee, arg)
-			}
+		if !findBEvent(ses, ee, sub, arg) {
+			ne = append(ne, broadcastEvent{ee, sub, arg})
 			continue
 		}
-		if ee >= Event_MAX || ee <= Event_MIN {
-			continue
+
+		if h, ok := eventHandlers[ee]; ok {
+			h.Off(ee, arg)
 		}
-		ne = append(ne, broadcastEvent{ee, arg})
 	}
 
 	WSHub.broadcast[c] = ne
