@@ -20,10 +20,15 @@ func (v *Volume) Name() string {
 }
 
 func (v *Volume) Type() decoder.ElementType {
-	return decoder.ET_OneSample
+	return decoder.ET_WholeSamples
 }
 
 func (v *Volume) Stream(samples *decoder.Samples) {
+	for ch := 0; ch < samples.Format.Layout.Count; ch++ {
+		for i := 0; i < samples.Size; i++ {
+			samples.Buffer[ch][i] *= v.gain
+		}
+	}
 }
 
 func (v *Volume) Sample(sample *float64, ch int, n int) {
@@ -40,8 +45,12 @@ func (v *Volume) Mute() bool {
 }
 
 func (v *Volume) SetVolume(p float64) {
-	if v.mute {
+	v.volume = p
+
+	if v.mute || v.volume == 0 {
 		v.gain = 0
+	} else if v.base == 1 {
+		v.gain = v.volume
 	} else {
 		v.gain = math.Pow(v.base, v.volume)
 	}
@@ -52,5 +61,5 @@ func (v *Volume) Volume() float64 {
 }
 
 func NewVolume(vol float64) *Volume {
-	return &Volume{volume: vol}
+	return &Volume{volume: vol, base: 1}
 }

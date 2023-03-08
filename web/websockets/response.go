@@ -1,45 +1,21 @@
 package websockets
 
 import (
-	"time"
-
 	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/speaker"
 )
 
 type ResponseSpeakerInfo struct {
-	ID          int32    `jp:"id"`
-	Name        string   `jp:"name"`
-	IP          string   `jp:"ip"`
-	MAC         string   `jp:"mac"`
-	BitList     []string `jp:"bitList"`
-	RateList    []int    `jp:"rateList"`
-	Volume      int      `jp:"vol"`
-	Mute        bool     `jp:"mute"`
-	AbsoluteVol bool     `jp:"avol"`
-	PowerState  int      `jp:"power"`
+	ResponseSpeakerList
 
 	Statistic speaker.Statistic `jp:"statisitc"`
 }
 
 func NewResponseSpeakerInfo(sp *speaker.Speaker) *ResponseSpeakerInfo {
-	power := int(sp.PowerSate)
-	if !sp.PowerSave {
-		power = -1
-	}
 
 	return &ResponseSpeakerInfo{
-		ID:          int32(sp.ID),
-		Name:        sp.Name,
-		IP:          sp.IP.String(),
-		MAC:         sp.MAC.String(),
-		BitList:     sp.BitsMask.Slice(),
-		RateList:    sp.RateMask.Slice(),
-		Volume:      sp.Volume,
-		Mute:        sp.IsMute,
-		AbsoluteVol: sp.AbsoluteVol,
-		PowerState:  power,
-		Statistic:   sp.Statistic,
+		ResponseSpeakerList: *NewResponseSpeakerList(sp),
+		Statistic:           sp.Statistic,
 	}
 }
 
@@ -68,7 +44,7 @@ func NewResponseSpeakerList(sp *speaker.Speaker) *ResponseSpeakerList {
 	}
 	ct := 0
 	if !sp.ConnTime.IsZero() {
-		ct = int(time.Since(sp.ConnTime) / time.Second)
+		ct = int(sp.ConnTime.Unix())
 	}
 	return &ResponseSpeakerList{
 		ID:          int32(sp.ID),
@@ -96,7 +72,7 @@ type ResponseLineSource struct {
 }
 
 func NewResponseLineSource(line *speaker.Line) *ResponseLineSource {
-	if line.Input == nil {
+	if line == nil || line.Input == nil {
 		return nil
 	}
 	return &ResponseLineSource{

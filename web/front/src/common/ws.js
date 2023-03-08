@@ -37,7 +37,7 @@ function wsonopen() {
   retried = 0;
   sendPing();
 
-  for (; 0 < connected.length; ) {
+  for (; 0 < connected.length;) {
     connected[0](sockthis);
     delete connected[0];
     connected = connected.slice(1);
@@ -234,10 +234,13 @@ function sendSubscribe(evt, act, sub, arg) {
   if (sub && !(sub instanceof Array)) {
     sub = [sub];
   }
+  if (arg === undefined) arg = 0
+  else arg = parseInt(arg)
+  
   return send('subscribe', { evt, act, sub, arg }, { noResponse: true });
 }
 
-function receiveCommand(command, cb, evt) {
+function receiveCommand(command, evt, cb) {
   if (!(cb instanceof Function)) return;
   if (evt === undefined) {
     receiver['' + command] = cb;
@@ -248,9 +251,11 @@ function receiveCommand(command, cb, evt) {
   evt.forEach(e => {
     receiver['' + e] = cb;
   });
+
+  sendSubscribe(command, true, evt)
 }
 
-function receiveEvent(evt, cb, arg) {
+function receiveEvent(command, evt, arg, cb) {
   if (!(cb instanceof Function)) return;
   if (!(evt instanceof Array)) evt = [evt];
 
@@ -260,11 +265,14 @@ function receiveEvent(evt, cb, arg) {
     });
     return;
   }
-  if (!(arg instanceof Array)) arg = [arg];
+  if (!(arg instanceof Array)) 
+    arg = [arg];
 
   evt.forEach(e => {
     arg.forEach(a => {
+      a = parseInt(a)
       receiver[e + '-' + a] = cb;
+      sendSubscribe(command, true, evt, a)
     });
   });
 }
@@ -281,6 +289,7 @@ function removeEvent(command, evt, arg) {
     delete receiver['' + e];
     arg.forEach(a => {
       delete receiver[e + '-' + a];
+      sendSubscribe(command, false, evt, arg)
     });
   });
 }
@@ -312,7 +321,7 @@ function promiseCallback(id, command, params) {
       delete callback[id];
       reject();
     }, 1000);
-    callback[id] = { command, resolve, reject, st, params};
+    callback[id] = { command, resolve, reject, st, params };
   });
 }
 

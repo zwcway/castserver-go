@@ -19,3 +19,7 @@ func (s *Format) Equal(r *Format) bool {
 func (s *Format) Bytes() int {
 	return s.Layout.Count * s.SampleBits.Size()
 }
+
+func (s *Format) IsValid() bool {
+	return s.Layout.Count > 0 && s.SampleRate.IsValid() && s.SampleBits.IsValid()
+}

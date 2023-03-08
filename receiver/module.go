@@ -34,7 +34,7 @@ func (receiveModel) Init(ctx utils.Context) error {
 		if err != nil {
 			return err
 		}
-		dlnaInstance.ListenAndServe()
+		go dlnaInstance.ListenAndServe()
 	}
 	return nil
 }

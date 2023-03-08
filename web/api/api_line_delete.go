@@ -3,7 +3,6 @@ package api
 import (
 	"fmt"
 
-	"github.com/fasthttp/websocket"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/receiver"
 	"github.com/zwcway/castserver-go/web/websockets"
@@ -15,7 +14,7 @@ type requestLineDelete struct {
 	Move uint8 `jp:"moveTo"`
 }
 
-func apiLineDelete(c *websocket.Conn, req Requester, log *zap.Logger) (any, error) {
+func apiLineDelete(c *websockets.WSConnection, req Requester, log *zap.Logger) (any, error) {
 	var params requestLineDelete
 	err := req.Unmarshal(&params)
 	if err != nil {

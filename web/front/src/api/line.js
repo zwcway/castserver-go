@@ -26,22 +26,26 @@ export function clearEqualizer(id) {
 let evts = [Event.Line_Created, Event.Line_Deleted, Event.Line_Edited];
 
 export function listenLineChanged(callback) {
-  socket.sendSubscribe(Command.Line, true, evts);
-  return socket.receiveCommand(Command.Line, callback, evts);
+  return socket.receiveCommand(Command.Line, evts, callback);
 }
 export function removelistenLineChanged() {
-  socket.sendSubscribe(Command.Line, false, evts);
   socket.removeEvent(Command.Line, evts);
 }
 
 export function listenLineSpectrum(id, callback) {
-  socket.sendSubscribe(Command.Line, true, Event.Line_Spectrum, id);
-  return socket.receiveEvent(Event.Line_Spectrum, callback, id);
+  return socket.receiveEvent(Command.Line, Event.Line_Spectrum, id, callback);
 }
 
 export function removeListenLineSpectrum(id) {
-  socket.sendSubscribe(Command.Line, false, Event.Line_Spectrum, id);
   socket.removeEvent(Command.Line, Event.Line_Spectrum, id);
+}
+
+export function listenLineLevelMeter(id, callback) {
+  return socket.receiveEvent(Command.Line, Event.Line_LevelMeter, id, callback);
+}
+
+export function removeListenLineLevelMeter(id) {
+  socket.removeEvent(Command.Line, Event.Line_LevelMeter, id);
 }
 
 export function createLine(name) {

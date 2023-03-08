@@ -3,6 +3,7 @@ package api
 import (
 	"github.com/fasthttp/websocket"
 	"github.com/zwcway/castserver-go/utils"
+	"github.com/zwcway/castserver-go/web/websockets"
 	"go.uber.org/zap"
 )
 
@@ -25,7 +26,7 @@ var apiRouterList = map[string]apiRouter{
 	"spReconnect":    {apiReconnect},
 }
 
-func ApiDispatch(mt int, msg []byte, conn *websocket.Conn) {
+func ApiDispatch(mt int, msg []byte, conn *websockets.WSConnection) {
 	var (
 		jp  = ReqMessage{}
 		idx = 0
@@ -46,10 +47,7 @@ func ApiDispatch(mt int, msg []byte, conn *websocket.Conn) {
 			return
 		}
 	}
-	if jp.id == "" && string(msg) == "ping" {
-		apiPing(conn, &jp, log)
-		return
-	}
+
 	if mt != websocket.BinaryMessage {
 		return
 	}

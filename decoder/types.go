@@ -17,22 +17,21 @@ type StreamCloser interface {
 }
 
 type StreamSeekCloser interface {
-	Streamer
-	Len() int
-	Position() int
+	StreamCloser
+	Len() int      // 总长度
+	Position() int // 当前位置
 	Seek(p time.Duration) error
-	Close() error
 }
 
 type FileStreamer interface {
 	StreamSeekCloser
-	SetFormat(*audio.Format)
 	OpenFile(string) error
 	CurrentFile() string
-	AudioFormat() *audio.Format
-	Duration() time.Duration
-	Pause(bool)
-	IsPaused() bool
+	AudioFormat() *audio.Format   // 当前音频格式
+	Duration() time.Duration      // 当前时长
+	TotalDuration() time.Duration // 总时长
+	Pause(bool)                   // 暂停解码
+	IsPaused() bool               // 是否暂停
 }
 
 type ElementType int

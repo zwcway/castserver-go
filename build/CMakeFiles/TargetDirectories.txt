@@ -1,0 +1,3 @@
+O:/Workspaces/castserver-go/build/CMakeFiles/ffmpeg_test.dir
+O:/Workspaces/castserver-go/build/CMakeFiles/edit_cache.dir
+O:/Workspaces/castserver-go/build/CMakeFiles/rebuild_cache.dir

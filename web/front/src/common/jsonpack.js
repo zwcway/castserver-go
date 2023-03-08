@@ -119,7 +119,7 @@ class PackArray extends Array {
     this.pushTypeFlag(JsonPackType.ARRAY, this.numberSize(array.length));
     this.pushNumber(array.length);
     for (let i = 0; i < array.length; i++) {
-      this.encodeObject(array[i]);
+      this.encodeObject(array[i], i);
     }
   }
 
@@ -132,14 +132,14 @@ class PackArray extends Array {
         throw 'key size too big: ' + k;
       }
       unpacker.encodeString('' + k);
-      unpacker.encodeObject(map[k]);
+      unpacker.encodeObject(map[k], k);
       len++;
     }
     this.pushTypeFlag(JsonPackType.MAP, this.numberSize(len));
     this.pushNumber(len);
     this.concat(unpacker);
   }
-  encodeObject(obj) {
+  encodeObject(obj, key) {
     if (typeof obj === 'string') {
       this.encodeString(obj);
     } else if (typeof obj === 'number') {
@@ -154,6 +154,12 @@ class PackArray extends Array {
       this.encodeArray(obj);
     } else if (obj instanceof Object) {
       this.encodeMap(obj);
+    } else if (obj === undefined) {
+      this.encodeString('undefined')
+    } else if (obj === null) {
+      this.encodeString('null')
+    } else {
+      throw 'key type unknown ' + key;
     }
   }
 }
@@ -262,7 +268,8 @@ class UnPackArray {
       flag = this.flag(type);
     type = this.type(type);
 
-    if (mustType && mustType !== type) throw 'type not expected';
+    if (mustType && mustType !== type)
+      throw 'type not expected';
 
     switch (type) {
       case JsonPackType.INTEGER:
@@ -285,7 +292,7 @@ class UnPackArray {
 
 export function encode(obj) {
   let arr = new PackArray();
-  arr.encodeObject(obj);
+  arr.encodeObject(obj, '');
   return new Uint8Array(arr);
 }
 
@@ -295,7 +302,7 @@ export function encodeReq(id, cmd, obj) {
   arr.push(0);
   arr.pushString(cmd);
   arr.push(0);
-  arr.encodeObject(obj);
+  arr.encodeObject(obj, '');
   return new Uint8Array(arr);
 }
 

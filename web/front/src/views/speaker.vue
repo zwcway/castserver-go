@@ -148,11 +148,11 @@ export default {
     },
   },
   mounted() {
-    this.id = parseInt(this.$route.params.id || 0);
-    if (!this.id) {
-      this.$router.push('/speakers');
+    if (this.$route.params.id === undefined) {
+      this.$router.replace('/speakers');
       return;
     }
+    this.id = parseInt(this.$route.params.id || 0);
     socket.onConnected().then(() => this.loadData());
   },
 

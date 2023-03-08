@@ -1,11 +1,9 @@
 package websockets
 
 import (
-	"github.com/fasthttp/websocket"
 	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/jsonpack"
 	"github.com/zwcway/castserver-go/common/speaker"
-	"go.uber.org/zap"
 )
 
 type notifySpeakerMoved struct {
@@ -76,15 +74,15 @@ func Broadcast(cmd, evt uint8, arg int, msg []byte) error {
 	id[7] = byte(arg)
 
 	for i, v := range msg {
-		id[7+i] = v
+		id[8+i] = v
 	}
 
-	log.Debug("broadcast event",
-		zap.Uint8("cmd", cmd),
-		zap.Uint8("evt", evt),
-		zap.Int("arg", arg),
-		zap.Int("length", len(msg)),
-	)
+	// log.Debug("broadcast event",
+	// 	zap.Uint8("cmd", cmd),
+	// 	zap.Uint8("evt", evt),
+	// 	zap.Int("arg", arg),
+	// 	zap.Int("length", len(msg)),
+	// )
 
 	for c, b := range WSHub.broadcast {
 		for _, e := range b {
@@ -92,13 +90,19 @@ func Broadcast(cmd, evt uint8, arg int, msg []byte) error {
 				continue
 			}
 
-			c.WriteMessage(websocket.BinaryMessage, msg)
+			c.Write(id)
 		}
 	}
 	return nil
 }
 
-func Subscribe(c *websocket.Conn, cmd uint8, evt []uint8, arg int, hs map[uint8]EventHandler) {
+var eventHandlers = map[uint8]EventHandler{}
+
+func SetEventHandler(hs map[uint8]EventHandler) {
+	eventHandlers = hs
+}
+
+func Subscribe(c *WSConnection, cmd uint8, evt []uint8, arg int) {
 	ses, ok := WSHub.broadcast[c]
 	if !ok { // 设备已断开
 		return
@@ -140,13 +144,13 @@ func Subscribe(c *websocket.Conn, cmd uint8, evt []uint8, arg int, hs map[uint8]
 	// 事件为空，表示接收该cmd下的所有事件
 	for _, e := range addEvts {
 		WSHub.broadcast[c] = append(WSHub.broadcast[c], broadcastEvent{e, arg})
-		if h, ok := hs[e]; ok {
+		if h, ok := eventHandlers[e]; ok {
 			h.On(e, arg, ctx, log)
 		}
 	}
 }
 
-func Unsubscribe(c *websocket.Conn, cmd uint8, evt []uint8, arg int, hs map[uint8]EventHandler) {
+func Unsubscribe(c *WSConnection, cmd uint8, evt []uint8, arg int) {
 	ses, ok := WSHub.broadcast[c]
 	if !ok {
 		return
@@ -156,7 +160,7 @@ func Unsubscribe(c *websocket.Conn, cmd uint8, evt []uint8, arg int, hs map[uint
 
 	for _, ee := range evt {
 		if findBEvent(ses, (ee)) {
-			if h, ok := hs[ee]; ok {
+			if h, ok := eventHandlers[ee]; ok {
 				h.Off(ee, arg)
 			}
 			continue
@@ -168,4 +172,18 @@ func Unsubscribe(c *websocket.Conn, cmd uint8, evt []uint8, arg int, hs map[uint
 	}
 
 	WSHub.broadcast[c] = ne
+}
+
+func UnsubscribeAll(c *WSConnection) {
+	ses, ok := WSHub.broadcast[c]
+	if !ok {
+		return
+	}
+
+	for _, ee := range ses {
+		if h, ok := eventHandlers[ee.evt]; ok {
+			h.Off(ee.evt, ee.arg)
+		}
+	}
+
 }

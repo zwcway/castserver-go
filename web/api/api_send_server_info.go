@@ -1,9 +1,9 @@
 package api
 
 import (
-	"github.com/fasthttp/websocket"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/detector"
+	"github.com/zwcway/castserver-go/web/websockets"
 	"go.uber.org/zap"
 )
 
@@ -11,7 +11,7 @@ type reqSendServerInfo struct {
 	ID uint32 `jp:"id"`
 }
 
-func apiSendServerInfo(c *websocket.Conn, req Requester, log *zap.Logger) (any, error) {
+func apiSendServerInfo(c *websockets.WSConnection, req Requester, log *zap.Logger) (any, error) {
 	var spId uint32
 	err := req.Unmarshal(&spId)
 	if err != nil {

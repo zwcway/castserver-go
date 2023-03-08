@@ -90,7 +90,6 @@ func avtStop(input any, output any, ctx *fasthttp.RequestCtx, uuid string) error
 	if playUri == "" {
 		return nil
 	}
-	localspeaker.Close()
 	pipeline.FileStreamer(uuid).Close()
 	return nil
 }

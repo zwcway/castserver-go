@@ -20,7 +20,7 @@ function VolumeLevel(duration) {
   };
 
   this.push = (id, ele) => {
-    if (maps['' + id] !== undefined) return;
+    if (ele === null || maps['' + id] !== undefined) return;
     ele.innerHTML='<div class="level-meter"></div>'
     ele = ele.querySelector('.level-meter')
     maps['' + id] = eles.length;
@@ -57,7 +57,7 @@ function VolumeLevel(duration) {
     if (i < 0 || i >= eles.length) {
       return;
     }
-    if (typeof val === 'number') val = val + '%';
+    if (typeof val === 'number') val = ((1 - val) * 100) + '%';
     else if ( typeof val === 'string' && !val.endsWith('%'))
       val = val + '%';
 

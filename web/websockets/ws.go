@@ -1,6 +1,7 @@
 package websockets
 
 import (
+	"errors"
 	"time"
 
 	"github.com/fasthttp/websocket"
@@ -11,39 +12,41 @@ import (
 
 var ctx utils.Context
 var log *zap.Logger
-var ApiDispatch func(mt int, msg []byte, conn *websocket.Conn)
+var ApiDispatch func(mt int, msg []byte, conn *WSConnection)
 
 const (
 	// Time allowed to read the next pong message from the peer.
 	pongWait = 60 * time.Second
 )
 
-type wsConnection struct {
+type WSConnection struct {
 	hub  *Hub
 	Conn *websocket.Conn
 }
 
+type writeQueueData struct {
+	conn **websocket.Conn
+	t    int
+	data []byte
+}
+
 type Hub struct {
 	// 已连接的客户端列表
-	Clients map[*wsConnection]bool
+	Clients map[*WSConnection]bool
 
 	// 已订阅接收广播的客户端列表
-	broadcast map[*websocket.Conn][]broadcastEvent
+	broadcast  map[*WSConnection][]broadcastEvent
+	writeQueue chan writeQueueData
+	started    bool
 }
 
-func (c *wsConnection) remoteAddr() string {
-	add := c.Conn.RemoteAddr()
-	if add != nil {
-		return add.String()
-	}
-	return "unknown"
-}
-func (c *wsConnection) readFromClient() {
+func (c *WSConnection) readFromClient() {
 	defer func() {
-		log.Debug("client close", zap.String("ip", c.Conn.RemoteAddr().String()))
 		// 客户端断开
-		delete(c.hub.broadcast, c.Conn)
+		UnsubscribeAll(c)
+		delete(c.hub.broadcast, c)
 		delete(c.hub.Clients, c)
+		log.Debug("client close", zap.String("ip", c.Conn.RemoteAddr().String()))
 		c.Conn.Close()
 		c.Conn = nil
 	}()
@@ -63,14 +66,44 @@ func (c *wsConnection) readFromClient() {
 			}
 			break
 		}
-		if t != websocket.TextMessage || string(message) != "ping" {
+		if len(message) == 4 && string(message) == "ping" {
+			WSHub.writeQueue <- writeQueueData{&c.Conn, websocket.TextMessage, []byte("pong")}
+			c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+			continue
+		}
+		if t != websocket.TextMessage {
 			log.Debug("receive", zap.String("ip", c.Conn.RemoteAddr().String()), zap.ByteString("data", message))
 		}
 		if ApiDispatch != nil {
-			ApiDispatch(t, message, c.Conn)
+			ApiDispatch(t, message, c)
 		}
 	}
-	log.Error("readFromClient exited")
+}
+
+func (c *WSConnection) Write(d []byte) error {
+	if len(WSHub.writeQueue) >= cap(WSHub.writeQueue) {
+		log.Error("write queue full", zap.Int("size", len(WSHub.writeQueue)))
+		return errors.New("write queue full")
+	}
+
+	WSHub.writeQueue <- writeQueueData{&c.Conn, websocket.BinaryMessage, d}
+	return nil
+}
+
+func writeToClient() {
+	var d writeQueueData
+	WSHub.started = true
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case d = <-WSHub.writeQueue:
+		}
+		if *d.conn == nil {
+			continue
+		}
+		(*d.conn).WriteMessage(d.t, d.data)
+	}
 }
 
 var upgrader = websocket.FastHTTPUpgrader{
@@ -82,19 +115,24 @@ var upgrader = websocket.FastHTTPUpgrader{
 }
 
 var WSHub = &Hub{
-	broadcast: make(map[*websocket.Conn][]broadcastEvent),
-	Clients:   make(map[*wsConnection]bool),
+	broadcast:  make(map[*WSConnection][]broadcastEvent),
+	Clients:    make(map[*WSConnection]bool),
+	writeQueue: make(chan writeQueueData, 16),
 }
 
 func WSHandler(ctx *fasthttp.RequestCtx) {
 	err := upgrader.Upgrade(ctx, func(ws *websocket.Conn) {
-		wsServer := &wsConnection{hub: WSHub, Conn: ws}
+		wsServer := &WSConnection{hub: WSHub, Conn: ws}
 
 		log.Debug("client connected", zap.String("ip", ws.RemoteAddr().String()))
 
 		// 保存客户端列表
 		WSHub.Clients[wsServer] = true
-		WSHub.broadcast[ws] = make([]broadcastEvent, 0)
+		WSHub.broadcast[wsServer] = make([]broadcastEvent, 0)
+
+		if !WSHub.started {
+			go writeToClient()
+		}
 
 		wsServer.readFromClient()
 	})

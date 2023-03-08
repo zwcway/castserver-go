@@ -7,6 +7,7 @@ import (
 	"github.com/zwcway/castserver-go/common/speaker"
 	config "github.com/zwcway/castserver-go/config"
 	utils "github.com/zwcway/castserver-go/utils"
+	"go.uber.org/zap"
 )
 
 type QueueData struct {
@@ -29,6 +30,11 @@ func Connect(sp *speaker.Speaker) error {
 	if addr.IsUnspecified() {
 		udpAddr = nil
 	}
+
+	if !connectionTest(sp, udpAddr) {
+		return nil
+	}
+
 	var err error
 	sp.Conn, err = net.DialUDP("udp", udpAddr, sp.UDPAddr())
 	if err != nil {
@@ -63,4 +69,42 @@ func Disconnect(sp *speaker.Speaker) error {
 	sp.Conn = nil
 
 	return nil
+}
+
+func connectionTest(sp *speaker.Speaker, udpAddr *net.UDPAddr) bool {
+	if sp == nil {
+		return false
+	}
+	conn, err := net.DialUDP("udp", udpAddr, sp.UDPAddr())
+	if err != nil {
+		return false
+	}
+	defer conn.Close()
+
+	req := ServerPush{}
+	p, err := req.Pack()
+	if err != nil {
+		log.Error("pack error", zap.Error(err))
+		return false
+	}
+
+	n, err := conn.Write(p.Bytes())
+	if err != nil {
+		log.Error("write speaker error", zap.Error(err))
+		return false
+	}
+	if n != p.DataSize() {
+		log.Error("write speaker error", zap.Int("writed", n), zap.Int("want", p.DataSize()))
+		return false
+	}
+
+	buf := make([]byte, 16)
+	conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+	n, err = conn.Read(buf)
+	if err != nil {
+		log.Info("read speaker error", zap.Error(err))
+		return false
+	}
+
+	return true
 }

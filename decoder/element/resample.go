@@ -26,9 +26,9 @@ func (r *Resample) Stream(samples *decoder.Samples) {
 		return
 	}
 
-	switch r.format.SampleBits.Size() {
-	case 2:
-		r.to16(samples)
+	switch r.format.SampleBits {
+	case audio.AudioBits_S16LE:
+		r.toInt16(samples)
 	default:
 		return
 	}
@@ -38,7 +38,7 @@ func (r *Resample) Stream(samples *decoder.Samples) {
 
 func (r *Resample) Sample(*float64, int, int) {}
 
-func (r *Resample) to16(samples *decoder.Samples) {
+func (r *Resample) toInt16(samples *decoder.Samples) {
 	for i := 0; i < samples.Size; i++ {
 		for c := 0; c < samples.Format.Layout.Count && c < r.format.Layout.Count; c++ {
 			val := samples.Buffer[c][i]
@@ -55,6 +55,9 @@ func (r *Resample) to16(samples *decoder.Samples) {
 }
 
 func (r *Resample) SetFormat(format *audio.Format) {
+	if format == nil {
+		return
+	}
 	*r.format = *format
 }
 
@@ -63,5 +66,8 @@ func (r *Resample) Format() *audio.Format {
 }
 
 func NewResample(format *audio.Format) *Resample {
+	if format == nil {
+		format = &audio.Format{}
+	}
 	return &Resample{format: format}
 }

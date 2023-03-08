@@ -24,6 +24,7 @@ func (r *LineLevelMeter) Type() decoder.ElementType {
 
 func (r *LineLevelMeter) Stream(samples *decoder.Samples) {
 	var (
+		sam  float64
 		frac float64
 		sum  float64
 		rms  float64
@@ -34,7 +35,12 @@ func (r *LineLevelMeter) Stream(samples *decoder.Samples) {
 	for i := 0; i < samples.Size; i += 10 {
 		frac = 0
 		for ch := 0; ch < samples.Format.Layout.Count; ch++ {
-			frac += samples.Buffer[ch][i]
+			sam = samples.Buffer[ch][i]
+			if sam > 0 {
+				frac += sam
+			} else {
+				frac += -sam
+			}
 		}
 		frac = frac / float64(samples.Format.Layout.Count)
 		sum += frac * frac
@@ -55,6 +61,10 @@ func (r *LineLevelMeter) On() {
 
 func (r *LineLevelMeter) Off() {
 	r.power = false
+}
+
+func (r *LineLevelMeter) State() bool {
+	return r.power
 }
 
 func NewLineLevelMeter(line *speaker.Line) *LineLevelMeter {

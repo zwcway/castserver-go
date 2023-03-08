@@ -1,0 +1,8 @@
+[
+{
+  "directory": "O:/Workspaces/castserver-go/build",
+  "command": "O:\\Devels\\msys64\\mingw64\\bin\\gcc.exe -g -o CMakeFiles\\ffmpeg_test.dir\\decode_test.c.obj -c O:\\Workspaces\\castserver-go\\scripts\\ffmpeg\\decode_test.c",
+  "file": "O:\\Workspaces\\castserver-go\\scripts\\ffmpeg\\decode_test.c",
+  "output": "CMakeFiles\\ffmpeg_test.dir\\decode_test.c.obj"
+}
+]

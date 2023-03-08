@@ -128,23 +128,5 @@ export default {
   }
 }
 
-.vue-slider-process {
-  width: 100% !important;
-  left: 0 !important;
-  transition: none !important;
-  overflow: hidden;
-  position: relative;
-  background-color: transparent !important;
-  .level-meter {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    top: 0;
-    right:0;
-    background-color: pink;
-    transition-property: right;
-    transition-duration: 200ms;
-  
-  }
-}
+
 </style>
