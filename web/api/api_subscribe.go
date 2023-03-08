@@ -1,18 +1,16 @@
 package api
 
 import (
-	"fmt"
-
 	"github.com/zwcway/castserver-go/web/event"
 	"github.com/zwcway/castserver-go/web/websockets"
 	"go.uber.org/zap"
 )
 
 type reqSubscribe struct {
-	Command uint8   `jp:"evt"`
-	Action  bool    `jp:"act"`
-	Event   []uint8 `jp:"sub,omitempty"`
-	Arg     int     `jp:"arg"`
+	Action bool    `jp:"act"`
+	Event  []uint8 `jp:"evt"`
+	SubEvt uint8   `jp:"sub,omitempty"`
+	Arg    int     `jp:"arg,omitempty"`
 }
 
 var SubscribeFunction func(c *websockets.WSConnection, evt int)
@@ -28,16 +26,13 @@ func apiSubscribe(c *websockets.WSConnection, req Requester, log *zap.Logger) (a
 	if err != nil {
 		return nil, err
 	}
-	if websockets.Command_MIN >= params.Command || params.Command >= uint8(websockets.Command_MAX) {
-		return nil, fmt.Errorf("command invalid")
-	}
 
 	websockets.SetEventHandler(event.EventHandlerMap)
 
 	if params.Action {
-		websockets.Subscribe(c, params.Command, params.Event, params.Arg)
+		websockets.Subscribe(c, params.Event, params.SubEvt, params.Arg)
 	} else {
-		websockets.Unsubscribe(c, params.Command, params.Event, params.Arg)
+		websockets.Unsubscribe(c, params.Event, params.SubEvt, params.Arg)
 	}
 
 	return true, nil

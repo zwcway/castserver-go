@@ -7,10 +7,6 @@ import (
 	"go.uber.org/zap"
 )
 
-type reqSendServerInfo struct {
-	ID uint32 `jp:"id"`
-}
-
 func apiSendServerInfo(c *websockets.WSConnection, req Requester, log *zap.Logger) (any, error) {
 	var spId uint32
 	err := req.Unmarshal(&spId)

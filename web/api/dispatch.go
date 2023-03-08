@@ -13,6 +13,7 @@ var apiRouterList = map[string]apiRouter{
 	"speakerInfo":    {apiSpeakerInfo},
 	"speakerVolume":  {apiSpeakerVolume},
 	"setSpeaker":     {apiSpeakerEdit},
+	"addSpeaker":     {apiSpeakerCreate},
 	"lineList":       {apiLineList},
 	"lineInfo":       {apiLineInfo},
 	"deleteLine":     {apiLineDelete},
@@ -24,6 +25,7 @@ var apiRouterList = map[string]apiRouter{
 	"clearLineEQ":    {apiLineClearEqualizer},
 	"sendServerInfo": {apiSendServerInfo},
 	"spReconnect":    {apiReconnect},
+	"eventDebug":     {apiEventDebug},
 }
 
 func ApiDispatch(mt int, msg []byte, conn *websockets.WSConnection) {

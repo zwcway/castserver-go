@@ -28,6 +28,7 @@ const (
 	Event_Line_Created
 	Event_Line_Deleted
 	Event_Line_Edited
+	Event_Line_Speaker
 	Event_Line_LevelMeter
 	Event_Line_Spectrum // 频谱图
 	Event_Line_Input    // 有音频信号进入
@@ -39,6 +40,7 @@ const (
 
 type broadcastEvent struct {
 	evt uint8
+	sub uint8
 	arg int
 }
 
@@ -55,8 +57,23 @@ var CommandEventMap = map[uint8][]uint8{
 		Event_Line_Created,
 		Event_Line_Deleted,
 		Event_Line_Edited,
+		Event_Line_Input,
 	},
 	Command_SERVER: {},
+}
+
+func FindEvent(cmd, e uint8) bool {
+	es, ok := CommandEventMap[cmd]
+	if !ok {
+		return false
+	}
+	for _, ee := range es {
+		if ee == e {
+			return true
+		}
+	}
+
+	return false
 }
 
 func findEvent(es []uint8, e uint8) bool {
@@ -68,9 +85,9 @@ func findEvent(es []uint8, e uint8) bool {
 
 	return false
 }
-func findBEvent(es []broadcastEvent, e uint8) bool {
+func findBEvent(es []broadcastEvent, evt uint8, sub uint8, arg int) bool {
 	for _, ee := range es {
-		if ee.evt == e {
+		if ee.evt == evt && ee.sub == sub && ee.arg == arg {
 			return true
 		}
 	}

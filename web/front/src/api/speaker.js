@@ -9,7 +9,7 @@ export function getSpeakerList() {
   });
 }
 let evts = [
-  Event.SP_Deleted,
+  Event.SP_Detected,
   Event.SP_Deleted,
   Event.SP_Edited,
   Event.SP_Online,
@@ -17,21 +17,21 @@ let evts = [
 ];
 
 export function removeListenSpeakerEvent() {
-  socket.removeEvent(Command.Speaker, evts);
+  socket.removeEvent(evts);
 }
 
 export function listenSpeakerChanged(callback) {
   if (!(callback instanceof Function)) return;
 
-  return socket.receiveCommand(Command.Speaker, evts, callback);
+  return socket.receiveEvent(evts, callback);
 }
 export function removeListenSpeakerLevelMeter() {
-  socket.removeEvent(Command.Speaker, Event.SP_LevelMeter);
+  socket.removeEvent(Event.SP_LevelMeter);
 }
 
 export function listenSpeakerLevelMeter(callback) {
   if (!(callback instanceof Function)) return;
-  return socket.receiveCommand(Command.Speaker, Event.SP_LevelMeter, callback);
+  return socket.receiveEvent(Event.SP_LevelMeter, callback);
 }
 
 export function getSpeakerInfo(id) {

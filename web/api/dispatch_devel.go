@@ -29,7 +29,6 @@ func ApiDispatchDevel(ctx *fasthttp.RequestCtx) bool {
 	if len(path) < 5 || path[:5] != "/api/" {
 		return false
 	}
-	apiRouterList["addSpeaker"] = apiRouter{apiSpeakerCreate}
 	r, ok := apiRouterList[path[5:]]
 	if !ok {
 		return false

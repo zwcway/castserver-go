@@ -5,6 +5,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/zwcway/castserver-go/common/speaker"
+	"github.com/zwcway/castserver-go/receiver"
 	"github.com/zwcway/castserver-go/web/websockets"
 	"go.uber.org/zap"
 )
@@ -31,6 +32,7 @@ func apiLineEdit(c *websockets.WSConnection, req Requester, log *zap.Logger) (re
 	}
 
 	nl.Name = p.Name
+	receiver.EditDLNA(nl)
 
 	ret = true
 	return
