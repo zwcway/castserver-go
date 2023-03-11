@@ -8,3 +8,5 @@ import "github.com/valyala/fasthttp"
 func ApiDispatchDevel(ctx *fasthttp.RequestCtx) bool {
 	return false
 }
+
+func initDebug() {}

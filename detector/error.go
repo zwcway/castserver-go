@@ -35,5 +35,5 @@ type UnsupportError struct {
 }
 
 func (e *UnsupportError) Error() string {
-	return fmt.Sprintf("unsupport speaker %d", e.Speaker.ID)
+	return fmt.Sprintf("unsupport speaker %d", e.Speaker.Id)
 }

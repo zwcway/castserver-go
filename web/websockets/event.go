@@ -23,15 +23,16 @@ const (
 	Event_SP_Deleted
 	Event_SP_Moved
 	Event_SP_Edited
+	Event_SP_Spectrum
 	Event_SP_LevelMeter
 
 	Event_Line_Created
 	Event_Line_Deleted
 	Event_Line_Edited
 	Event_Line_Speaker
-	Event_Line_LevelMeter
 	Event_Line_Spectrum // 频谱图
-	Event_Line_Input    // 有音频信号进入
+	Event_Line_LevelMeter
+	Event_Line_Input // 有音频信号进入
 
 	Event_SRV_Exited
 

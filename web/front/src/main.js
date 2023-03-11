@@ -7,9 +7,10 @@ import store from './store';
 
 import 'ant-design-vue/dist/antd.css';
 import '@/assets/icons';
-import '@/assets/css/global.scss';
+import '@/assets/css/layout.scss';
+import '@/assets/css/slider.scss';
+import '@/assets/css/ant-design-vue.scss';
 import 'animate.css';
-import 'bulma';
 import 'ionicons';
 
 if (process.env.NODE_ENV !== 'production') {

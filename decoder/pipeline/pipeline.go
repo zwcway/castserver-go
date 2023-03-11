@@ -6,12 +6,11 @@ import (
 
 	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/speaker"
-	"github.com/zwcway/castserver-go/decoder"
-	"github.com/zwcway/castserver-go/decoder/element"
+	"github.com/zwcway/castserver-go/common/stream"
 )
 
 type PipeLineStreamer struct {
-	stream decoder.Element
+	stream stream.Element
 	cost   time.Duration
 }
 
@@ -25,7 +24,7 @@ func (s *PipeLineStreamer) Cost() int {
 
 type PipeLine struct {
 	line         *speaker.Line
-	buffer       *decoder.Samples
+	buffer       *stream.Samples
 	format       *audio.Format
 	wholeStreams []*PipeLineStreamer
 	oneStreams   []*PipeLineStreamer
@@ -33,44 +32,43 @@ type PipeLine struct {
 	cost    time.Duration
 	maxCost time.Duration
 	locker  sync.Mutex
-
-	eleMixer     *element.Mixer
-	eleVolume    *element.Volume
-	eleResample  *element.Resample
-	eleLineLM    *element.LineLevelMeter
-	eleSpeakerLM *element.LineLevelMeter
-	eleLineSPT   *element.LineSpectrum
 }
 
 func (p *PipeLine) Len() int {
 	return len(p.wholeStreams) + len(p.oneStreams)
 }
-func (p *PipeLine) Buffer() *decoder.Samples {
+
+func (p *PipeLine) Buffer() *stream.Samples {
 	return p.buffer
 }
 
-func (p *PipeLine) Prepend(s decoder.Element) {
+func (p *PipeLine) SetBuffer(sample *stream.Samples) {
+	p.buffer = sample
+}
+
+func (p *PipeLine) Prepend(s stream.Element) {
 	ps := []*PipeLineStreamer{{
 		stream: s,
 		cost:   0,
 	}}
 
-	// if s.Type() == decoder.ET_OneSample {
+	// if s.Type() == stream.ET_OneSample {
 	// 	p.oneStreams = append(ps, p.wholeStreams...)
-	// } else if s.Type() == decoder.ET_WholeSamples {
+	// } else if s.Type() == stream.ET_WholeSamples {
 	p.wholeStreams = append(ps, p.wholeStreams...)
 	// }
 }
 
-func (p *PipeLine) Add(s ...decoder.Element) {
+// TODO 防止循环引用
+func (p *PipeLine) Append(s ...stream.Element) {
 	for _, ss := range s {
 		ps := &PipeLineStreamer{
 			stream: ss,
 			cost:   0,
 		}
-		// if ss.Type() == decoder.ET_OneSample {
+		// if ss.Type() == stream.ET_OneSample {
 		// 	p.oneStreams = append(p.oneStreams, ps)
-		// } else if ss.Type() == decoder.ET_WholeSamples {
+		// } else if ss.Type() == stream.ET_WholeSamples {
 		p.wholeStreams = append(p.wholeStreams, ps)
 		// }
 	}
@@ -87,16 +85,20 @@ func (p *PipeLine) Format() *audio.Format {
 
 func (p *PipeLine) Close() error {
 	for _, s := range p.wholeStreams {
-		if sc, ok := s.stream.(decoder.StreamCloser); ok {
+		if sc, ok := s.stream.(stream.StreamCloser); ok {
 			sc.Close()
 		}
 	}
 	return nil
 }
 
-func (p *PipeLine) Stream() (int, error) {
+func (p *PipeLine) Stream(sample *stream.Samples) {
 	p.locker.Lock()
 	defer p.locker.Unlock()
+
+	if sample != nil {
+		p.buffer = sample
+	}
 
 	var t time.Time
 	for _, s := range p.wholeStreams {
@@ -120,8 +122,6 @@ func (p *PipeLine) Stream() (int, error) {
 	if p.cost > p.maxCost {
 		p.maxCost = p.cost
 	}
-
-	return p.buffer.LastSize, p.buffer.LastErr
 }
 
 func (p *PipeLine) LastCost() time.Duration {
@@ -136,67 +136,20 @@ func (p *PipeLine) Streamers() []*PipeLineStreamer {
 	return append(p.oneStreams, p.wholeStreams...)
 }
 
-func (p *PipeLine) EleVolume() *element.Volume {
-	return p.eleVolume
+func (p *PipeLine) Lock() {
+	p.locker.Lock()
 }
-
-func (p *PipeLine) EleMixer() *element.Mixer {
-	return p.eleMixer
-}
-
-func (p *PipeLine) EleResample() *element.Resample {
-	return p.eleResample
-}
-
-func (p *PipeLine) EleLineLM() *element.LineLevelMeter {
-	return p.eleLineLM
-}
-func (p *PipeLine) EleLineSpectrum() *element.LineSpectrum {
-	return p.eleLineSPT
-}
-
-var pipeLineList = make([]*PipeLine, 0)
-
-func Default() *PipeLine {
-	return FromLine(speaker.DefaultLine())
-}
-
-func FromLine(line *speaker.Line) *PipeLine {
-	for _, p := range pipeLineList {
-		if p.line == line {
-			return p
-		}
-	}
-	return nil
-}
-
-func FromUUID(uuid string) *PipeLine {
-	for _, p := range pipeLineList {
-		if p.line.UUID == uuid {
-			return p
-		}
-	}
-	return Default()
+func (p *PipeLine) Unlock() {
+	p.locker.Unlock()
 }
 
 func NewPipeLine(line *speaker.Line) *PipeLine {
 	p := &PipeLine{
 		line: line,
 	}
-	p.eleMixer = element.NewMixer()
-	p.eleVolume = element.NewVolume(0)
-	p.eleResample = element.NewResample(nil)
-	p.eleLineLM = element.NewLineLevelMeter(line)
 
-	p.Add(
-		p.eleMixer,
+	p.Append(line.Elements()...)
 
-		p.eleVolume,
-		p.eleLineLM,
-
-		p.eleResample,
-	)
-
-	pipeLineList = append(pipeLineList, p)
+	line.Input.PipeLine = p
 	return p
 }

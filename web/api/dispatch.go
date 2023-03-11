@@ -8,24 +8,23 @@ import (
 )
 
 var apiRouterList = map[string]apiRouter{
-	"subscribe":      {apiSubscribe},
-	"speakerList":    {apiSpeakerList},
-	"speakerInfo":    {apiSpeakerInfo},
-	"speakerVolume":  {apiSpeakerVolume},
-	"setSpeaker":     {apiSpeakerEdit},
-	"addSpeaker":     {apiSpeakerCreate},
-	"lineList":       {apiLineList},
-	"lineInfo":       {apiLineInfo},
-	"deleteLine":     {apiLineDelete},
-	"createLine":     {apiLineCreate},
-	"lineVolume":     {apiLineVolume},
-	"setLine":        {apiLineEdit},
-	"linePipeLine":   {apiLinePipeLineInfo},
-	"setLineEQ":      {apiLineSetEqualizer},
-	"clearLineEQ":    {apiLineClearEqualizer},
-	"sendServerInfo": {apiSendServerInfo},
-	"spReconnect":    {apiReconnect},
-	"eventDebug":     {apiEventDebug},
+	"subscribe":     {apiSubscribe},
+	"speakerList":   {apiSpeakerList},
+	"speakerInfo":   {apiSpeakerInfo},
+	"speakerVolume": {apiSpeakerVolume},
+	"setSpeaker":    {apiSpeakerEdit},
+	"addSpeaker":    {apiSpeakerCreate},
+	"lineList":      {apiLineList},
+	"lineInfo":      {apiLineInfo},
+	"deleteLine":    {apiLineDelete},
+	"createLine":    {apiLineCreate},
+	"lineVolume":    {apiLineVolume},
+	"setLine":       {apiLineEdit},
+	"linePipeLine":  {apiLinePipeLineInfo},
+	"setLineEQ":     {apiLineSetEqualizer},
+	"clearLineEQ":   {apiLineClearEqualizer},
+	"linePlayer":    {apiLinePlayer},
+	"lineSeek":      {apiLinePlayerSeek},
 }
 
 func ApiDispatch(mt int, msg []byte, conn *websockets.WSConnection) {
@@ -78,4 +77,5 @@ func ApiDispatch(mt int, msg []byte, conn *websockets.WSConnection) {
 
 func Init(ctx utils.Context) {
 	log = ctx.Logger("api")
+	initDebug()
 }

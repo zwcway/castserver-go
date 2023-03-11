@@ -16,22 +16,22 @@ let evts = [
   Event.SP_Offline,
 ];
 
-export function removeListenSpeakerEvent() {
-  socket.removeEvent(evts);
+export function removeListenSpeakerEvent(ids) {
+  socket.removeEvent(evts, ids);
 }
 
-export function listenSpeakerChanged(callback) {
+export function listenSpeakerChanged(ids, callback) {
   if (!(callback instanceof Function)) return;
 
-  return socket.receiveEvent(evts, callback);
+  return socket.receiveEvent(evts, ids, callback);
 }
-export function removeListenSpeakerLevelMeter() {
-  socket.removeEvent(Event.SP_LevelMeter);
+export function removeListenSpeakerSpectrum(ids) {
+  socket.removeEvent(Event.SP_Spectrum, ids);
 }
 
-export function listenSpeakerLevelMeter(callback) {
+export function listenSpeakerSpectrum(ids, callback) {
   if (!(callback instanceof Function)) return;
-  return socket.receiveEvent(Event.SP_LevelMeter, callback);
+  return socket.receiveEvent(Event.SP_Spectrum, ids, callback);
 }
 
 export function getSpeakerInfo(id) {

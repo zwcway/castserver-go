@@ -12,11 +12,11 @@ import (
 	"unsafe"
 
 	"github.com/zwcway/castserver-go/common/audio"
-	"github.com/zwcway/castserver-go/decoder"
+	"github.com/zwcway/castserver-go/common/stream"
 	"github.com/zwcway/castserver-go/decoder/ffmpeg/avutil"
 )
 
-func New(ofh decoder.FileStreamerOpenFileHandler) decoder.FileStreamer {
+func New(ofh stream.FileStreamerOpenFileHandler) stream.FileStreamer {
 
 	return &AVFormatContext{
 		openedHandler: ofh,
@@ -24,7 +24,7 @@ func New(ofh decoder.FileStreamerOpenFileHandler) decoder.FileStreamer {
 }
 
 type AVFormatContext struct {
-	openedHandler decoder.FileStreamerOpenFileHandler
+	openedHandler stream.FileStreamerOpenFileHandler
 	format        *audio.Format
 	fileName      string
 	pause         bool
@@ -98,8 +98,8 @@ func (c *AVFormatContext) Name() string {
 	return "ffmpeg"
 }
 
-func (c *AVFormatContext) Type() decoder.ElementType {
-	return decoder.ET_WholeSamples
+func (c *AVFormatContext) Type() stream.ElementType {
+	return stream.ET_WholeSamples
 }
 
 func (c *AVFormatContext) AudioFormat() *audio.Format {
@@ -178,7 +178,7 @@ func (c *AVFormatContext) decode() (n int, err error) {
 	return
 }
 
-func (c *AVFormatContext) Stream(samples *decoder.Samples) {
+func (c *AVFormatContext) Stream(samples *stream.Samples) {
 	if c == nil || c.format == nil || c.ctx == nil {
 		return
 	}
@@ -200,18 +200,13 @@ func (c *AVFormatContext) Stream(samples *decoder.Samples) {
 		return
 	}
 
-	if samples.Format.Layout.Count >= chs {
-		samples.Format = c.format
-	}
+	samples.Format.Mixed(c.format)
+
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
 	if c.pause || c.finished {
-		for ch = 0; ch < samples.Format.Layout.Count; ch++ {
-			for i = 0; i < samples.Size; i++ {
-				samples.Buffer[ch][i] = float64(0)
-			}
-		}
+		nbSamples = samples.BeZero()
 		return
 	}
 
@@ -222,11 +217,7 @@ func (c *AVFormatContext) Stream(samples *decoder.Samples) {
 					c.finished = true
 				}
 				// 余下数据置零
-				for j := i; j < samples.Size; j++ {
-					for ch = 0; ch < samples.Format.Layout.Count && ch < chs; ch++ {
-						samples.Buffer[ch][j] = 0
-					}
-				}
+				samples.BeZeroLeft(i)
 				return
 			}
 			c.posPerCh = 0
@@ -250,6 +241,9 @@ func (c *AVFormatContext) Seek(p time.Duration) error {
 	if ret < 0 {
 		return fmt.Errorf("seek to '%d' failed", pos)
 	}
+	c.pause = false
+	c.finished = false
+
 	return nil
 }
 

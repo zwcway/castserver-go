@@ -8,7 +8,7 @@ func AddDLNA(line *speaker.Line) {
 	if dlnaInstance == nil {
 		return
 	}
-	line.UUID = dlnaInstance.AddNewInstance(line.Name)
+	line.UUID = dlnaInstance.AddNewInstance(line.Name, line.UUID)
 }
 
 func DelDLNA(line *speaker.Line) {

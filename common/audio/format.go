@@ -23,3 +23,11 @@ func (s *Format) Bytes() int {
 func (s *Format) IsValid() bool {
 	return s.Layout.Count > 0 && s.SampleRate.IsValid() && s.SampleBits.IsValid()
 }
+
+func (s *Format) Mixed(r *Format) {
+	s.SampleRate = r.SampleRate
+	s.SampleBits = r.SampleBits
+	if s.Layout.Count > r.Layout.Count {
+		s.Layout = r.Layout
+	}
+}

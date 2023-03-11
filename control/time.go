@@ -25,18 +25,18 @@ func (s *Time) Pack() (p *protocol.Package, err error) {
 
 func ControlTime(sp *speaker.Speaker) {
 	t := &Time{
-		f:      Control{Command_TIME, sp.ID},
+		f:      Control{Command_TIME, sp.Id},
 		server: uint32(time.Now().UnixMilli()),
 	}
 	p, err := t.Pack()
 	if err != nil {
-		log.Error("encode time package error", zap.Uint32("speaker", uint32(sp.ID)), zap.Error(err))
+		log.Error("encode time package error", zap.Uint32("speaker", uint32(sp.Id)), zap.Error(err))
 		return
 	}
 
 	err = sp.WriteUDP(p.Bytes())
 	if err != nil {
-		log.Error("write speaker error", zap.Uint32("speaker", uint32(sp.ID)), zap.Error(err))
+		log.Error("write speaker error", zap.Uint32("speaker", uint32(sp.Id)), zap.Error(err))
 		return
 	}
 }

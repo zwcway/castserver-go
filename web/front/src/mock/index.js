@@ -95,6 +95,9 @@ Socket.addBeforeSend('lineInfo', function (params) {
       rate: '@integer(44100, 384000)',
       bits: '@integer(8,64)',
       channels: '@integer(1, 16)',
+      type: '@integer(1,4)',
+      cur:'@integer(0,100)',
+      dur:'@integer(1,1000)',
     },
     eq: [['@integer(20,20000)','@float(-15,15)', '@float(0,1)']],
     'speakers|0-20': [

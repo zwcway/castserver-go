@@ -13,34 +13,35 @@ type requestLineEQ struct {
 	ID        uint8   `jp:"id"`
 	Frequency int     `jp:"freq"`
 	Gain      float32 `jp:"gain"`
-	Q         float32 `jp:"q"`
 }
 
 func apiLineSetEqualizer(c *websockets.WSConnection, req Requester, log *zap.Logger) (any, error) {
-	var params requestLineEQ
-	err := req.Unmarshal(&params)
+	var p requestLineEQ
+	err := req.Unmarshal(&p)
 	if err != nil {
 		return nil, err
 	}
-	if !dsp.IsFrequencyValid(params.Frequency) {
+	if !dsp.IsFrequencyValid(p.Frequency) {
 		return nil, fmt.Errorf("frequency invalid")
 	}
 
-	nl := speaker.FindLineByID(speaker.LineID(params.ID))
+	nl := speaker.FindLineByID(speaker.LineID(p.ID))
 	if nl == nil {
-		return nil, fmt.Errorf("line[%d] not exists", params.ID)
+		return nil, fmt.Errorf("line[%d] not exists", p.ID)
 	}
 
-	for _, eq := range nl.Equalizer {
-		if eq.Frequency == int(params.Frequency) {
-			eq.Gain = params.Gain
+	eqs := nl.Equalizer.Equalizer()
+
+	for i := 0; i < len(eqs); i++ {
+		if eqs[i].Frequency == int(p.Frequency) {
+			eqs[i].Gain = float64(p.Gain)
 			return true, nil
 		}
 	}
 
-	nl.Equalizer = append(nl.Equalizer, dsp.FreqEqualizer{
-		Frequency: params.Frequency,
-		Gain:      params.Gain,
-	})
+	nl.Equalizer.Add(p.Frequency, float64(p.Gain), 0)
+
+	nl.Equalizer.On()
+
 	return true, nil
 }

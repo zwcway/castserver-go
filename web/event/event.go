@@ -47,12 +47,10 @@ func start(evt uint8, arg int, ctx context.Context, log *zap.Logger) {
 		evt: evt,
 	}
 	switch evt {
-	case websockets.Event_Line_Spectrum:
+	case websockets.Event_Line_Spectrum, websockets.Event_Line_LevelMeter:
 		es.on = lineSpectrumRoutine
-	case websockets.Event_Line_LevelMeter:
-		es.on = lineLevelMeterRoutine
 	case websockets.Event_SP_LevelMeter:
-		es.on = speakerLevelMeterRoutine
+		es.on = speakerSpectrumRoutine
 	default:
 		return
 	}
@@ -66,7 +64,7 @@ func start(evt uint8, arg int, ctx context.Context, log *zap.Logger) {
 
 func stop(evt uint8, arg int) {
 	for i, es := range services {
-		if es.evt == evt && es.arg == arg {
+		if es.evt == evt {
 			es.signal <- 1
 			services = utils.SliceRemove(services, i)
 			return

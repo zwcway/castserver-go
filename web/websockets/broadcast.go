@@ -15,7 +15,7 @@ type notifySpeakerMoved struct {
 
 func BroadcastSpeakerChannelMovedEvent(sp *speaker.Speaker, from audio.Channel, to audio.Channel) error {
 	resp := notifySpeakerMoved{
-		Speaker: int(sp.ID),
+		Speaker: int(sp.Id),
 		Type:    1,
 		From:    int(from),
 		To:      int(to),
@@ -30,7 +30,7 @@ func BroadcastSpeakerChannelMovedEvent(sp *speaker.Speaker, from audio.Channel, 
 
 func BroadcastSpeakerLineMovedEvent(sp *speaker.Speaker, from speaker.LineID, to speaker.LineID) error {
 	resp := notifySpeakerMoved{
-		Speaker: int(sp.ID),
+		Speaker: int(sp.Id),
 		Type:    2,
 		From:    int(from),
 		To:      int(to),
@@ -48,8 +48,10 @@ func BroadcastSpeakerEvent(sp *speaker.Speaker, evt uint8) error {
 	if err != nil {
 		return err
 	}
-	Broadcast(Event_Line_Speaker, evt, int(sp.Line), msg)
-	return Broadcast(evt, 0, int(sp.ID), msg)
+	if sp.Line != nil {
+		Broadcast(Event_Line_Speaker, evt, int(sp.Line.Id), msg)
+	}
+	return Broadcast(evt, 0, int(sp.Id), msg)
 }
 
 func BroadcastLineEvent(line *speaker.Line, evt uint8) error {
@@ -58,7 +60,16 @@ func BroadcastLineEvent(line *speaker.Line, evt uint8) error {
 		return err
 	}
 
-	return Broadcast(evt, 0, int(line.ID), msg)
+	return Broadcast(evt, 0, int(line.Id), msg)
+}
+
+func BroadcastLineInputEvent(line *speaker.Line) error {
+	msg, err := jsonpack.Marshal(NewResponseLineSource(line))
+	if err != nil {
+		return err
+	}
+
+	return Broadcast(Event_Line_Input, 0, int(line.Id), msg)
 }
 
 func Broadcast(evt uint8, sub uint8, arg int, msg []byte) error {
@@ -86,11 +97,9 @@ func Broadcast(evt uint8, sub uint8, arg int, msg []byte) error {
 
 	for c, b := range WSHub.broadcast {
 		for _, e := range b {
-			if e.evt != evt {
-				continue
+			if e.evt == evt {
+				c.Write(id)
 			}
-
-			c.Write(id)
 		}
 	}
 	return nil
@@ -149,14 +158,14 @@ func Unsubscribe(c *WSConnection, evt []uint8, sub uint8, arg int) {
 
 	ne := []broadcastEvent{}
 
-	for _, ee := range evt {
-		if !findBEvent(ses, ee, sub, arg) {
-			ne = append(ne, broadcastEvent{ee, sub, arg})
+	for _, se := range ses {
+		if !findEvent(evt, se.evt) || se.sub != sub {
+			ne = append(ne, se)
 			continue
 		}
 
-		if h, ok := eventHandlers[ee]; ok {
-			h.Off(ee, arg)
+		if h, ok := eventHandlers[se.evt]; ok {
+			h.Off(se.evt, arg)
 		}
 	}
 

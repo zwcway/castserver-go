@@ -265,14 +265,19 @@ static const int go_seek(GOAVDecoder *ctx, int p)
     if (ctx->formatCtx->start_time != AV_NOPTS_VALUE)
         pos += ctx->formatCtx->start_time;
 
-    return avformat_seek_file(ctx->formatCtx, ctx->streamIndex, INT64_MIN, pos, INT64_MAX, 0);
+    int ret = avformat_seek_file(ctx->formatCtx, ctx->streamIndex, INT64_MIN, pos, INT64_MAX, 0);
+
+    if (ret >= 0)
+    {
+        ctx->finished = 0;
+    }
+    
+    return ret;
 }
 
 static const int go_decode(GOAVDecoder *ctx)
 {
     int ret = 0;
-    int samples = 0;
-    int is_eof = 0;
 
     if (ctx == NULL)
     {
@@ -281,25 +286,22 @@ static const int go_decode(GOAVDecoder *ctx)
 
     while (1)
     {
+_receive_:
         ret = avcodec_receive_frame(ctx->codecCtx, ctx->avFrame);
         if (ret >= 0)
-        {
-            samples = ctx->avFrame->nb_samples;
-            break;
-        }
-        if (ret == AVERROR(EAGAIN) || (ret == AVERROR_EOF && !ctx->finished))
+            break; // 交给转码
+        if (ret == AVERROR(EAGAIN))
         {
             // 继续解码
         }
-        else if (ret == AVERROR_EOF && ctx->finished)
-            goto _flush_buffer_;
-        else if (ret < 0)
-            goto _flush_buffer_;
         else
-            break;
+            goto _flush_buffer_;
 
-        if (ctx->finished) // 已经解码完成，无需再次解码
-            break;
+        if (ctx->finished)
+        { // 已经解码完成，无需再次解码
+            ret = AVERROR_EOF;
+            goto _flush_buffer_;
+        }
 
         while (1)
         {
@@ -309,7 +311,7 @@ static const int go_decode(GOAVDecoder *ctx)
                 ctx->finished = 1;
                 // 解码完成，清空已缓存的帧
                 avcodec_send_packet(ctx->codecCtx, NULL);
-                continue;
+                goto _receive_;
             }
             else if (ret < 0)
                 goto _flush_buffer_;
@@ -333,7 +335,7 @@ static const int go_decode(GOAVDecoder *ctx)
             goto _flush_buffer_;
     }
 
-    int outBufferSize = av_samples_get_buffer_size(NULL, ctx->codecCtx->channels, samples, ctx->outputFmt, 0);
+    int outBufferSize = av_samples_get_buffer_size(NULL, ctx->codecCtx->channels, ctx->avFrame->nb_samples, ctx->outputFmt, 0);
 
     if (ctx->bufferSize < outBufferSize)
     {
@@ -355,9 +357,9 @@ static const int go_decode(GOAVDecoder *ctx)
                       // buffer 是一维数组，因此初始化 swr 参数时，
                       // fmt 必须是 packed 类型，不可以是 panlar 类型,
                       // 否则转码多声道时会崩溃
-                      &ctx->buffer, samples,
+                      &ctx->buffer, ctx->avFrame->nb_samples,
                       // 声道有可能超过8个，因此使用 extened_data
-                      (const uint8_t **)ctx->avFrame->extended_data, samples);
+                      (const uint8_t **)ctx->avFrame->extended_data, ctx->avFrame->nb_samples);
     if (ret < 0)
         return ret;
 

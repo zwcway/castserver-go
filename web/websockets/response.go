@@ -47,18 +47,18 @@ func NewResponseSpeakerList(sp *speaker.Speaker) *ResponseSpeakerList {
 		ct = int(sp.ConnTime.Unix())
 	}
 	return &ResponseSpeakerList{
-		ID:          int32(sp.ID),
+		ID:          int32(sp.Id),
 		Name:        sp.Name,
 		IP:          sp.IP.String(),
 		MAC:         sp.MAC.String(),
 		Channel:     uint8(sp.Channel),
-		Line:        NewResponseLineList(speaker.FindLineByID(sp.Line)),
+		Line:        NewResponseLineList(sp.Line),
 		BitList:     sp.BitsMask.Slice(),
 		RateList:    sp.RateMask.Slice(),
 		Rate:        sp.Rate.ToInt(),
 		Bits:        sp.Bits.Name(),
-		Volume:      sp.Volume,
-		Mute:        sp.IsMute,
+		Volume:      int(sp.Volume.Volume()),
+		Mute:        sp.Volume.Mute(),
 		AbsoluteVol: sp.AbsoluteVol,
 		PowerState:  power,
 		ConnectTime: ct,
@@ -69,16 +69,25 @@ type ResponseLineSource struct {
 	Rate     int    `jp:"rate"`
 	Bits     string `jp:"bits"`
 	Channels int    `jp:"channels"`
+
+	Type int `jp:"type"`
+
+	// 文件播放
+	Duration int `jp:"cur,omitempty"`
+	Total    int `jp:"dur,omitempty"`
 }
 
 func NewResponseLineSource(line *speaker.Line) *ResponseLineSource {
-	if line == nil || line.Input == nil {
+	if line == nil {
 		return nil
 	}
 	return &ResponseLineSource{
-		Rate:     line.Input.SampleRate.ToInt(),
-		Bits:     line.Input.SampleBits.Name(),
-		Channels: line.Input.Layout.Count,
+		Rate:     line.Input.Format.SampleRate.ToInt(),
+		Bits:     line.Input.Format.SampleBits.Name(),
+		Channels: line.Input.Format.Layout.Count,
+		Type:     int(line.Input.From),
+		Duration: int(line.Input.Duration().Seconds()),
+		Total:    int(line.Input.TotalDuration().Seconds() - 1),
 	}
 }
 
@@ -94,10 +103,10 @@ func NewResponseLineList(ls *speaker.Line) *ResponseLineList {
 		return nil
 	}
 	return &ResponseLineList{
-		ID:     uint8(ls.ID),
+		ID:     uint8(ls.Id),
 		Name:   ls.Name,
-		Volume: int(ls.Volume * 100),
-		Mute:   ls.IsMute,
+		Volume: int(ls.Volume.Volume() * 100),
+		Mute:   ls.Volume.Mute(),
 	}
 }
 
@@ -114,8 +123,8 @@ func NewResponseEqualizer(line *speaker.Line) [][3]float32 {
 		return nil
 	}
 	list := [][3]float32{}
-	for _, e := range line.Equalizer {
-		list = append(list, [3]float32{float32(e.Frequency), e.Gain, e.Q})
+	for _, e := range line.Equalizer.Equalizer() {
+		list = append(list, [3]float32{float32(e.Frequency), float32(e.Gain), float32(e.Q)})
 	}
 	return list
 }
@@ -127,12 +136,12 @@ func NewResponseLineInfo(line *speaker.Line) *ResponseLineInfo {
 	info := &ResponseLineInfo{
 		ResponseLineList: *NewResponseLineList(line),
 
-		Speakers:   make([]*ResponseSpeakerList, speaker.CountLineSpeaker(line.ID)),
+		Speakers:   make([]*ResponseSpeakerList, line.SpeakerCount()),
 		Input:      NewResponseLineSource(line),
 		Equalizers: NewResponseEqualizer(line),
 	}
 
-	for i, s := range speaker.FindSpeakersByLine(line.ID) {
+	for i, s := range line.Speakers() {
 		info.Speakers[i] = NewResponseSpeakerList(s)
 	}
 

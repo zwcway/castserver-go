@@ -51,7 +51,7 @@ func Push(sp *speaker.Speaker, data []byte) {
 		return
 	}
 	if len(*queue) == cap(*queue) {
-		log.Error("send queue full", zap.Uint32("speaker", uint32(sp.ID)), zap.Int("size", len(*queue)))
+		log.Error("send queue full", zap.Uint32("speaker", uint32(sp.Id)), zap.Int("size", len(*queue)))
 		return
 	}
 	sp.Statistic.Queue += uint32(len(data))

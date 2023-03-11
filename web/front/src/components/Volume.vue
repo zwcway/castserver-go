@@ -1,26 +1,11 @@
 <template>
   <div class="volume-controller">
-    <div
-      class="mute"
-      :class="{ 'is-muted': isMute }"
-      @click.stop.prevent="onVolumeMute()"
-    >
-      <svg-icon
-        :icon-class="isMute ? 'volume-mute' : 'volume'"
-        :size="16"
-      ></svg-icon>
+    <div class="mute" :class="{ 'is-muted': isMute }" @click.stop.prevent="onVolumeMute()">
+      <svg-icon :icon-class="isMute ? 'volume-mute' : 'volume'" :size="24"></svg-icon>
     </div>
-    <vue-slider
-      v-model="curVolume"
-      :min="0"
-      :max="100"
-      :process="volumeLevelProcess"
-      :disabled="isMute"
-      :tooltip-placement="this.tooltipPlacement"
-      ref="volumeSlider"
-      @change="throttleTimer"
-      @drag-end="throttleTimer(curVolume)"
-    />
+    <vue-slider v-model="curVolume" :min="0" :max="100" :process="volumeLevelProcess"
+      :tooltip-placement="this.tooltipPlacement" ref="volumeSlider" @change="throttleTimer"
+      @drag-end="throttleTimer(curVolume)" />
   </div>
 </template>
 
@@ -29,7 +14,6 @@ import VueSlider from 'vue-slider-component';
 import 'vue-slider-component/theme/antd.css';
 import { throttleFunction } from '@/common/throttle';
 
-let throttleTimer;
 export default {
   components: {
     VueSlider,
@@ -52,7 +36,7 @@ export default {
     return {
       isMute: false,
       curVolume: 0,
-      throttleTimer: () => {}
+      throttleTimer: () => { }
     };
   },
   mounted() {
@@ -60,6 +44,10 @@ export default {
     this.isMute = this.mute;
 
     this.throttleTimer = throttleFunction(vol => {
+      if (this.isMute) {
+        this.isMute = false;
+        this.$emit('mute', this.isMute);
+      }
       this.$emit('change', vol);
     }, 200);
   },
@@ -81,15 +69,17 @@ export default {
   flex-direction: row;
   flex-wrap: nowrap;
   justify-items: start;
+  align-items: center;
+
   .vue-slider {
     flex: 1 0 auto;
   }
 }
 
 .mute {
-      margin-left: 2rem;
-      margin-right: 1rem;
-      cursor: pointer;
-    }
-
+  margin-left: 0rem;
+  margin-right: 1rem;
+  cursor: pointer;
+  line-height: 1rem;
+}
 </style>

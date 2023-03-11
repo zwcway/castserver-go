@@ -24,7 +24,7 @@ func (s *Sample) Pack() (p *protocol.Package, err error) {
 }
 func ControlSample(sp *speaker.Speaker) {
 	s := Sample{
-		f:       Control{Command_SAMPLE, sp.ID},
+		f:       Control{Command_SAMPLE, sp.Id},
 		bit:     sp.Bits,
 		rate:    sp.Rate,
 		channel: sp.Channel,
@@ -32,13 +32,13 @@ func ControlSample(sp *speaker.Speaker) {
 
 	p, err := s.Pack()
 	if err != nil {
-		log.Error("encode sample package error", zap.Uint32("speaker", uint32(sp.ID)), zap.Error(err))
+		log.Error("encode sample package error", zap.Uint32("speaker", uint32(sp.Id)), zap.Error(err))
 		return
 	}
 
 	err = sp.WriteUDP(p.Bytes())
 	if err != nil {
-		log.Error("write speaker error", zap.Uint32("speaker", uint32(sp.ID)), zap.Error(err))
+		log.Error("write speaker error", zap.Uint32("speaker", uint32(sp.Id)), zap.Error(err))
 		return
 	}
 }

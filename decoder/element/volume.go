@@ -3,10 +3,11 @@ package element
 import (
 	"math"
 
-	"github.com/zwcway/castserver-go/decoder"
+	"github.com/zwcway/castserver-go/common/stream"
 )
 
 type Volume struct {
+	power  bool
 	base   float64
 	gain   float64
 	volume float64
@@ -19,11 +20,14 @@ func (v *Volume) Name() string {
 	return VolumeName
 }
 
-func (v *Volume) Type() decoder.ElementType {
-	return decoder.ET_WholeSamples
+func (v *Volume) Type() stream.ElementType {
+	return stream.ET_WholeSamples
 }
 
-func (v *Volume) Stream(samples *decoder.Samples) {
+func (v *Volume) Stream(samples *stream.Samples) {
+	if !v.power {
+		return
+	}
 	for ch := 0; ch < samples.Format.Layout.Count; ch++ {
 		for i := 0; i < samples.Size; i++ {
 			samples.Buffer[ch][i] *= v.gain
@@ -33,6 +37,18 @@ func (v *Volume) Stream(samples *decoder.Samples) {
 
 func (v *Volume) Sample(sample *float64, ch int, n int) {
 	*sample *= v.gain
+}
+
+func (r *Volume) On() {
+	r.power = true
+}
+
+func (r *Volume) Off() {
+	r.power = false
+}
+
+func (r *Volume) IsOn() bool {
+	return r.power
 }
 
 func (v *Volume) SetMute(b bool) {
@@ -60,6 +76,6 @@ func (v *Volume) Volume() float64 {
 	return v.volume
 }
 
-func NewVolume(vol float64) *Volume {
+func NewVolume(vol float64) stream.VolumeElement {
 	return &Volume{volume: vol, base: 1}
 }

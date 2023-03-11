@@ -23,7 +23,7 @@ func apiLineCreate(c *websockets.WSConnection, req Requester, log *zap.Logger) (
 		return nil, fmt.Errorf("name invalid")
 	}
 
-	nl := speaker.AddLine(params.Name)
+	nl := speaker.NewLine(params.Name)
 	if nl == nil {
 		return nil, fmt.Errorf("add new line faild")
 	}

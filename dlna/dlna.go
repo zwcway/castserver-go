@@ -28,24 +28,20 @@ func (s *DLNAServer) ListenAndServe() {
 	}
 
 	go s.upnp.Serve()
-	for {
-		select {
-		case <-s.ctx.Done():
-			return
-		case <-s.c:
-			return
-		case err := <-s.upnp.ErrorChan:
-			if upnp.IsIPDenyError(err) {
-				s.log.Warn("ip denied", zap.Error(err))
-			} else if ssdp.IsRequestError(err) {
-			} else {
-				s.log.Error("error", zap.Error(err))
-			}
-		case err := <-s.upnp.InfoChan:
-			if !strings.Contains(err, "request from") {
-				s.log.Info(err)
-			}
-		}
+}
+
+func (s *DLNAServer) onError(err error) {
+	if upnp.IsIPDenyError(err) {
+		s.log.Warn("ip denied", zap.Error(err))
+	} else if ssdp.IsRequestError(err) {
+	} else {
+		s.log.Error("error", zap.Error(err))
+	}
+}
+
+func (s *DLNAServer) onInfo(err string) {
+	if !strings.Contains(err, "request from") {
+		s.log.Info(err)
 	}
 }
 
@@ -58,11 +54,11 @@ func (s *DLNAServer) Close() {
 	s.upnp.Close()
 }
 
-func (s *DLNAServer) AddNewInstance(name string) string {
+func (s *DLNAServer) AddNewInstance(name string, uuid string) string {
 	if s == nil || s.upnp == nil {
 		return ""
 	}
-	return s.upnp.AddServer(name, "", "")
+	return s.upnp.AddServer(name, uuid, "")
 }
 
 func (s *DLNAServer) ChangeName(uuid string, newName string) {
@@ -95,6 +91,9 @@ func (s *DLNAServer) newUPnPServer(ctx utils.Context, name string) (err error) {
 	s.upnp.ListenPort = config.DLNAAddrPort.Port()
 	s.upnp.DenyIps = config.DLNADenyIps
 	s.upnp.AllowIps = config.DLNAAllowIps
+	s.upnp.ErrorHandler = s.onError
+	s.upnp.InfoHandler = s.onInfo
+
 	// s.upnp.BeforeRequestHandle = func(ctx *fasthttp.RequestCtx) bool {
 	// 	s.log.Info(ctx.RemoteAddr().String() + " " + string(ctx.Request.Body()))
 	// 	return true

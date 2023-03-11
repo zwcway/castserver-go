@@ -57,12 +57,18 @@ export default {
       this.show = false;
       next();
     });
+    this.$root.$on('scrollTo', (top) => {
+      this.main.scrollTo({
+        top: top,
+        behavior: 'smooth',
+      });
+    });
   },
 
   methods: {
     handleScroll() {
-      const clintHeight = this.main.clientHeight - 128;
-      const scrollHeight = this.main.scrollHeight - 128;
+      const clintHeight = this.main.clientHeight;
+      const scrollHeight = this.main.scrollHeight;
       const scrollTop = this.main.scrollTop;
       let top = ~~((scrollTop / scrollHeight) * clintHeight);
       let thumbHeight = ~~((clintHeight / scrollHeight) * clintHeight);
@@ -160,7 +166,7 @@ export default {
   z-index: 1000;
 
   #thumbContainer {
-    margin-top: 64px;
+    margin-top: $nav-height;
     div {
       transition: background 0.4s;
       position: absolute;

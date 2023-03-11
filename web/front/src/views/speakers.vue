@@ -1,6 +1,6 @@
 <template>
   <div class="speaker-list">
-    <div v-for="(sp, i) in speakers" :key="i" :id="'speaker-' + sp.id">
+    <div v-for="(sp, i) in speakers" :key="i" :id="'speaker-' + sp.id" class="speaker">
       <SpeakerRow :speaker="sp" :class="sp.__class ? sp.__class : ''" />
     </div>
     <div class="notification is-primary is-light" v-if="speakers.length === 0">
@@ -13,13 +13,7 @@
 import { mapState } from 'vuex';
 import SpeakerRow from '@/components/SpeakerRow';
 import VolumeLevel from '@/common/volumeLevel';
-import {
-  getSpeakerList,
-  listenSpeakerChanged,
-  listenSpeakerLevelMeter,
-  removeListenSpeakerEvent,
-  removeListenSpeakerLevelMeter,
-} from '@/api/speaker';
+import * as ApiSpeaker from '@/api/speaker';
 import { socket, Event as SrvEvent } from '@/common/request';
 
 let level = new VolumeLevel('200ms');
@@ -58,8 +52,8 @@ export default {
     window.requestAnimationFrame(renderVolumeLevel);
   },
   destroyed() {
-    removeListenSpeakerEvent();
-    removeListenSpeakerLevelMeter();
+    ApiSpeaker.removeListenSpeakerEvent(undefined);
+    ApiSpeaker.removeListenSpeakerSpectrum(undefined);
     level.clear();
   },
   watch: {
@@ -80,10 +74,10 @@ export default {
   },
   methods: {
     loadData() {
-      getSpeakerList().then(result => {
+      ApiSpeaker.getSpeakerList().then(result => {
         this.speakers = result || [];
       });
-      listenSpeakerChanged((speaker, evt) => {
+      ApiSpeaker.listenSpeakerChanged(undefined, (speaker, evt) => {
         let i = this.findSpeaker(speaker.id);
         switch (evt) {
           case SrvEvent.SP_Detected:
@@ -106,9 +100,12 @@ export default {
             break;
         }
       });
-      listenSpeakerLevelMeter(levels => {
+      ApiSpeaker.listenSpeakerSpectrum(undefined, levels => {
         levels.forEach(s => level.setValById(s[0], s[1]));
       });
+    },
+    speakerIds() {
+      return this.speakers.map(s => {return s.id})
     },
     findSpeaker(id) {
       let s;
@@ -126,6 +123,11 @@ export default {
 
 <style lang="scss">
 .speaker-list {
+  .speaker {
+    width: 100%;
+    height: auto;
+  }
+
   .notification {
     justify-content: center;
     height: 100%;
@@ -134,7 +136,8 @@ export default {
     align-items: center;
     display: flex;
     top: initial;
-    z-index: -1;
+    background-color: var(--color-secondary-bg);
+    // z-index: -1;
   }
 }
 </style>

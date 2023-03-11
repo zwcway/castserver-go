@@ -5,9 +5,9 @@ import (
 	"strings"
 
 	"github.com/valyala/fasthttp"
-	"github.com/zwcway/castserver-go/decoder"
 	"github.com/zwcway/castserver-go/decoder/localspeaker"
 	"github.com/zwcway/castserver-go/decoder/pipeline"
+	"github.com/zwcway/castserver-go/utils"
 	"github.com/zwcway/fasthttp-upnp/avtransport1"
 	"github.com/zwcway/fasthttp-upnp/soap"
 	"go.uber.org/zap"
@@ -43,7 +43,7 @@ func avtGetPositionInfo(input any, output any, ctx *fasthttp.RequestCtx, uuid st
 
 	audio := pipeline.FileStreamer(uuid)
 
-	dur := decoder.DurationFormat(audio.Duration())
+	dur := utils.FormatDuration(audio.Duration())
 	out.TrackDuration = dur
 	out.TrackURI = audio.CurrentFile()
 	out.RelTime = dur
@@ -102,7 +102,7 @@ func avtSeek(input any, output any, ctx *fasthttp.RequestCtx, uuid string) error
 	}
 	switch in.Unit {
 	case "ABS_TIME", "REL_TIME":
-		d, err := decoder.ParseDuration(in.Target)
+		d, err := utils.ParseDuration(in.Target)
 		if err != nil {
 			return &soap.Error{Code: fasthttp.StatusBadRequest, Desc: err.Error()}
 		}

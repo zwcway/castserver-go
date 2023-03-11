@@ -9,7 +9,7 @@ import (
 	"runtime/debug"
 	"syscall"
 
-	"github.com/zwcway/castserver-go/common/speaker"
+	"github.com/zwcway/castserver-go/common"
 	"github.com/zwcway/castserver-go/config"
 	"github.com/zwcway/castserver-go/control"
 	"github.com/zwcway/castserver-go/detector"
@@ -103,6 +103,7 @@ func main() {
 	}
 
 	debug.SetMaxThreads(config.RuntimeThreads)
+	common.Init()
 
 	mods := []Module{
 		mutexer.Module,
@@ -112,7 +113,6 @@ func main() {
 		receiver.Module,
 		web.Module}
 
-	speaker.Init()
 	for _, f := range mods {
 		err = f.Init(rootCtx)
 		if err != nil {
