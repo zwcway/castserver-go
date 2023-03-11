@@ -2,121 +2,162 @@ package localspeaker
 
 import (
 	"sync"
-	"unsafe"
 
-	"github.com/hajimehoshi/oto"
+	oto "github.com/hajimehoshi/oto/v2"
 	"github.com/pkg/errors"
 	"github.com/zwcway/castserver-go/common/audio"
-	"github.com/zwcway/castserver-go/decoder/pipeline"
+	"github.com/zwcway/castserver-go/common/speaker"
+	"github.com/zwcway/castserver-go/common/stream"
+	"github.com/zwcway/castserver-go/decoder/element"
+	"github.com/zwcway/castserver-go/utils"
 )
 
 var (
-	mu      sync.Mutex
-	pl      *pipeline.PipeLine
-	buf     []byte
-	context *oto.Context
-	player  *oto.Player
-	done    chan int
-	quit    chan int
-	size    int
+	mu           sync.Mutex
+	context      *oto.Context
+	player       oto.Player
+	sampleReader *reader
+	mixer        stream.MixerElement
+
+	lines []*speaker.Line
 )
 
 func Init() error {
+	mu.Lock()
+	defer mu.Unlock()
+	if player != nil {
+		return nil
+	}
+
 	format := &audio.Format{
 		SampleRate: audio.AudioRate_44100,
 		Layout:     audio.ChannelLayout20,
 		SampleBits: audio.AudioBits_S16LE,
 	}
 
-	pl = pipeline.Default()
-	if pl == nil {
-		return errors.New("please init pipeline first")
-	}
-	pl.EleResample().SetFormat(format)
-
-	mu.Lock()
-
-	samples := pl.Buffer()
-	size = format.Bytes()
-	bufSize := samples.Size * size
-	buf = make([]byte, bufSize)
-
-	if player != nil {
-		mu.Unlock()
-		return nil
-	}
-	mu.Unlock()
-
-	Close()
-
 	var err error
-	context, err = oto.NewContext(format.SampleRate.ToInt(), format.Layout.Count, format.SampleBits.Size(), bufSize)
+	samples := 17640
+	bufSize := samples * format.Bytes()
+	mixer = element.NewMixer(nil)
+	sampleReader = &reader{buf: stream.NewSamples(samples, format)}
 
+	var readyChan chan struct{}
+
+	context, readyChan, err = oto.NewContext(format.SampleRate.ToInt(), format.Layout.Count, format.SampleBits.Size())
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize speaker")
 	}
-	player = context.NewPlayer()
+	<-readyChan
+
+	player = context.NewPlayer(sampleReader)
 	if player == nil {
 		return errors.New("create player failed")
 	}
-
-	done = make(chan int, 2)
-	quit = make(chan int, 2)
-	go func() {
-		for {
-
-			select {
-			default:
-				write()
-			case <-done:
-				quit <- 1
-				return
-			}
-		}
-	}()
+	player.(oto.BufferSizeSetter).SetBufferSize(bufSize)
 
 	return nil
 }
 
-func Close() {
-	// mu.Lock()
-	// defer mu.Unlock()
-
-	if done != nil {
-		done <- 1
-		<-quit
-		done = nil
-		quit = nil
+func AddLine(line *speaker.Line) {
+	if mixer == nil {
+		return
 	}
-	if player != nil {
-		player.Close()
-		context.Close()
-		player = nil
+	for _, l := range lines {
+		if l == line {
+			return
+		}
+	}
+	mixer.Add(line.Input.PipeLine)
+	lines = append(lines, line)
+}
+
+func RemoveLine(line *speaker.Line) {
+	if mixer == nil {
+		return
+	}
+	for i, l := range lines {
+		if l == line {
+			mixer.Del(line.Input.PipeLine)
+			utils.SliceQuickRemove(&lines, i)
+			return
+		}
 	}
 }
 
-func write() {
-	// mu.Lock()
-	// defer mu.Unlock()
-
-	pl.Stream()
-
-	pbuf := pl.Buffer()
-
-	if len(buf) < size*pbuf.Size {
+func Play() {
+	if player == nil || mixer == nil || mixer.Len() == 0 {
 		return
 	}
+	player.Play()
+}
 
-	for c := 0; c < pbuf.Format.Layout.Count && c < 2; c++ {
-		for i := 0; i < pbuf.Size && i*4+c*2 < len(buf); i++ {
-			val := pbuf.Buffer[c][i]
+func Close() error {
+	mu.Lock()
+	defer mu.Unlock()
 
-			valInt16 := *(*int16)(unsafe.Pointer(&val))
-
-			buf[i*4+c*2+0] = byte(valInt16)
-			buf[i*4+c*2+1] = byte(valInt16 >> 8)
+	if player != nil {
+		if err := player.Close(); err != nil {
+			return err
 		}
+		player = nil
+		mixer.Clear()
+		lines = lines[:0]
 	}
 
-	player.Write(buf)
+	return nil
+}
+
+type reader struct {
+	buf   *stream.Samples
+	total int
+	pos   int
+}
+
+func (r *reader) Read(p []byte) (n int, err error) {
+	rs := len(p) / 2 / 2
+
+	pbuf := r.buf
+	if pbuf == nil || pbuf.Format.Layout.Count < 1 {
+		for i := 0; i < len(p); i++ {
+			p[i] = 0
+		}
+		r.pos = 0
+		r.total = 0
+		return len(p), nil
+	}
+
+	r.buf.BeZero()
+
+	var valInt16 int16
+	n = 0
+	for i := 0; i < rs; i++ {
+		if r.pos >= r.total {
+			mixer.Stream(pbuf)
+			r.total = pbuf.LastSize
+			r.pos = 0
+			if pbuf.LastErr != nil || pbuf.LastSize == 0 {
+				err = pbuf.LastErr
+				return
+			}
+		}
+		for ch := 0; ch < 2; ch++ {
+			if pbuf.Format.Layout.Count > 1 {
+				val := pbuf.Buffer[ch][r.pos]
+				if val < -1 {
+					val = -1
+				}
+				if val > +1 {
+					val = +1
+				}
+				valInt16 = int16(val * (1<<15 - 1))
+			}
+
+			p[i*4+ch*2+0] = byte(valInt16)
+			p[i*4+ch*2+1] = byte(valInt16 >> 8)
+			n += 2
+		}
+		r.pos++
+	}
+
+	return
 }

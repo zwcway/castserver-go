@@ -5,93 +5,57 @@
       <LinuxTitlebar v-if="enableLinuxTitlebar" />
       <div class="border"></div>
       <div class="tabs is-large is-boxed">
-        <div class="navbar-start">
+        <div class="navbar-list navbar-start">
           <div class="navbar-item">
             <div class="buttons">
               <a class="button is-normal is-none is-inverted">
                 <svg-icon icon-class="logo" :size="24" />
               </a>
-              <a
-                class="link-state button is-normal is-none is-inverted"
-                :class="{
-                  'is-danger': !wsConnected,
-                  'is-primary': wsConnected,
-                }"
-                :title="wsConnected ? '服务器已连接' : '服务器已断开'"
-              >
-                <svg-icon
-                  :icon-class="wsConnected ? 'link' : 'unlink'"
-                  :size="0"
-                />
+              <a class="link-state button is-normal is-none is-inverted" :class="{
+                'is-danger': !wsConnected,
+                'is-primary': wsConnected,
+              }" :title="wsConnected ? '服务器已连接' : '服务器已断开'">
+                <svg-icon :icon-class="wsConnected ? 'link' : 'unlink'" :size="0" />
               </a>
             </div>
           </div>
         </div>
-        <ul>
-          <li :class="{ 'is-active': $route.name === 'speakers' }">
-            <a
-              :href="$router.resolve({ name: 'speakers' }).href"
-              @click="reload"
-            >
+        <ul class="navbar-list">
+          <li class="navbar-item" :class="{ 'is-active': $route.name === 'speakers' }">
+            <a :href="$router.resolve({ name: 'speakers' }).href" @click="reload">
               <svg-icon icon-class="speakers" class="icon" :size="0" />
               <span>扬声器</span>
             </a>
           </li>
-          <li
-            v-for="line in lines"
-            :key="line.id"
-            :class="{ 'is-active': isLineRoute(line.id) }"
-          >
+          <li class="navbar-item" v-for="line in lines" :key="line.id" :class="{ 'is-active': isLineRoute(line.id) }">
             <router-link :to="`/line/${line.id}`">
               <svg-icon icon-class="music" class="icon" :size="0" />
               <span :id="'nav-' + line.id">{{ line.name }}</span>
-              <svg-icon
-                icon-class="x"
-                class="icon delete-line"
-                :size="0"
-                v-show="line.id > 0 && isLineRoute(line.id)"
+              <svg-icon icon-class="x" class="icon delete-line" :size="0" v-show="line.id > 0 && isLineRoute(line.id)"
                 v-on:click.native.stop.prevent="
                   // 需要使用 native ，否则组件无法监听事件
                   deleteLine(line.id);
-                  $event.stopPropagation();
-                "
-              />
+                $event.stopPropagation();
+                                                                                                                                                                " />
             </router-link>
           </li>
-          <li>
+          <li class="navbar-item">
             <a v-on:click="newLineClick" class="newline">
               <svg-icon icon-class="speakers" class="icon" :size="0" />
               <span v-show="!newLine">新增</span>
-              <input
-                type="text"
-                id="newline-input-name"
-                class="line-name"
-                maxlength="10"
-                v-show="newLine"
-                v-model="newLineName"
-                :class="{
+              <input type="text" id="newline-input-name" class="line-name" maxlength="10" v-show="newLine"
+                v-model="newLineName" :class="{
                   'animate__animated animate__headShake': newLineNameError,
-                }"
-                placeholder="名称"
-                @keyup="inputLengthLimit($event, 10)"
-                @keyup.enter="submitNewLine"
-                @blur="submitNewLine"
-              />
+                }" placeholder="名称" @keyup="inputLengthLimit($event, 10)" @keyup.enter="submitNewLine"
+                @blur="submitNewLine" />
             </a>
           </li>
         </ul>
-        <div class="navbar-end">
-          <div
-            class="navbar-item"
-            :class="{ 'is-active': $route.name === 'settings' }"
-          >
+        <div class="navbar-list navbar-end">
+          <div class="navbar-item" :class="{ 'is-active': $route.name === 'settings' }">
             <div class="buttons">
-              <router-link
-                to="/settings"
-                class="button is-primary is-normal"
-                :class="{ 'is-outlined': $route.name !== 'settings' }"
-                title="设置"
-              >
+              <router-link to="/settings" class="button is-primary is-normal"
+                :class="{ 'is-outlined': $route.name !== 'settings' }" title="设置">
                 <svg-icon :icon-class="'settings'" :size="32" />
               </router-link>
             </div>
@@ -181,7 +145,7 @@ export default {
       getLineList().then(data => {
         this.lines = data;
       });
-      listenLineListChanged(data => {});
+      listenLineListChanged(data => { });
     },
     go(where) {
       if (where === 'back') this.$router.go(-1);
@@ -270,13 +234,11 @@ export default {
 };
 </script>
 <style lang="scss" scoped>
-@import '../../node_modules/bulma/sass/utilities/_all.sass';
-
-$nav-height: 90px !default;
-$nav-item-width: 98px !default;
-
 nav {
   position: relative;
+  display: flex;
+  width: 100%;
+
   .border {
     height: 1px;
     flex: none;
@@ -284,40 +246,62 @@ nav {
     left: 0;
     width: 100%;
     bottom: 0;
-    background: $border;
+    background: var(--color-border);
   }
 }
 
 .tabs {
+  display: flex;
   height: $nav-height;
   overflow: hidden;
-  ul {
+  width: 100%;
+
+  .navbar-list {
+    display: flex;
     overflow: hidden;
     overflow-x: auto;
     justify-content: flex-start;
     flex-grow: 1;
     flex-shrink: unset;
-    height: $nav-height + 1;
+    height: $nav-height;
     border: none;
+
     &::-webkit-scrollbar {
       display: none;
     }
-    li {
+
+    .navbar-item {
       flex-basis: $nav-item-width;
       flex-shrink: 0;
       display: flex;
       flex-direction: column;
       width: $nav-item-width;
-      height: 100%;
-      background: #fafafa;
+      height: $nav-height;
+      background: var(--color-navbar-bg);
+      border: 1px solid var(--color-border);
+      border-right-color: var(--color-navbar-bg);
+      border-top-color: var(--color-navbar-bg);
+
+      &:last-child {
+        border-right-color: var(--color-border);
+      }
+
+      &:first-child {
+        border-left-color: var(--color-navbar-bg);
+      }
+
       a {
-        height: 100%;
+        height: auto;
         text-decoration: none;
         flex-direction: column;
         position: relative;
-        &:hover {
-          border-color: $border;
-        }
+        display: flex;
+        width: 100%;
+        justify-items: center;
+        align-items: center;
+        padding: 1rem 0;
+        text-align: center;
+        color: var(--color-text);
 
         &.newline {
           .line-name {
@@ -334,16 +318,46 @@ nav {
           top: -3px;
           right: 9px;
           width: 0.8rem;
-          color: $border;
+          color: var(--color-secondary);
+
           &:hover {
-            color: $danger;
+            color: var(--color-danger);
           }
+        }
+
+        span {
+          font-size: 0.7rem;
+          margin-top: 0.5rem;
+          max-width: 80px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+      }
+
+      &:hover {
+        a {
+          color: var(--color-border-hover);
         }
       }
 
       &.is-active {
         position: relative;
+        border-top-left-radius: 10px;
+        border-top-right-radius: 10px;
+        border-top-color: var(--color-border);
+        border-bottom-color: var(--color-navbar-bg);
+        border-right-color: var(--color-border);
+
+        a {
+          color: var(--color-border-hover);
+        }
+
+        &+.navbar-item {
+          border-left-color: var(--color-navbar-bg);
+        }
       }
+
       .svg-icon {
         width: 2rem;
         height: 2rem;
@@ -358,59 +372,91 @@ nav {
     padding: 8px;
     width: 3rem;
     height: 3rem;
+
     &.is-none:hover {
       background: none !important;
       cursor: auto;
     }
   }
-  .navbar-item {
-    height: 100%;
-    position: relative;
-    display: flex;
 
-    &.is-active {
+  .navbar-list {
+    .navbar-item {
+      .buttons {
+        position: relative;
+        display: flex;
+        justify-items: center;
+        align-items: center;
+        width: 100%;
+
+        .is-danger {
+          color: var(--color-danger);
+        }
+
+        .is-primary {
+          color: var(--color-border-hover);
+        }
+      }
+
+      .link-state {
+        width: 1rem;
+        height: 1rem;
+        padding: 0;
+        position: absolute;
+        bottom: 0.5rem;
+        right: 0.5rem;
+
+        .svg-icon {
+          width: 100% !important;
+          height: 100% !important;
+        }
+      }
+    }
+
+    &.navbar-start,
+    &.navbar-end {
       border: none;
-      position: relative;
-      background: #fff;
-      a:hover {
-        background: $link-hover-border;
+      display: flex;
+      align-items: center;
+      flex: none;
+      width: 60px;
+      z-index: 1;
+
+      .navbar-item {
+        width: 100%;
+        flex: none;
+        flex-direction: row;
+        justify-content: center;
       }
     }
-    .link-state {
-      width: 1rem;
-      height: 1rem;
-      padding: 0;
-      position: absolute;
-      bottom: 0.1rem;
-      right: 0.5rem;
 
-      .svg-icon {
-        width: 100% !important;
-        height: 100% !important;
+    &.navbar-start {
+      box-shadow: 0.2rem 0 1rem -0.5rem hsl(0deg 0% 29%);
+
+      .navbar-item {
+        border-left: none;
+        border-top-left-radius: 0;
+
+        &:last-child {
+          border-right-color: var(--color-border);
+        }
       }
     }
-  }
-  .navbar-start,
-  .navbar-end {
-    border: none;
-    display: flex;
-    align-items: center;
-    flex: none;
-  }
-  .navbar-start {
-    box-shadow: 0.2rem 0 0.5em -0.5rem hsl(0deg 0% 29%);
-  }
-  .navbar-end {
-    box-shadow: -0.2rem 0 0.5em -0.5rem hsl(0deg 0% 29%);
+
+    &.navbar-end {
+      box-shadow: -0.2rem 0 1rem -0.5rem hsl(0deg 0% 29%);
+
+      .navbar-item {
+        border-right: none;
+        border-top-right-radius: 0;
+
+        &:first-child {
+          border-left-color: var(--color-border);
+        }
+      }
+    }
+
   }
 
-  span {
-    font-size: 0.7rem;
-    margin-top: 0.5rem;
-    max-width: 80px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
 }
 
 @media screen and (max-width: 819px) {

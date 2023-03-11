@@ -9,30 +9,39 @@ import (
 
 	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/dsp"
+	"github.com/zwcway/castserver-go/common/stream"
+	"github.com/zwcway/castserver-go/decoder/element"
 )
 
+var speakerList []*Speaker
+
+var lock sync.Mutex
+
 type Speaker struct {
-	ID        ID
+	Id        ID
 	MAC       net.HardwareAddr
 	IP        netip.Addr
 	Name      string
-	Line      LineID
+	Line      *Line
 	Mode      Model
 	Dport     uint16 // pcm data port
 	Supported bool   // 是否兼容
 
-	RateMask audio.AudioRateMask // 设备支持的采样率列表
-	BitsMask audio.BitsMask      // 设备支持的位宽列表
-	Channel  audio.Channel       // 当前设置的声道
-	Rate     audio.Rate          // 当前指定的采样率
-	Bits     audio.Bits          // 当前指定的位宽
+	RateMask    audio.AudioRateMask // 设备支持的采样率列表
+	BitsMask    audio.BitsMask      // 设备支持的位宽列表
+	Channel     audio.Channel       // 当前设置的声道
+	AbsoluteVol bool                // 支持绝对音量控制
+	PowerSave   bool                // 是否支持电源控制
+	PowerSate   PowerState          // 电源状态
 
-	AbsoluteVol bool // 支持绝对音量控制
-	Volume      int  // 音量
-	IsMute      bool
+	Rate audio.Rate // 当前指定的采样率
+	Bits audio.Bits // 当前指定的位宽
 
-	PowerSave bool       // 是否支持电源控制
-	PowerSate PowerState // 电源状态
+	Mixer     stream.MixerElement
+	Player    stream.RawPlayerElement
+	Volume    stream.VolumeElement // 音量
+	Spectrum  stream.SpectrumElement
+	Equalizer stream.EqualizerElement
 
 	Conn *net.UDPConn
 
@@ -86,19 +95,19 @@ func (sp *Speaker) UDPAddr() *net.UDPAddr {
 
 func (sp *Speaker) WriteUDP(d []byte) error {
 	if sp.Conn == nil {
-		return fmt.Errorf("speaker %d not connected", sp.ID)
+		return fmt.Errorf("speaker %d not connected", sp.Id)
 	}
 	n, err := sp.Conn.Write(d)
 	if err != nil {
 		sp.Statistic.Error += uint32(len(d))
-		return fmt.Errorf("write to speaker '%d' failed: %s", sp.ID, err.Error())
+		return fmt.Errorf("write to speaker '%d' failed: %s", sp.Id, err.Error())
 	}
 
 	sp.Statistic.Spend += uint64(n)
 
 	if n != len(d) {
 		sp.Statistic.Error += uint32(len(d) - n)
-		return fmt.Errorf("write to speaker '%d' length error %d!=%d", sp.ID, n, len(d))
+		return fmt.Errorf("write to speaker '%d' length error %d!=%d", sp.Id, n, len(d))
 	}
 
 	return nil
@@ -110,49 +119,40 @@ func (sp *Speaker) ChangeChannel(ch audio.Channel) {
 	} else {
 		sp.Channel = audio.AudioChannel_NONE
 	}
-	refreshLine(sp.Line)
+	sp.Line.refresh()
 }
 
-func (sp *Speaker) ChangeLine(line LineID) {
-	removeSpeakerFromLine(sp)
+func (sp *Speaker) ChangeLine(newLine *Line) {
+	sp.Line.RemoveSpeaker(sp)
 
-	sp.Line = line
+	sp.Line = newLine
 
-	appendSpeakerToLine(sp)
-	refreshLine(line)
+	newLine.AppendSpeaker(sp)
 }
 
-var list []*Speaker
-var listByID map[ID]*Speaker
-
-var lock sync.Mutex
-
-func Init() error {
+func initSpeaker() error {
 	maxSize := 0
 
-	list = make([]*Speaker, maxSize)
-	listByID = make(map[ID]*Speaker, 0)
-
-	initLine()
+	speakerList = make([]*Speaker, maxSize)
 
 	return nil
 }
 
 func CountSpeaker() int {
-	return len(list)
+	return len(speakerList)
 }
 
 func AllSpeakers() []*Speaker {
-	return list
+	return speakerList
 }
 
 func All(cb func(*Speaker)) {
-	for _, sp := range list {
+	for _, sp := range speakerList {
 		cb(sp)
 	}
 }
 
-func AddSpeaker(id ID, line LineID, channel audio.Channel) (*Speaker, error) {
+func NewSpeaker(id ID, line LineID, channel audio.Channel) (*Speaker, error) {
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -161,22 +161,30 @@ func AddSpeaker(id ID, line LineID, channel audio.Channel) (*Speaker, error) {
 	}
 
 	var sp Speaker
-	sp.ID = id
-	sp.Line = line
+	sp.Id = id
 	sp.Channel = channel
 	sp.State = State_OFFLINE
 
-	list = append(list, &sp)
+	sp.Player = element.NewPlayer()
+	sp.Mixer = element.NewMixer(sp.Player)
+	sp.Volume = element.NewVolume(1)
+	sp.Spectrum = element.NewSpectrum()
+	sp.Equalizer = element.NewEqualizer(nil)
 
-	listByID[sp.ID] = &sp
-	appendSpeakerToLine(&sp)
+	speakerList = append(speakerList, &sp)
+
+	if l := FindLineByID(line); l != nil {
+		sp.Mixer.Add(l.Input.PipeLine)
+		sp.Line = l
+		l.AppendSpeaker(&sp)
+	}
 
 	return &sp, nil
 }
 
 func DelSpeaker(id ID) error {
-	sp, ok := listByID[id]
-	if !ok {
+	sp := FindSpeakerByID(id)
+	if sp == nil {
 		return &UnknownSpeakerError{id}
 	}
 
@@ -184,23 +192,32 @@ func DelSpeaker(id ID) error {
 	defer lock.Unlock()
 
 	// 删除原始数据
-	for i, s := range list {
-		if s == sp {
-			list[i] = list[len(list)-1]
-			list = list[:len(list)-1]
-			break
-		}
-	}
+	removeSpeaker(id)
 
-	delete(listByID, sp.ID)
-	removeSpeakerFromLine(sp)
+	sp.Line.RemoveSpeaker(sp)
+	sp.Line = nil
 
 	return nil
 }
 
-func FindSpeakerByID(id ID) *Speaker {
-	if sp, ok := listByID[id]; ok {
-		return sp
+func removeSpeaker(id ID) {
+	l := len(speakerList) - 1
+	for i := 0; i <= l; i++ {
+		if speakerList[i].Id == id {
+			if i != l {
+				speakerList[i] = speakerList[l]
+			}
+			speakerList = speakerList[:l]
+		}
 	}
+}
+
+func FindSpeakerByID(id ID) *Speaker {
+	for i := 0; i < len(speakerList); i++ {
+		if speakerList[i].Id == id {
+			return speakerList[i]
+		}
+	}
+
 	return nil
 }

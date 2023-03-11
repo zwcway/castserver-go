@@ -5,3 +5,5 @@ test/
 vendor
 pkg
 scripts
+build/
+*.css

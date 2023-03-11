@@ -172,12 +172,10 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-@import '../../node_modules/bulma/sass/utilities/_all.sass';
-
 .equalizer {
   display: flex;
   margin: auto;
-  background: $white;
+  background: var(--color-body-bg);
   .body {
     display: flex;
   }

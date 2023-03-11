@@ -18,7 +18,7 @@ func receiveSpeakerRoutine(sp *speaker.Speaker) {
 			if utils.IsConnectCloseError(err) {
 				return
 			}
-			log.Error("read from speaker failed", zap.Uint32("speaker", uint32(sp.ID)), zap.Error(err))
+			log.Error("read from speaker failed", zap.Uint32("speaker", uint32(sp.Id)), zap.Error(err))
 			return
 		}
 		ip := addrPort.String()

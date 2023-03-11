@@ -2,7 +2,7 @@ package detector
 
 import (
 	"github.com/zwcway/castserver-go/common/speaker"
-	config "github.com/zwcway/castserver-go/config"
+	"github.com/zwcway/castserver-go/config"
 	"github.com/zwcway/castserver-go/control"
 	"github.com/zwcway/castserver-go/pusher"
 	"github.com/zwcway/castserver-go/utils"
@@ -12,7 +12,7 @@ import (
 )
 
 func initSpeaker(sp *speaker.Speaker, res *SpeakerResponse) {
-	sp.ID = res.ID
+	sp.Id = res.ID
 	sp.Name = res.MAC.String()
 	sp.RateMask = res.RateMask
 	sp.BitsMask = res.BitsMask
@@ -84,7 +84,7 @@ func CheckSpeaker(res *SpeakerResponse) error {
 		return err
 	}
 
-	sp, err := speaker.AddSpeaker(res.ID, speaker.DefaultLineID, control.DefaultChannel())
+	sp, err := speaker.NewSpeaker(res.ID, speaker.DefaultLineID, control.DefaultChannel())
 	if err != nil {
 		log.Error("add speaker error", zap.Int("id", int(res.ID)))
 		return err

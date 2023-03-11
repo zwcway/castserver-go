@@ -1,33 +1,42 @@
+$nav-height: 90px !default;
+$nav-item-width: 98px !default;
+
+
 @font-face {
   font-family: 'Barlow';
   font-weight: normal;
   src: url('~@/assets/fonts/Barlow-Regular.woff2') format('woff2'),
     url('~@/assets/fonts/Barlow-Regular.ttf') format('truetype');
 }
+
 @font-face {
   font-family: 'Barlow';
   font-weight: medium;
   src: url('~@/assets/fonts/Barlow-Medium.woff2') format('woff2'),
     url('~@/assets/fonts/Barlow-Medium.ttf') format('truetype');
 }
+
 @font-face {
   font-family: 'Barlow';
   font-weight: 600;
   src: url('~@/assets/fonts/Barlow-SemiBold.woff2') format('woff2'),
     url('~@/assets/fonts/Barlow-SemiBold.ttf') format('truetype');
 }
+
 @font-face {
   font-family: 'Barlow';
   font-weight: bold;
   src: url('~@/assets/fonts/Barlow-Bold.woff2') format('woff2'),
     url('~@/assets/fonts/Barlow-Bold.ttf') format('truetype');
 }
+
 @font-face {
   font-family: 'Barlow';
   font-weight: 800;
   src: url('~@/assets/fonts/Barlow-ExtraBold.woff2') format('woff2'),
     url('~@/assets/fonts/Barlow-ExtraBold.ttf') format('truetype');
 }
+
 @font-face {
   font-family: 'Barlow';
   font-weight: 900;
@@ -38,26 +47,30 @@
 :root {
   --color-body-bg: #ffffff;
   --color-text: #000;
-  --color-primary: #335eea;
+  --color-primary: hsl(171, 100%, 41%);
   --color-primary-bg: #eaeffd;
   --color-secondary: #7a7a7b;
   --color-secondary-bg: #f5f5f7;
-  --color-navbar-bg: rgba(255, 255, 255, 0.86);
+  --color-navbar-bg: rgba(255, 255, 255);
   --color-primary-bg-for-transparent: rgba(189, 207, 255, 0.28);
   --color-secondary-bg-for-transparent: rgba(209, 209, 214, 0.28);
+  --color-border: #cfcfcf;
+  --color-border-hover: var(--color-primary);
+  --color-danger: hsl(348, 86%, 61%);
   --html-overflow-y: overlay;
 }
 
 [data-theme='dark'] {
   --color-body-bg: #222222;
   --color-text: #ffffff;
-  --color-primary: #335eea;
+  --color-primary: hsl(171, 100%, 41%);
   --color-primary-bg: #bbcdff;
   --color-secondary: #7a7a7b;
   --color-secondary-bg: #323232;
-  --color-navbar-bg: rgba(34, 34, 34, 0.86);
+  --color-navbar-bg: rgba(34, 34, 34);
   --color-primary-bg-for-transparent: rgba(255, 255, 255, 0.12);
   --color-secondary-bg-for-transparent: rgba(255, 255, 255, 0.08);
+  --color-border: #525252;
 }
 
 #app,
@@ -67,13 +80,16 @@ input {
     Source Han Sans SC, Noto Sans CJK SC, WenQuanYi Micro Hei, sans-serif,
     microsoft uighur;
 }
+
 body {
   background-color: var(--color-body-bg);
+  color: var(--color-text);
+  overflow: hidden;
 }
 
 html {
   overflow-y: var(--html-overflow-y);
-  min-width: 768px;
+  min-width: 370px;
   overscroll-behavior: none;
 }
 
@@ -81,6 +97,7 @@ select,
 button {
   font-family: inherit;
 }
+
 button {
   background: none;
   border: none;
@@ -88,22 +105,35 @@ button {
   user-select: none;
   -webkit-user-select: none;
 }
+
 input,
 button {
+  color: var(--color-text);
+  background-color: var(--color-body-bg);
   &:focus {
     outline: none;
   }
 }
+
 a {
   color: inherit;
   text-decoration: none;
   cursor: pointer;
+
   &:hover {
     text-decoration: underline;
   }
 }
 
+ul,
+li {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+}
+
 [data-electron='yes'] {
+
   button,
   .navigation-links a,
   .playlist-info .description {

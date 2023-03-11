@@ -2,61 +2,37 @@ package event
 
 import (
 	"context"
-	"runtime"
 
-	"github.com/zwcway/castserver-go/common/jsonpack"
 	"github.com/zwcway/castserver-go/common/speaker"
-	"github.com/zwcway/castserver-go/decoder/element"
-	"github.com/zwcway/castserver-go/decoder/pipeline"
-	"github.com/zwcway/castserver-go/web/websockets"
+	"github.com/zwcway/castserver-go/common/stream"
 	"go.uber.org/zap"
 )
 
+type notifySpectrum struct {
+	LevelMeter [2]float32 `jp:"l"`
+	Spectrum   []float32  `jp:"s"`
+}
+
 func lineSpectrumRoutine(arg int, ctx context.Context, log *zap.Logger, ctrl chan int) {
-	var ls *element.LineSpectrum
+	var ls stream.SpectrumElement
 
 	line := speaker.FindLineByID(speaker.LineID(arg))
-	pl := pipeline.FromLine(line)
-	if pl == nil {
+	if line == nil {
 		return
 	}
-	if ls = pl.EleLineSpectrum(); ls == nil {
+	if ls = line.Spectrum; ls == nil {
 		return
 	}
-	if ls.State() {
+	if ls.IsOn() {
 		return
 	}
 	ls.On()
 
-	log.Info("start line spectrum routine")
 	defer func() {
 		ls.Off()
 		log.Info("stop line spectrum routine")
 	}()
+	log.Info("start line spectrum routine")
 
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ctrl:
-			return
-		case <-ticker.C:
-		}
-		runtime.Gosched()
-
-		if pl == nil || line == nil {
-			continue
-		}
-
-		if len(line.Spectrum) == 0 {
-			continue
-		}
-
-		resp := line.Spectrum
-
-		msg, err := jsonpack.Marshal(resp)
-		if err == nil {
-			websockets.Broadcast(websockets.Command_LINE, websockets.Event_Line_Spectrum, arg, msg)
-		}
-	}
+	spectrum(arg, ctx, log, ctrl, ls)
 }

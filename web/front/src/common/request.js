@@ -6,7 +6,7 @@ if (process.env.NODE_ENV !== 'production') {
     require('../mock');
   }
 }
-console.log(process.env.Mock);
+
 const Command = Object.freeze({
   Server: 1,
   Speaker: 2,
@@ -20,13 +20,14 @@ const Event = Object.freeze({
   SP_Moved: 15,
   SP_Edited: 16,
   SP_LevelMeter: 17,
-  Line_Created: 18,
-  Line_Deleted: 19,
-  Line_Edited: 20,
-  Line_Speaker: 21,
-  Line_LevelMeter: 22,
+  SP_Spectrum: 18,
+  Line_Created: 19,
+  Line_Deleted: 20,
+  Line_Edited: 21,
+  Line_Speaker: 22,
   Line_Spectrum: 23,
-  Line_Input: 24,
+  Line_LevelMeter: 24,
+  Line_Input: 25,
 });
 
 export { socket, Command, Event };

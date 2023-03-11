@@ -45,7 +45,7 @@ export function listenLineSpeakerChanged(id, callback) {
   return socket.receiveEvent(Event.Line_Speaker, id, callback);
 }
 
-export function removelistenLineSpeakerChanged(id) {
+export function removeListenLineSpeakerChanged(id) {
   socket.removeEvent(Event.Line_Speaker, id);
 }
 
@@ -57,12 +57,16 @@ export function removeListenLineSpectrum(id) {
   socket.removeEvent(Event.Line_Spectrum, id);
 }
 
-export function listenLineLevelMeter(id, callback) {
-  return socket.receiveEvent(Event.Line_LevelMeter, id, callback);
+export function listenLineInput(id, callback) {
+  return socket.receiveEvent(Event.Line_Input, id, callback);
 }
 
-export function removeListenLineLevelMeter(id) {
-  socket.removeEvent(Event.Line_LevelMeter, id);
+export function removeListenLineInput(id) {
+  socket.removeEvent(Event.Line_Input, id);
+}
+
+export function playerSeek(id, pos) {
+  return socket.send('lineSeek', {id, pos});
 }
 
 export function createLine(name) {

@@ -11,7 +11,7 @@ import (
 
 type requestLineDelete struct {
 	ID   uint8 `jp:"id"`
-	Move uint8 `jp:"moveTo"`
+	Move uint8 `jp:"moveTo,omitempty"` // 默认0
 }
 
 func apiLineDelete(c *websockets.WSConnection, req Requester, log *zap.Logger) (any, error) {
@@ -26,7 +26,7 @@ func apiLineDelete(c *websockets.WSConnection, req Requester, log *zap.Logger) (
 		return nil, fmt.Errorf("line[%d] not exists", params.ID)
 	}
 
-	err = speaker.DelLine(nl.ID, speaker.LineID(params.Move))
+	err = speaker.DelLine(nl.Id, speaker.LineID(params.Move))
 	if err != nil {
 		return nil, err
 	}
@@ -34,5 +34,5 @@ func apiLineDelete(c *websockets.WSConnection, req Requester, log *zap.Logger) (
 	receiver.DelDLNA(nl)
 	websockets.BroadcastLineEvent(nl, websockets.Event_Line_Deleted)
 
-	return nl.ID, nil
+	return nl.Id, nil
 }

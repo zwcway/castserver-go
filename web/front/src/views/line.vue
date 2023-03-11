@@ -1,23 +1,18 @@
 <template>
-  <div class="line-page" :class="{ 'select-channel': specifyChannel }">
+  <div class="line-page" :class="{ 'select-channel': specifyChannel >= 0 }">
+    <div class="player" v-if="isPlayer">
+      <span>{{ currentDuration }}</span>
+      <VueSlider v-model="line.source.cur" :min="0" :max="line.source.dur" tooltipPlacement="bottom"
+        :tooltipFormatter="playerSliderFormater" @drag-start="onPlayerSeekStart" @drag-end="onPlayerSeekStop" />
+      <span>{{ totalDuration }}</span>
+    </div>
     <div class="volume">
       <div>
         <div class="line-name">
           <span v-if="!isLineNameEdit">{{ line.name }}</span>
-          <a-input
-            v-else
-            :value="line.name"
-            placeholder="名称"
-            :max-width="6"
-            @change="line.newName = $event.target.value"
-            @blur="onNameChange"
-            @keyup.enter="onNameChange"
-          />
-          <a-button
-            v-if="!isLineNameEdit"
-            type="link"
-            @click.stop.prevent="isLineNameEdit = true"
-          >
+          <a-input v-else :value="line.name" placeholder="名称" :max-width="6" @change="line.newName = $event.target.value"
+            @blur="onNameChange" @keyup.enter="onNameChange" />
+          <a-button v-if="!isLineNameEdit" type="link" @click.stop.prevent="isLineNameEdit = true">
             <a-icon type="edit" />
           </a-button>
           <a-button v-else type="link" @click.stop.prevent="onNameChange">
@@ -31,18 +26,8 @@
         </span>
       </div>
       <div :id="'line-' + line.id" class="level-meter-slider">
-        <Volume
-          :volume="volume"
-          :mute="line.mute || false"
-          @change="onVolumeChanged"
-          tooltip-placement="bottom"
-        />
-        <a-select
-          :value="layout"
-          class="layout-select"
-          :options="layoutList"
-          @select="layout = $event"
-        ></a-select>
+        <Volume :volume="volume" :mute="line.mute || false" @change="onVolumeChanged" tooltip-placement="bottom" />
+        <a-select :value="layout" class="layout-select" :options="layoutList" @select="layout = $event"></a-select>
         <a-button type="link" @click.stop.prevent="isShowEqualizer = true">
           <i class="codicon codicon-settings"></i>
         </a-button>
@@ -57,30 +42,17 @@
         <div class="line"></div>
       </div>
       <div class="channels channels-layout" :class="layoutClass()">
-        <div
-          class="speaker"
-          v-for="(ch, id) in channelAttr"
-          :key="ch.id"
-          v-bind:id="ch.id"
-          @click.stop.prevent="onSelectChannel(id)"
-          @mouseover="onChannelMouseHover(id, true)"
-          @mouseleave="onChannelMouseHover(id, false)"
-          @touchend="onChannelMouseHover(id, false)"
-          :class="{
+        <div class="speaker" v-for="(ch, id) in channelAttr" :key="ch.id" v-bind:id="ch.id"
+          @click.stop.prevent="onSelectChannel(id)" @mouseover="onChannelMouseHover(id, true)"
+          @mouseleave="onChannelMouseHover(id, false)" @touchend="onChannelMouseHover(id, false)" :class="{
             enabled: channelSpeakers[id] && channelSpeakers[id].length > 0,
             active: ch.show,
-          }"
-        >
+          }">
           <svg-icon v-bind:iconClass="ch.icon" :size="0" />
         </div>
       </div>
     </div>
-    <div
-      id="popper"
-      class="popper"
-      v-show="popper.length > 0"
-      data-popper-placement="top"
-    >
+    <div id="popper" class="popper" v-show="popper.length > 0" data-popper-placement="top">
       <div>
         <div class="channel-name">{{ popper }}</div>
         <div data-popper-arrow="true" class="arrow">
@@ -92,93 +64,50 @@
       <div class="channel-name" v-show="infomation.channelId">
         <span>{{ infomation.name }}</span>
       </div>
-      <ul
-        class="speaker-list"
-        v-show="infomation.speakers && infomation.speakers.length"
-      >
-        <li
-          class="speaker level-meter-slider"
-          v-for="sp in infomation.speakers"
-          :key="sp.id"
-          :id="'speaker-' + sp.id"
-        >
+      <ul class="speaker-list" v-show="infomation.speakers && infomation.speakers.length">
+        <li class="speaker level-meter-slider" v-for="sp in infomation.speakers" :key="sp.id" :id="'speaker-' + sp.id">
           <div>
             <svg-icon icon-class="speaker" :size="0"></svg-icon>
             <span class="name" @click.stop.prevent="gotoSpeaker(sp.id)">
               {{ sp.name }}
             </span>
-            <span
-              class="channel-name user-select-none"
-              v-if="sp.ch && channelAttr[sp.ch]"
-              @click.stop.prevent="onShowChannelInfo(sp.ch)"
-            >
+            <span class="channel-name user-select-none" v-if="sp.ch && channelAttr[sp.ch]"
+              @click.stop.prevent="onShowChannelInfo(sp.ch)">
               {{ showChannelName(sp.ch) }}
-              <a-button
-                icon="close"
-                @click.stop.prevent="onRemoveSPChannel(sp)"
-              ></a-button>
+              <a-button icon="close" @click.stop.prevent="onRemoveSPChannel(sp)"></a-button>
             </span>
-            <a-button
-              type="link"
-              v-if="!sp.ch || (!infomation.channelId && !channelAttr[sp.ch])"
-              @click.stop.prevent="onSpecifyChannel(sp.id)"
-            >
+            <a-button type="link" v-if="!sp.ch || (!infomation.channelId && !channelAttr[sp.ch])"
+              @click.stop.prevent="onSpecifyChannel(sp.id)">
               指定声道
             </a-button>
           </div>
           <span class="ip">{{ sp.ip }}</span>
           <span class="ratebits">{{ showRatebits(sp) }}</span>
-          <Volume
-            :volume="sp.vol"
-            :mute="sp.mute"
-            tooltip-placement="top"
-            @change="onSpeakerVolumeChanged($event, sp.id)"
-            @mute="onSpeakerVolumeMute($event, sp.id)"
-          />
+          <Volume :volume="sp.vol" :mute="sp.mute" tooltip-placement="top" @change="onSpeakerVolumeChanged($event, sp.id)"
+            @mute="onSpeakerVolumeMute($event, sp.id)" />
         </li>
       </ul>
-      <input
-        v-show="!infomation.speakers || infomation.speakers.length === 0"
-        type="button"
-        value="选择扬声器"
-      />
+      <input v-show="!infomation.speakers || infomation.speakers.length === 0" type="button" value="选择扬声器" />
     </div>
-    <a-modal
-      :visible="isShowEqualizer"
-      width="fit-content"
-      :footer="null"
-      @cancel="isShowEqualizer = false"
-    >
-      <equalizer
-        id="equalizer"
-        :bands="equalizerBands"
-        :eq="line.eq"
-        ref="equalizer"
-        @change="onEQChange"
-      />
+    <a-modal :visible="isShowEqualizer" width="fit-content" :footer="null" @cancel="isShowEqualizer = false">
+      <equalizer id="equalizer" :bands="equalizerBands" :eq="line.eq" ref="equalizer" @change="onEQChange" />
       <template slot="title">
         <div class="eq-toolbar">
           <span>均衡器</span>
-          <a-select
-            class="eq-band-select"
-            :options="equalizerBandsList"
-            :value="eqBandsSelected"
-            @select="eqBandsSelected = $event"
-          >
+          <a-select class="eq-band-select" :options="equalizerBandsList" :value="eqBandsSelected"
+            @select="eqBandsSelected = $event">
           </a-select>
         </div>
       </template>
     </a-modal>
-    <div class="select-channel-mask" v-show="specifyChannel">
-      <a-button
-        icon="close"
-        @click.stop.prevent="specifyChannel = 0"
-      ></a-button>
+    <div class="select-channel-mask" v-show="specifyChannel >= 0">
+      <a-button icon="close" @click.stop.prevent="specifyChannel = -1"></a-button>
     </div>
   </div>
 </template>
 
 <script>
+import { mapState } from 'vuex';
 import VueSlider from 'vue-slider-component';
 import 'vue-slider-component/theme/antd.css';
 import Equalizer from '@/components/Equalizer';
@@ -186,18 +115,12 @@ import Volume from '@/components/Volume';
 // import icons for win32 title bar
 // icons by https://github.com/microsoft/vscode-codicons
 import '@vscode/codicons/dist/codicon.css';
-import '@/api/line';
+import * as ApiLine from '@/api/line';
 import { socket, Event } from '@/common/request';
 import VolumeLevel from '@/common/volumeLevel';
-import {
-  setVolume as setSpeakerVolume,
-  setSpeaker,
-  listenSpeakerLevelMeter,
-  removeListenSpeakerLevelMeter,
-} from '@/api/speaker';
+import * as ApiSpeaker from '@/api/speaker';
 import { createPopper } from '@popperjs/core';
-import { formatRate, formatBits, formatLayout } from '@/common/format';
-import { scrollTo } from '@/common/window';
+import { formatRate, formatBits, formatLayout, formatDuration } from '@/common/format';
 import '@/assets/css/popper.scss';
 import '@/assets/css/speaker.scss';
 
@@ -208,6 +131,7 @@ let title = [];
 let spRequestId;
 let speakerIndex = 0;
 let level = new VolumeLevel('200ms');
+let playerDurationTimeout;
 
 function drawSpectrum() {
   ctx.clearRect(0, 0, SP.width, SP.height);
@@ -280,7 +204,7 @@ export default {
       channels: 0,
       channelLayout: 'none',
       channelSpeakers: {},
-      channelAttr: channelList,
+      channelAttr: ApiLine.channelList,
       popper: '',
       infomation: {},
       volumeLevelProcess(dotsPos) {
@@ -292,7 +216,7 @@ export default {
       isShowEqualizer: false,
       equalizerBands: 15,
       equalizerBandsList: [],
-      specifyChannel: 0, // speakerid
+      specifyChannel: -1, // speakerid
       fromAction: '',
       shownChannelId: 0,
     };
@@ -303,7 +227,7 @@ export default {
         this.specifyChannel = parseInt(to.params.spid);
         return;
       } else if (this.fromAction === 'specifychannel') {
-        this.specifyChannel = 0;
+        this.specifyChannel = -1;
         return;
       }
       this.init();
@@ -324,6 +248,12 @@ export default {
         this.eqBandsSelected = bands[0].key;
       });
     },
+    specifyChannel(newVal) {
+      // 选择声道的时候禁止滚动
+      this.$root.$emit('scrollTo', 0);
+
+      this.scrolling = newVal < 0;
+    },
   },
   beforeRouteEnter(to, from, next) {
     next(vm => {
@@ -332,6 +262,15 @@ export default {
     });
   },
   computed: {
+    ...mapState(['enableScrolling']),
+    scrolling: {
+      get() {
+        return this.enableScrolling || false;
+      },
+      set(value) {
+        this.$store.commit('enableScrolling', value);
+      },
+    },
     volume: {
       get() {
         return this.line.vol || 0;
@@ -351,19 +290,26 @@ export default {
         clearEqualizer(this.line.id);
       },
     },
+    isPlayer() {
+      return this.line.source && this.line.source.type === 1;
+    },
+    currentDuration() {
+      return formatDuration(this.line.source.cur)
+    },
+    totalDuration() {
+      return formatDuration(this.line.source.dur)
+    },
+    playerPosition: {
+      get() {
+        return this.line.source && this.line.source.cur
+      },
+      set(val) {
+        this.startPlayerDuration()
+      }
+    }
   },
   mounted() {
     socket.onConnected().then(() => this.init());
-    this.$nextTick(function () {
-      document.addEventListener(
-        'keyup',
-        (this.onKeyUp = e => {
-          if (e.key === 'Escape') {
-            this.isLineNameEdit = false;
-          }
-        })
-      );
-    });
   },
   destroyed() {
     this.deinit();
@@ -375,29 +321,33 @@ export default {
   methods: {
     deinit() {
       cancelAnimationFrame(spRequestId);
-      removelistenLineChanged(this.line.id);
-      removeListenLineLevelMeter(this.line.id);
-      removeListenLineSpectrum(this.line.id);
-      removeListenSpeakerLevelMeter();
-      removeListenLineSpeakerChanged(this.line.id);
+      ApiLine.removelistenLineChanged();
+      ApiLine.removeListenLineSpectrum();
+      ApiLine.removeListenLineInput();
+      ApiSpeaker.removeListenSpeakerSpectrum();
+      ApiLine.removeListenLineSpeakerChanged();
       level.clear();
       this.$destroyAll();
-      document.removeEventListener('keyup', this.onKeyUp);
+      document.removeEventListener('keyup', this.onDocumentKeyUp);
+      clearTimeout(playerDurationTimeout);
     },
     init() {
       this.deinit();
       this.line.id = parseInt(this.$route.params.id);
       this.$set(this.line, 'eq', []);
-      this.specifyChannel = 0;
+      this.specifyChannel = -1;
       this.isLineNameEdit = false;
       this.infomation = {};
       this.initSpectrum();
       this.$destroyAll();
+      this.$nextTick(function () {
+        document.addEventListener('keyup', this.onDocumentKeyUp);
+      });
 
-      listenLineChanged(this.line.id, line => {
+      ApiLine.listenLineChanged(this.line.id, line => {
         this.line = line;
       });
-      listenLineSpeakerChanged(this.line.id, (speaker, evt, sub) => {
+      ApiLine.listenLineSpeakerChanged(this.line.id, (speaker, evt, sub) => {
         let found = -1;
         for (let i = 0; i < this.line.speakers.length; i++) {
           let sp = this.line.speakers[i];
@@ -432,15 +382,17 @@ export default {
             break;
         }
       });
-      listenLineLevelMeter(this.line.id, levels => {
-        level.setValById('line-' + levels[0], levels[1]);
-      });
-      listenLineSpectrum(this.line.id, this.onSpectrumChange);
-      listenSpeakerLevelMeter(levels => {
+
+      ApiLine.listenLineSpectrum(this.line.id, this.onSpectrumChange);
+      ApiLine.listenLineInput(this.line.id, s => {
+        this.$set(this.line, 'source', s)
+        this.startPlayerDuration()
+      })
+      ApiSpeaker.listenSpeakerSpectrum(levels => {
         levels.forEach(s => level.setValById(s[0], s[1]));
       });
 
-      getLineInfo(this.line.id)
+      ApiLine.getLineInfo(this.line.id)
         .then(data => {
           data = data || {};
           if (data.id === undefined) {
@@ -450,6 +402,12 @@ export default {
           }
 
           this.line = data;
+          if (data.source) {
+            if (data.source.cur > data.source.dur) {
+              data.source.cur = data.source.dur;
+            }
+            this.startPlayerDuration()
+          }
 
           this.initChannelSpeakers();
           this.onShowChannelInfo(-1);
@@ -477,6 +435,12 @@ export default {
           this.$router.push('/speakers');
         });
     },
+    onDocumentKeyUp(e) {
+      if (e.key === 'Escape') {
+        this.isLineNameEdit = false;
+        this.specifyChannel = -1;
+      }
+    },
     initChannelSpeakers() {
       this.line.speakers = this.line.speakers || [];
       this.channelSpeakers = {};
@@ -497,6 +461,30 @@ export default {
       }
       this.computeLayout();
     },
+    startPlayerDuration() {
+      clearTimeout(playerDurationTimeout)
+      if (this.line.source.cur >= this.line.source.dur) {
+        return
+      }
+      playerDurationTimeout = setInterval(() => {
+        ApiLine.getLineInfo(this.line.id).then(data => {
+          if (data.source.cur > data.source.dur) {
+            data.source.cur = data.source.dur;
+          }
+          if (data.source.cur >= data.source.dur) {
+            clearTimeout(playerDurationTimeout)
+          }
+          this.$set(this.line, 'source', data.source)
+        })
+      }, 1000)
+    },
+    onPlayerSeekStart() {
+      clearTimeout(playerDurationTimeout)
+    },
+    onPlayerSeekStop() {
+      ApiLine.playerSeek(this.line.id, this.line.source.cur)
+      this.startPlayerDuration()
+    },
     changeSpeakerAttrById(spid, att, val) {
       let speakers = this.line.speakers || [];
       let len = speakers.length;
@@ -512,7 +500,9 @@ export default {
       this.initChannelSpeakers();
     },
     onSpectrumChange(data) {
-      spdata = data;
+      const lm = data['l'] || [];
+      spdata = data['s'] || [];
+      level.setValById('line-' + lm[0], lm[1]);
     },
     computeLayout() {
       let chs = [];
@@ -552,13 +542,13 @@ export default {
       }
     },
     onVolumeChanged(v) {
-      setLineVolume(this.line.id, v);
+      ApiLine.setVolume(this.line.id, v);
     },
     onSpeakerVolumeChanged(v, id) {
-      setSpeakerVolume(id, v);
+      ApiSpeaker.setVolume(id, v);
     },
     onSpeakerVolumeMute(v, id) {
-      setSpeaker(id, 'mute', v);
+      ApiSpeaker.setSpeaker(id, 'mute', v);
     },
     initSpectrum() {
       cancelAnimationFrame(spRequestId);
@@ -571,7 +561,7 @@ export default {
       drawSpectrum();
     },
     onEQChange(freq, gain) {
-      setEqualizer(this.line.id, freq, gain);
+      ApiLine.setEqualizer(this.line.id, freq, gain);
     },
     onSpecifyChannel(spid) {
       // this.$router.push({
@@ -582,9 +572,7 @@ export default {
       //     spid: spid,
       //   },
       // });
-      scrollTo(0, () => {
-        this.specifyChannel = spid;
-      });
+      this.specifyChannel = spid;
     },
     onRemoveSPChannel(speaker) {
       let that = this;
@@ -600,7 +588,7 @@ export default {
         okType: 'danger',
         cancelText: '否',
         onOk() {
-          setSpeaker(speaker.id, 'ch', -1).then(() => {
+          ApiSpeaker.setSpeaker(speaker.id, 'ch', -1).then(() => {
             that.changeSpeakerAttrById(speaker.id, 'ch', 0);
             that.onShowChannelInfo(that.shownChannelId);
           });
@@ -610,14 +598,14 @@ export default {
     onSelectChannel(ch) {
       let spid = this.specifyChannel;
       ch = parseInt(ch);
-      if (spid) {
-        setSpeaker(spid, 'ch', ch)
+      if (spid >= 0) {
+        ApiSpeaker.setSpeaker(spid, 'ch', ch)
           .then(() => {
             this.changeSpeakerAttrById(spid, 'ch', ch);
           })
           .finally(() => {
             // this.$router.go(-1);
-            this.specifyChannel = 0;
+            this.specifyChannel = -1;
           });
         return;
       }
@@ -680,6 +668,9 @@ export default {
         this.popper = '';
       }
     },
+    speakerIds() {
+      return (this.line.speakers || []).map(s => { return s.id })
+    },
     gotoSpeaker(id) {
       this.$router.push('/speaker/' + id);
     },
@@ -702,7 +693,7 @@ export default {
         this.isLineNameEdit = false;
         return;
       }
-      setLine(this.line.id, 'name', this.line.newName)
+      ApiLine.setLine(this.line.id, 'name', this.line.newName)
         .then(() => {
           this.line.name = this.line.newName;
         })
@@ -715,18 +706,101 @@ export default {
           this.isLineNameEdit = false;
         });
     },
+    playerSliderFormater(val) {
+      return formatDuration(val)
+    }
   },
 };
 </script>
 
 <style lang="scss">
-@import 'bulma/sass/utilities/_all.sass';
-@import 'ant-design-vue/lib/select/style/index.css';
-
-$light-color: hsl(171, 100%, 41%);
+@import '@/assets/css/channels-layout.scss';
 
 .line-page {
   position: relative;
+
+  .player {
+    padding: 1rem 3rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-items: center;
+
+    .vue-slider {
+      flex-grow: 1;
+
+      .vue-slider-dot {
+        height: 24px !important;
+        width: 8px !important;
+
+        .vue-slider-dot-handle {
+          border-radius: 0;
+        }
+      }
+    }
+
+    >span {
+      margin: 0 1rem;
+    }
+  }
+
+  .volume {
+    padding: 1rem 3rem;
+    padding-top: 2rem;
+    display: flex;
+    flex-wrap: nowrap;
+    z-index: 1;
+    position: relative;
+
+    >div:first-child {
+      flex: 0 0 auto;
+      margin-right: 1rem;
+    }
+
+    >div:last-child {
+      flex: 1 1 auto;
+      display: flex;
+      flex-wrap: wrap;
+
+      .volume-controller {
+        flex: 1 0 8rem;
+
+        .vue-slider {
+          min-width: 5rem;
+        }
+      }
+    }
+
+    .line-name {
+      width: auto;
+      display: flex;
+      flex-direction: row;
+      justify-content: flex-start;
+      flex-wrap: nowrap;
+
+      >input,
+      >span {
+        max-width: 8rem;
+        padding: 0 4px;
+        height: 1.5rem;
+        line-height: 1.5rem;
+        width: auto;
+      }
+
+      >button {
+        width: 1rem;
+        padding-left: 0;
+      }
+    }
+
+    .source {
+      display: block;
+    }
+
+    .layout-select {
+      margin-left: 2rem;
+    }
+  }
 
   .container {
     position: relative;
@@ -735,6 +809,7 @@ $light-color: hsl(171, 100%, 41%);
     align-items: center;
     width: 480px;
     height: 320px;
+    margin: 0 auto;
     margin-top: -3rem;
     padding-bottom: 4rem;
     overflow: hidden;
@@ -754,195 +829,26 @@ $light-color: hsl(171, 100%, 41%);
       bottom: 1rem;
     }
 
-    .room {
-      width: 100%;
-      top: 0;
-      bottom: 2rem;
-      position: absolute;
-
-      .line {
-        border: 1px solid;
-        position: absolute;
-        border-radius: 100%;
-      }
-
-      .line:nth-child(1) {
-        right: 10%;
-        bottom: 0;
-        top: 50%;
-        left: 10%;
-      }
-
-      .line:nth-child(2) {
-        bottom: 5%;
-        top: 51%;
-        left: 14%;
-        right: 14%;
-      }
-
-      .line:nth-child(3) {
-        bottom: 10%;
-        top: 52%;
-        left: 18%;
-        right: 18%;
-      }
-    }
-
-    #front-left {
-      top: 43%;
-      left: 30%;
-    }
-
-    #front-right {
-      top: 43%;
-      right: 30%;
-    }
-
-    #front-center {
-      top: 44%;
-      left: calc(50% - 1.5rem);
-
-      .svg-icon {
-        width: 3rem;
-      }
-    }
-
-    #front-bass {
-      top: 47%;
-      left: 23%;
-
-      .svg-icon {
-        width: 2.5rem;
-      }
-    }
-
-    #side-left {
-      top: 59%;
-      left: 10%;
-
-      .svg-icon {
-        width: 3rem;
-      }
-    }
-
-    #side-right {
-      top: 59%;
-      right: 10%;
-
-      .svg-icon {
-        width: 3rem;
-      }
-    }
-
-    #back-left {
-      top: 78%;
-      left: 27%;
-
-      .svg-icon {
-        width: 3rem;
-      }
-    }
-
-    #back-right {
-      top: 78%;
-      right: 27%;
-
-      .svg-icon {
-        width: 3rem;
-      }
-    }
-
-    .channels {
-      width: 100%;
-      height: 100%;
-      position: absolute;
-
-      .speaker {
-        position: absolute;
-        cursor: pointer;
-
-        &.enabled {
-          .svg-icon {
-            color: #000000;
-          }
-        }
-
-        &.active {
-          .svg-icon {
-            color: hsl(229, 29%, 68%);
-          }
-        }
-
-        &.active.enabled {
-          .svg-icon {
-            color: hsl(229, 53%, 53%);
-          }
-        }
-
-        .svg-icon {
-          width: 4rem;
-          height: 48px;
-          color: #bbbbbb;
-        }
-      }
-    }
-  }
-
-  .layout-2-0 {
-    .speaker {
-      display: none;
-    }
-
-    #front-left,
-    #front-right {
-      display: block;
-    }
-  }
-
-  .layout-2-1 {
-    .speaker {
-      display: none;
-    }
-
-    #front-left,
-    #front-right,
-    #front-bass {
-      display: block;
-    }
-  }
-
-  .layout-5-1 {
-    .speaker {
-      display: none;
-    }
-
-    #front-left,
-    #front-right,
-    #front-center,
-    #front-bass,
-    #back-left,
-    #back-right {
-      display: block;
-    }
   }
 
   .infomation {
     display: block;
     position: relative;
-    margin: 0 5rem;
-    padding: 5px 10px 2rem 10px;
-    background-color: $white-ter;
+    margin: 3rem 5rem;
+    padding: 10px;
+    background-color: var(--color-secondary-bg);
     border-radius: 5px;
 
-    > .channel-name {
+    >.channel-name {
       text-align: center;
       font-weight: bold;
       position: relative;
       display: block;
       height: 2rem;
       margin-bottom: 1rem;
+      margin-top: -0.5rem;
 
-      > span {
+      >span {
         display: inline-block;
         z-index: 1;
         position: relative;
@@ -963,133 +869,6 @@ $light-color: hsl(171, 100%, 41%);
       }
     }
 
-    .speaker-list {
-      display: flex;
-      justify-content: center;
-      flex-wrap: wrap;
-
-      .speaker {
-        cursor: pointer;
-        line-height: 2rem;
-        background-color: #fff;
-        border-radius: 5px;
-        border-bottom: solid 1px $border;
-        position: relative;
-        margin: 0;
-        padding: 10px;
-        width: 100%;
-        min-width: 330px;
-
-        &:hover {
-          border-color: $light-color;
-
-          .svg-icon {
-            color: $light-color;
-          }
-        }
-
-        > div {
-          display: flex;
-          flex-direction: row;
-          flex-wrap: nowrap;
-          line-height: 2rem;
-
-          .svg-icon {
-            flex: 0 0 16px;
-            width: 16px;
-            height: 16px;
-            margin: 0 3px;
-          }
-
-          .name {
-            flex: 1 0 9rem;
-            width: 9rem;
-            overflow: hidden;
-            text-overflow: ellipsis;
-          }
-
-          .channel-name {
-            flex: 0 0 auto;
-            width: auto;
-            white-space: nowrap;
-            background: $light-color;
-            color: $white;
-            padding: 0 4px;
-            border-radius: 2px;
-
-            button {
-              width: 20px;
-              height: 21px;
-              font-size: 14px;
-              margin-left: 3px;
-
-              &:hover {
-                color: #fff;
-                background-color: #ff4d4f;
-                border-color: #ff4d4f;
-              }
-            }
-          }
-        }
-
-        .ip {
-          font-size: 0.5rem;
-          margin: 0 4px;
-        }
-      }
-    }
-  }
-
-  .volume {
-    padding: 1rem 3rem;
-    padding-top: 2rem;
-    display: flex;
-    flex-wrap: nowrap;
-    z-index: 1;
-    position: relative;
-    > div:first-child {
-      flex: 0 0 auto;
-    }
-    > div:last-child {
-      flex: 1 1 auto;
-      display: flex;
-      flex-wrap: wrap;
-      .volume-controller {
-        flex: 1 0 auto;
-        .vue-slider {
-          min-width: 5rem;
-        }
-      }
-    }
-    .line-name {
-      width: auto;
-      display: flex;
-      flex-direction: row;
-      justify-content: flex-start;
-      flex-wrap: nowrap;
-
-      > input,
-      > span {
-        max-width: 8rem;
-        padding: 0 4px;
-        height: 1.5rem;
-        line-height: 1.5rem;
-        width: auto;
-      }
-
-      > button {
-        width: 1rem;
-        padding-left: 0;
-      }
-    }
-
-    .source {
-      display: block;
-    }
-
-    .layout-select {
-      margin-left: 2rem;
-    }
   }
 
   .select-channel-mask {
@@ -1126,12 +905,12 @@ $light-color: hsl(171, 100%, 41%);
 
       .speaker {
         .svg-icon {
-          color: $white;
+          color: var(--color-body-bg);
         }
 
         &.enabled {
           .svg-icon {
-            color: $light-color;
+            color: var(--color-border);
           }
         }
       }
@@ -1147,8 +926,7 @@ $light-color: hsl(171, 100%, 41%);
       width: 320px;
       height: 240px;
 
-      .room {
-      }
+      .room {}
 
       .channels {
         .svg-icon {
@@ -1179,6 +957,7 @@ $light-color: hsl(171, 100%, 41%);
       margin-right: 1rem;
     }
 
+    .player,
     .volume {
       padding: 1rem 1rem;
     }
@@ -1231,6 +1010,8 @@ $light-color: hsl(171, 100%, 41%);
         }
       }
     }
+
+    .player,
     .volume {
       padding: 1rem 6rem;
     }
@@ -1243,7 +1024,7 @@ $light-color: hsl(171, 100%, 41%);
   position: relative;
   width: calc(100% - 5rem);
 
-  > span {
+  >span {
     flex-grow: 1;
   }
 

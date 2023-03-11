@@ -8,7 +8,7 @@ let beforeSend = {};
 let receiver = {};
 
 let sockthis = this;
-let callback = {};
+let apiCallback = {};
 let ws = undefined;
 let retried = 0;
 
@@ -18,7 +18,7 @@ let wsPort = '';
 const connectRetry = 500;
 
 let retryConnectTimeout = 0;
-let connected = [];
+let connectedCallback = [];
 
 function onConnected() {
   return new Promise((resolve, reject) => {
@@ -28,24 +28,24 @@ function onConnected() {
     }
     if (ws && ws.readyState === WebSocket.OPEN) {
       resolve();
-    } else connected.push(resolve);
+    } else connectedCallback.push(resolve);
   });
 }
 
 function wsonopen() {
+  clearTimeout(retryConnectTimeout);
   store.dispatch('wsConnected');
   retried = 0;
   sendPing();
 
-  for (; 0 < connected.length;) {
-    connected[0](sockthis);
-    delete connected[0];
-    connected = connected.slice(1);
+  for (; 0 < connectedCallback.length;) {
+    connectedCallback[0](sockthis);
+    connectedCallback.splice(0, 1);
   }
 }
 
 function wsonerror(event) {
-  if (event.type === 'error') {
+  if (event && event.type === 'error') {
     store.dispatch('wsDisconnected');
     nav2Settings();
   }
@@ -53,13 +53,13 @@ function wsonerror(event) {
 function wsonclose() {
   store.dispatch('wsDisconnected');
   if (retried++ >= connectRetry) {
-    retried = 0;
     console.log('websocket reconnect failed', retried);
     return;
   }
-  console.log('websocket closing. retrying', retried);
+  console.log('websocket closed. retrying', retried);
 
-  if (retryConnectTimeout) clearTimeout(retryConnectTimeout);
+  if (retryConnectTimeout)
+    clearTimeout(retryConnectTimeout);
 
   retryConnectTimeout = setTimeout(() => {
     retryConnectTimeout = 0;
@@ -68,7 +68,7 @@ function wsonclose() {
 }
 
 function onresponse(id, code, data) {
-  if (callback[id] !== undefined) {
+  if (apiCallback[id] !== undefined) {
   } else if (id === 'xxxxxxxxxxx') {
     if (code) {
       store.dispatch('showToast', `Received error:${code}`);
@@ -76,15 +76,15 @@ function onresponse(id, code, data) {
     return;
   }
 
-  if (callback[id]) {
-    let cb = callback[id];
+  if (apiCallback[id]) {
+    let cb = apiCallback[id];
     let cmd = cb['command'];
     let resolve = cb['resolve'];
     let reject = cb['reject'];
     let st = cb['st'];
     let params = cb['params'];
     clearTimeout(st);
-    delete callback[id];
+    delete apiCallback[id];
 
     console.log('Received Message: ', cmd, id, params, code, data);
 
@@ -151,11 +151,11 @@ function readBlob(data) {
   fileReader.readAsArrayBuffer(data);
 }
 
+let pingTimeout = 0;
 function readText(data) {
   if (data === 'pong') {
-    setTimeout(() => {
-      sendPing();
-    }, 30000);
+    clearTimeout(pingTimeout);
+    pingTimeout = setTimeout(sendPing, 30000);
     return;
   }
   if (data.length >= 11) {
@@ -164,21 +164,23 @@ function readText(data) {
   }
 }
 
-let GoWSIP = '***Go-WS-IP***';
-let GoWSPort = '***Go-WS-Port***';
-
-function connect(force) {
-  wsHost = store.state.settings.serverHost || GoWSIP;
-  wsPort = store.state.settings.serverPort || GoWSPort;
-
+function connect(isRetry) {
+  wsHost = store.state.settings.serverHost || '***Go-WS-IP***';
+  wsPort = store.state.settings.serverPort || '***Go-WS-Port***';
   disconnect();
 
   let portValid = isPort(wsPort);
   let hostValid = isIP46(wsHost);
 
-  if ((!hostValid || !portValid) && !force) {
+  if ((!hostValid || !portValid)) {
+    retried = 0;
+    clearTimeout(retryConnectTimeout);
     nav2Settings();
     return;
+  }
+  if (!isRetry) {
+    retried = 0;
+    clearTimeout(retryConnectTimeout);
   }
 
   if (beforeSend['wsconnect']) {
@@ -198,9 +200,9 @@ function send(cmd, params, options) {
   let opt_nocallback = options && options.noResponse;
   let isString = (options && options.raw) || false;
 
-  let id = Number(Math.random().toString().substr(2) + Date.now())
+  const id = Number(Math.random().toString().substring(2) + Date.now())
     .toString(36)
-    .substr(0, 11);
+    .substring(0, 11);
 
   for (let i in beforeSend) {
     if (beforeSend.hasOwnProperty(i) && i === cmd) {
@@ -230,17 +232,17 @@ function sendPing() {
   return ws.send('ping');
 }
 
-function sendSubscribe(evt, act, sub, arg) {
+function sendSubscribe(act, evt, sub, arg) {
   let data = { evt, act }
 
   if (sub) {
     data['sub'] = sub;
   }
-  if (arg !== undefined) {
+  if (arg !== undefined && arg !== null) {
     data['arg'] = parseInt(arg)
   }
 
-  return send('subscribe', { evt, act, sub, arg }, { noResponse: true });
+  return send('subscribe', data);
 }
 
 function receiveEvent(evt, arg, cb, sub) {
@@ -248,51 +250,55 @@ function receiveEvent(evt, arg, cb, sub) {
 
   if (arg instanceof Function) {
     cb = arg;
-    evt.forEach(e => {
-      receiver['' + e] = cb;
-    });
-    sendSubscribe(true, evt, undefined, sub)
-    return
+    arg = undefined
   }
   if (!(cb instanceof Function)) return;
   if (!(arg instanceof Array))
     arg = [arg];
 
-  evt.forEach(e => {
-    arg.forEach(a => {
-      a = parseInt(a)
-      if (sub)
-        receiver[e + '.' + sub + '-' + a] = cb;
-      else
-        receiver[e + '-' + a] = cb;
-      sendSubscribe(true, evt, a, sub)
+  arg.forEach(a => {
+    evt.forEach(e => {
+      if (a !== undefined) {
+        a = parseInt(a)
+        if (sub)
+          receiver[e + '.' + sub + '-' + a] = cb;
+        else
+          receiver[e + '-' + a] = cb;
+      } else {
+        if (sub)
+          receiver[e + '.' + sub] = cb;
+        else
+          receiver[e + ''] = cb;
+      }
     });
+    sendSubscribe(true, evt, sub, a)
   });
 }
 
-function removeEvent(evt, sub, arg) {
+function removeEvent(evt, arg, sub) {
   if (!(evt instanceof Array)) {
     evt = [evt];
   }
   if (!(arg instanceof Array)) {
     arg = [arg];
   }
-  evt.forEach(e => {
-    delete receiver['' + e];
-    arg.forEach(a => {
+  arg.forEach(a => {
+    evt.forEach(e => {
+      delete receiver['' + e];
       delete receiver[e + '-' + a];
-      sendSubscribe(false, evt, arg, sub)
+      delete receiver[e + '.' + sub];
+      delete receiver[e + '.' + sub + '-' + a];
     });
+    sendSubscribe(false, evt, sub, a)
   });
 }
 
 function disconnect() {
-  if (ws != undefined) {
+  if (ws !== undefined) {
     ws.close();
     ws = undefined;
   }
-  retried = 0;
-  callback = {};
+  apiCallback = {};
 }
 
 function addBeforeSend(cmd, mock) {
@@ -310,10 +316,10 @@ function promiseCallback(id, command, params) {
     let st = setTimeout(() => {
       console.log('websocket timeout', id, command, params);
       store.dispatch('showToast', `request timeout ${id}`);
-      delete callback[id];
+      delete apiCallback[id];
       reject();
     }, 1000);
-    callback[id] = { command, resolve, reject, st, params };
+    apiCallback[id] = { command, resolve, reject, st, params };
   });
 }
 
@@ -363,8 +369,7 @@ export default {
   onConnected,
   connect,
   send,
-  sendSubscribe,
-  receiveCommand,
+  // sendSubscribe,
   receiveEvent,
   removeEvent,
   addBeforeSend,

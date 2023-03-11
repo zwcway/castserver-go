@@ -25,6 +25,7 @@ require (
 	github.com/go-openapi/errors v0.20.2 // indirect
 	github.com/go-openapi/strfmt v0.21.3 // indirect
 	github.com/hajimehoshi/go-mp3 v0.3.0 // indirect
+	github.com/hajimehoshi/oto/v2 v2.3.1 // indirect
 	github.com/icza/bitio v1.0.0 // indirect
 	github.com/klauspost/compress v1.15.9 // indirect
 	github.com/lucasb-eyer/go-colorful v1.0.3 // indirect

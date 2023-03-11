@@ -1,8 +1,16 @@
 {
+  "vueCompilerOptions": {
+    "target": 2.7,
+    "extensions": [
+      ".vue"
+    ]
+  },
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": [
+        "src/*"
+      ]
     },
     "target": "ES6",
     "module": "commonjs",
@@ -13,6 +21,8 @@
     "src/**/*.js",
     "src/**/*.vue",
     "tests/**/*.js"
-  ],
-  "exclude": ["node_modules"]
+, "src/common/format.ts", "src/common/format.ts"  ],
+  "exclude": [
+    "node_modules"
+  ]
 }

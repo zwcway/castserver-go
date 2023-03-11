@@ -1,5 +1,5 @@
 const webpack = require('webpack');
-const {defineConfig} = require('@vue/cli-service');
+const { defineConfig } = require('@vue/cli-service');
 const path = require('path');
 
 function resolve(dir) {
@@ -38,6 +38,9 @@ module.exports = defineConfig({
         // 提供资源文件名的断言函数        
         return assetFilename.endsWith('.css') || assetFilename.endsWith('.js');
       }
+    },
+    optimization: {
+      splitChunks: false,
     },
   },
   devServer: {
@@ -80,6 +83,11 @@ module.exports = defineConfig({
           javascriptEnabled: true,
           math: "always",
         }
+      },
+      scss: {
+        additionalData: `
+          @import "@/assets/css/global.scss";
+        `
       }
     }
   },

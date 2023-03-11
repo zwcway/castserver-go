@@ -1,10 +1,11 @@
 <template>
   <div id="app" :class="{ 'user-select-none': userSelectNone }">
-    <Scrollbar ref="scrollbar" />
-    <Navbar v-show="showNavbar" ref="navbar" />
+    <Navbar v-show="showNavbar" ref="navbar" class="navbar" />
+    <Scrollbar ref="scrollbar" class="scrollbar" />
     <main
       ref="main"
       :style="{ overflow: enableScrolling ? 'auto' : 'hidden' }"
+      class="main-body"
       @scroll="handleScroll"
     >
       <router-view
@@ -16,18 +17,19 @@
         ></router-view>
       </keep-alive>
     </main>
+    <Debug />
     <Toast />
   </div>
 </template>
 
 <script>
-import Scrollbar from './components/Scrollbar.vue';
-import Navbar from './components/Navbar.vue';
-import Toast from './components/Toast.vue';
+import Scrollbar from '@/components/Scrollbar.vue';
+import Navbar from '@/components/Navbar.vue';
+import Debug from '@/components/Debug.vue';
+import Toast from '@/components/Toast.vue';
 import { mapState } from 'vuex';
 import { socket } from '@/common/request';
-
-socket.connect();
+import { changeAppearance } from '@/common/theme';
 
 export default {
   name: 'App',
@@ -35,6 +37,7 @@ export default {
     Navbar,
     Toast,
     Scrollbar,
+    Debug,
   },
   provide() {
     return {
@@ -48,12 +51,14 @@ export default {
     };
   },
   computed: {
-    ...mapState(['enableScrolling']),
+    ...mapState(['settings', 'enableScrolling']),
     showNavbar() {
       return true;
     },
   },
   created() {
+    socket.connect();
+    changeAppearance(this.settings.appearance || 'auto');
     window.addEventListener('keydown', this.handleKeydown);
     this.fetchData();
   },
@@ -83,4 +88,28 @@ export default {
 };
 </script>
 
-<style lang="scss"></style>
+<style lang="scss">
+#app {
+  height: 100%;
+  position: relative;
+  .navbar {
+    top: 0;
+    width: 100%;
+    height: $nav-height;
+    left: 0;
+    display: flex;
+  }
+  .main-body {
+    top: $nav-height;
+    bottom: 0;
+    width: 100%;
+    position: fixed;
+    // margin-top: $nav-height;
+    scrollbar-width: none; /* firefox */
+    -ms-overflow-style: none; /* IE 10+ */
+    &::-webkit-scrollbar {
+      display: none; /* Chrome Safari */
+    }
+  }
+}
+</style>

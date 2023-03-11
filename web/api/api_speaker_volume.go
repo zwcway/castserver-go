@@ -24,7 +24,7 @@ func apiSpeakerVolume(c *websockets.WSConnection, req Requester, log *zap.Logger
 		return nil, nil
 	}
 
-	sp.Volume = int(p.Volume)
-	control.ControlSpeakerVolume(sp)
+	control.ControlSpeakerVolume(sp, float64(p.Volume)/100, p.Mute)
+
 	return true, nil
 }

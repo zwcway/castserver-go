@@ -1,6 +1,9 @@
 package speaker
 
 type LineID uint8
+type ID uint32
+
+var DefaultLineID LineID = 0
 
 type Model uint8
 
@@ -19,8 +22,6 @@ const (
 	State_DELETED    State = 0x80000000
 )
 
-type ID uint32
-
 func (id *ID) IsValid() bool {
 	return true
 }
@@ -33,30 +34,3 @@ type Statistic struct {
 }
 
 type PowerState uint8
-
-type speakerMapSlice map[int][]*Speaker
-
-func (s *speakerMapSlice) remove(key int, sp *Speaker) {
-	slice, ok := (*s)[key]
-	if !ok {
-		return
-	}
-	for i, item := range slice {
-		if item == sp {
-			(*s)[key] = append(slice[:i], slice[i+1:]...)
-			return
-		}
-	}
-}
-
-func (s *speakerMapSlice) len(key int) int {
-	return len((*s)[key])
-}
-
-func (s *speakerMapSlice) add(key int, sp *Speaker) {
-	if _, ok := (*s)[key]; ok {
-		(*s)[key] = append((*s)[key], sp)
-	} else {
-		(*s)[key] = append([]*Speaker{}, sp)
-	}
-}

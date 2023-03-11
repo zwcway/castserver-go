@@ -1,52 +1,28 @@
 <template>
-  <div
-    class="card"
-    @click.stop="show = !show"
-    :class="{ 'not-connect': !spInfo.cTime }"
-  >
-    <div class="card-content speaker">
-      <div class="media">
-        <div class="media-left">
-          <figure class="image is-48x48">
-            <svg-icon icon-class="speaker" />
-            <i v-if="!spInfo.cTime" class="codicon codicon-close"></i>
-          </figure>
-        </div>
-        <div class="media-content">
-          <div class="columns is-vcentered">
-            <div class="column">
-              <p class="title is-5">
-                <router-link class="speaker-name" :to="`/speaker/${spInfo.id}`">
-                  {{ spInfo.name }}
-                </router-link>
-                <a-button
-                  type="link"
-                  v-if="spInfo.line"
-                  class="line-name"
-                  @click.stop="$router.push(`/line/${spInfo.line.id}`)"
-                >
-                  {{ spInfo.line.name }}
-                </a-button>
-              </p>
-              <p class="subtitle is-6">
-                <span v-if="!spInfo.cTime" class="connect-info">未连接</span>
-                <span>{{ spInfo.ip }}</span>
-                <span class="ratebits">{{ showRateBits(speaker) }}</span>
-              </p>
-            </div>
-            <div class="column level-meter-slider" v-on:click.stop="">
-              <Volume
-                :volume="volume"
-                :mute="mute"
-                @change="setSpeakerVolume"
-                @mute="setSpeakerMute"
-              />
-            </div>
-          </div>
-          <div class="content" v-if="show">
-            <p>content</p>
-          </div>
-        </div>
+  <div class="speaker" :class="{ 'not-connect': !spInfo.cTime }">
+    <div class="speaker-icon">
+      <svg-icon icon-class="speaker" :size="0" />
+      <i v-if="!spInfo.cTime" class="codicon codicon-close"></i>
+    </div>
+    <div class="speaker-content">
+      <div class="speaker-info">
+        <p class="title">
+          <router-link class="speaker-name" :to="`/speaker/${spInfo.id}`">
+            {{ spInfo.name }}
+          </router-link>
+          <a-button type="link" v-if="spInfo.line" class="line-name"
+            @click.stop="$router.push(`/line/${spInfo.line.id}`)">
+            {{ spInfo.line.name }}
+          </a-button>
+        </p>
+        <p class="subtitle">
+          <span v-if="!spInfo.cTime" class="connect-info">未连接</span>
+          <span>{{ spInfo.ip }}</span>
+          <span class="ratebits">{{ showRateBits(speaker) }}</span>
+        </p>
+      </div>
+      <div class="speaker-volume level-meter-slider" v-on:click.stop="">
+        <Volume :volume="volume" :mute="mute" @change="setSpeakerVolume" @mute="setSpeakerMute" />
       </div>
     </div>
   </div>
@@ -123,6 +99,9 @@ export default {
           this.$set(this.spInfo, 'mute', this.mute);
         });
     },
+    gotoSpeaker(id) {
+      this.$router.push('/speaker/' + id);
+    },
     getTitleLink(item) {
       return `/${this.type}/${item.id}`;
     },
@@ -135,53 +114,109 @@ export default {
       }
       return `/channel/${item.channel.id}`;
     },
-    showRateBits(sp) {
-      return formatRate(sp.rate) + '/' + formatBits(sp.bits);
+    showRateBits(spInfo) {
+      return formatRate(spInfo.rate) + '/' + formatBits(spInfo.bits);
     },
   },
 };
 </script>
 
-<style lang="scss">
-@import '../../node_modules/bulma/sass/utilities/derived-variables.sass';
+<style lang="scss" scoped>
+.speaker {
+  border: 0;
 
-.media-content {
-  overflow: visible;
-}
-.vue-slider-dot-handle {
-  border-color: $primary;
-}
-.vue-slider-dot-handle:hover {
-  border-color: $scheme-main;
-  background-color: $primary;
-}
-.line-name {
-  align-self: flex-end;
-}
-.subtitle {
-  span {
-    padding: 0 3px;
-  }
-}
-.not-connect {
-  .media-left {
+  .speaker-icon {
+    width: 4rem;
+    align-items: center;
+
     .svg-icon {
-      color: grey;
-    }
-    .codicon {
-      color: red;
-      position: absolute;
-      top: -0.5rem;
-      left: -0.5rem;
-      font-size: 3rem;
+      flex: unset;
+      width: 3rem;
+      height: 3rem;
     }
   }
 
-  .connect-info {
-    color: red;
+  .speaker-content {
+    overflow: visible;
+    flex-wrap: wrap;
+    flex-grow: 1;
+
+    .speaker-info {
+      display: flex;
+      flex-wrap: wrap;
+      flex-grow: 0;
+      flex-direction: column;
+
+      .title {
+        margin: 0;
+        font-size: 1.5rem;
+        display: flex;
+        flex-wrap: nowrap;
+      }
+
+      .subtitle {
+        margin: 0;
+        font-size: 0.8rem;
+      }
+
+    }
+
+    .speaker-volume.level-meter-slider {
+      width: auto;
+      flex: unset;
+      flex-wrap: nowrap;
+      flex: 1 0 12rem;
+      max-width: 20rem;
+      display: flex;
+      align-items: center;
+
+      .volume-controller {
+        width: 100%;
+      }
+    }
   }
-  .speaker {
-    background-color: #efefef;
+
+  .vue-slider-dot-handle {
+    border-color: var(--color-border);
+  }
+
+  .vue-slider-dot-handle:hover {
+    border-color: var(--color-primary);
+    background-color: var(--color-primary-bg);
+  }
+
+  .line-name {
+    align-self: flex-end;
+  }
+
+  .subtitle {
+    span {
+      padding: 0 3px;
+    }
+  }
+
+  .not-connect {
+    .speaker-icon {
+      .svg-icon {
+        color: grey;
+      }
+
+      .codicon {
+        color: red;
+        position: absolute;
+        top: 0.5rem;
+        left: -0.5rem;
+        font-size: 5rem;
+      }
+    }
+
+    .connect-info {
+      color: red;
+    }
+
+    .speaker {
+      background-color: #efefef;
+    }
   }
 }
 </style>
