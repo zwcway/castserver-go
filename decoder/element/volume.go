@@ -14,10 +14,8 @@ type Volume struct {
 	mute   bool
 }
 
-const VolumeName = "Volume"
-
 func (v *Volume) Name() string {
-	return VolumeName
+	return "Volume"
 }
 
 func (v *Volume) Type() stream.ElementType {
@@ -29,8 +27,8 @@ func (v *Volume) Stream(samples *stream.Samples) {
 		return
 	}
 	for ch := 0; ch < samples.Format.Layout.Count; ch++ {
-		for i := 0; i < samples.Size; i++ {
-			samples.Buffer[ch][i] *= v.gain
+		for i := 0; i < samples.LastNbSamples; i++ {
+			samples.Data[ch][i] *= v.gain
 		}
 	}
 }
@@ -76,6 +74,16 @@ func (v *Volume) Volume() float64 {
 	return v.volume
 }
 
+func (v *Volume) Close() error {
+	v.volume = 0
+	v.Off()
+	return nil
+}
+
 func NewVolume(vol float64) stream.VolumeElement {
-	return &Volume{volume: vol, base: 1}
+	v := &Volume{volume: vol, base: 1, power: true}
+
+	v.SetVolume(vol)
+
+	return v
 }

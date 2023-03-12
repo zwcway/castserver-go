@@ -6,6 +6,9 @@ export function getLineList() {
 export function getLineInfo(id) {
   return socket.send('lineInfo', { id });
 }
+export function getLinePlayer(id) {
+  return socket.send('linePlayer', { id }, { log: false });
+}
 
 export function setVolume(id, vol) {
   let data = { id };
@@ -69,7 +72,7 @@ export function removeListenLineInput(id) {
 }
 
 export function playerSeek(id, pos) {
-  return socket.send('lineSeek', {id, pos});
+  return socket.send('lineSeek', { id, pos });
 }
 
 export function createLine(name) {
@@ -80,8 +83,7 @@ export function deleteLine(id, moveTo) {
   moveTo = parseInt(moveTo);
   return socket.send('deleteLine', { id, moveTo });
 }
-export function setLine(id, key, val)
-{
+export function setLine(id, key, val) {
   let data = {}
   if (typeof key === 'object') {
     Object.assign(data, key);
@@ -92,6 +94,10 @@ export function setLine(id, key, val)
 
   return socket.send('setLine', data);
 
+}
+
+export function testChannel(line, ch) {
+  return socket.send('soundTest', { line, ch })
 }
 
 export var channelList = {
@@ -113,6 +119,18 @@ export var channelList = {
     icon: 'speaker-front-center',
     show: false,
   },
+  4: {
+    id: 'front-left-center',
+    name: '左中置声道',
+    icon: 'speaker-front-center',
+    show: false,
+  },
+  5: {
+    id: 'front-right-center',
+    name: '右中置声道',
+    icon: 'speaker-front-center',
+    show: false,
+  },
   6: {
     id: 'front-bass',
     name: '重低音声道',
@@ -120,26 +138,68 @@ export var channelList = {
     show: false,
   },
   7: {
+    id: 'back-left',
+    name: '后环绕左声道',
+    icon: 'speaker-back-lr',
+    show: false,
+  },
+  8: {
+    id: 'back-right',
+    name: '后环绕右声道',
+    icon: 'speaker-back-lr',
+    show: false,
+  },
+  9: {
+    id: 'back-center',
+    name: '后环绕中置声道',
+    icon: 'speaker-front-center',
+    show: false,
+  },
+  10: {
     id: 'side-left',
     name: '侧环绕左声道',
     icon: 'speaker-side-lr',
     show: false,
   },
-  8: {
+  11: {
     id: 'side-right',
     name: '侧环绕右声道',
     icon: 'speaker-side-lr',
     show: false,
   },
-  10: {
-    id: 'back-left',
-    name: '后置环绕左声道',
+  12: {
+    id: 'top-front-left',
+    name: '天空前左声道',
     icon: 'speaker-back-lr',
     show: false,
   },
-  11: {
-    id: 'back-right',
-    name: '后置环绕右声道',
+  13: {
+    id: 'top-front-center',
+    name: '天空前中置声道',
+    icon: 'speaker-back-lr',
+    show: false,
+  },
+  14: {
+    id: 'top-front-right',
+    name: '天空前右声道',
+    icon: 'speaker-back-lr',
+    show: false,
+  },
+  15: {
+    id: 'top-back-left',
+    name: '天空后左声道',
+    icon: 'speaker-back-lr',
+    show: false,
+  },
+  16: {
+    id: 'top-back-center',
+    name: '天空后中置声道',
+    icon: 'speaker-back-lr',
+    show: false,
+  },
+  17: {
+    id: 'top-back-right',
+    name: '天空后右声道',
     icon: 'speaker-back-lr',
     show: false,
   },

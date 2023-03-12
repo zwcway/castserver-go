@@ -56,7 +56,7 @@ func NewResponseSpeakerList(sp *speaker.Speaker) *ResponseSpeakerList {
 		BitList:     sp.BitsMask.Slice(),
 		RateList:    sp.RateMask.Slice(),
 		Rate:        sp.Rate.ToInt(),
-		Bits:        sp.Bits.Name(),
+		Bits:        sp.Bits.String(),
 		Volume:      int(sp.Volume.Volume()),
 		Mute:        sp.Volume.Mute(),
 		AbsoluteVol: sp.AbsoluteVol,
@@ -68,7 +68,8 @@ func NewResponseSpeakerList(sp *speaker.Speaker) *ResponseSpeakerList {
 type ResponseLineSource struct {
 	Rate     int    `jp:"rate"`
 	Bits     string `jp:"bits"`
-	Channels int    `jp:"channels"`
+	Channels []int  `jp:"channels"`
+	Layout   string `jp:"layout"`
 
 	Type int `jp:"type"`
 
@@ -83,8 +84,9 @@ func NewResponseLineSource(line *speaker.Line) *ResponseLineSource {
 	}
 	return &ResponseLineSource{
 		Rate:     line.Input.Format.SampleRate.ToInt(),
-		Bits:     line.Input.Format.SampleBits.Name(),
-		Channels: line.Input.Format.Layout.Count,
+		Bits:     line.Input.Format.SampleBits.String(),
+		Channels: line.Input.Format.Layout.Mask.SliceInt(),
+		Layout:   line.Input.Format.Layout.String(),
 		Type:     int(line.Input.From),
 		Duration: int(line.Input.Duration().Seconds()),
 		Total:    int(line.Input.TotalDuration().Seconds() - 1),
@@ -110,22 +112,30 @@ func NewResponseLineList(ls *speaker.Line) *ResponseLineList {
 	}
 }
 
+type ResponseEqualizer struct {
+	Switch     bool         `jp:"enable"`
+	Equalizers [][3]float32 `jp:"eqs,omitempty"`
+}
+
 type ResponseLineInfo struct {
 	ResponseLineList
 
+	Channels   []int                  `jp:"chlist"`
+	Layout     string                 `jp:"layout"`
 	Speakers   []*ResponseSpeakerList `jp:"speakers,omitempty"`
 	Input      *ResponseLineSource    `jp:"source,omitempty"`
-	Equalizers [][3]float32           `jp:"eq,omitempty"`
-	EqSwitch   bool                   `jp:"eqenable"`
+	Equalizers *ResponseEqualizer     `jp:"eq,omitempty"`
 }
 
-func NewResponseEqualizer(line *speaker.Line) [][3]float32 {
+func NewResponseEqualizer(line *speaker.Line) *ResponseEqualizer {
 	if line == nil || line.Equalizer == nil {
 		return nil
 	}
-	list := [][3]float32{}
+	list := &ResponseEqualizer{
+		Switch: line.Equalizer.IsOn(),
+	}
 	for _, e := range line.Equalizer.Equalizer() {
-		list = append(list, [3]float32{float32(e.Frequency), float32(e.Gain), float32(e.Q)})
+		list.Equalizers = append(list.Equalizers, [3]float32{float32(e.Frequency), float32(e.Gain), float32(e.Q)})
 	}
 	return list
 }
@@ -137,10 +147,11 @@ func NewResponseLineInfo(line *speaker.Line) *ResponseLineInfo {
 	info := &ResponseLineInfo{
 		ResponseLineList: *NewResponseLineList(line),
 
+		Channels:   line.Layout().Mask.SliceInt(),
+		Layout:     line.Layout().String(),
 		Speakers:   make([]*ResponseSpeakerList, line.SpeakerCount()),
 		Input:      NewResponseLineSource(line),
 		Equalizers: NewResponseEqualizer(line),
-		EqSwitch:   line.Equalizer.IsOn(),
 	}
 
 	for i, s := range line.Speakers() {
@@ -161,6 +172,6 @@ func NewResponseChannelInfo(ch audio.Channel) *ResponseChannelInfo {
 	}
 	return &ResponseChannelInfo{
 		ID:   uint8(ch),
-		Name: ch.Name(),
+		Name: ch.String(),
 	}
 }

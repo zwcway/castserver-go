@@ -1,9 +1,6 @@
 package receiver
 
 import (
-	"github.com/zwcway/castserver-go/common/speaker"
-	config "github.com/zwcway/castserver-go/config"
-	"github.com/zwcway/castserver-go/decoder/pipeline"
 	dlna "github.com/zwcway/castserver-go/dlna"
 	utils "github.com/zwcway/castserver-go/utils"
 
@@ -11,6 +8,7 @@ import (
 )
 
 var (
+	ctx    utils.Context
 	log    *zap.Logger
 	Module receiveModel
 
@@ -20,23 +18,14 @@ var (
 type receiveModel struct {
 }
 
-func (receiveModel) Init(ctx utils.Context) error {
-	var err error
-
+func (receiveModel) Init(uctx utils.Context) error {
+	ctx = uctx
 	log = ctx.Logger("receiver")
 
-	// 为默认线路添加音频工作流
-	line := speaker.DefaultLine()
-	pipeline.NewPipeLine(line)
+	initDefaultLine()
+	err := initDlna()
 
-	if config.EnableDLNA {
-		dlnaInstance, line.UUID, err = dlna.NewDLNAServer(ctx, line.Name)
-		if err != nil {
-			return err
-		}
-		go dlnaInstance.ListenAndServe()
-	}
-	return nil
+	return err
 }
 
 func (receiveModel) DeInit() {

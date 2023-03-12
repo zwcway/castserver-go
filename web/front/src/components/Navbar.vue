@@ -27,8 +27,9 @@
               <span>扬声器</span>
             </a>
           </li>
-          <li class="navbar-item" v-for="line in lines" :key="line.id" :class="{ 'is-active': isLineRoute(line.id) }">
-            <router-link :to="`/line/${line.id}`">
+          <li class="navbar-item" v-for="(line, i) in lines" :key="line.id"
+            :class="{ 'is-active': isLineRoute(line.id) }">
+            <a @click="toRouteLine(i, line)">
               <svg-icon icon-class="music" class="icon" :size="0" />
               <span :id="'nav-' + line.id">{{ line.name }}</span>
               <svg-icon icon-class="x" class="icon delete-line" :size="0" v-show="line.id > 0 && isLineRoute(line.id)"
@@ -36,8 +37,8 @@
                   // 需要使用 native ，否则组件无法监听事件
                   deleteLine(line.id);
                 $event.stopPropagation();
-                                                                                                                                                                " />
-            </router-link>
+                                                                                                                                                                                                                                                                                                                                  " />
+            </a>
           </li>
           <li class="navbar-item">
             <a v-on:click="newLineClick" class="newline">
@@ -151,8 +152,43 @@ export default {
       if (where === 'back') this.$router.go(-1);
       else this.$router.go(1);
     },
-    toRouteLine(line) {
+    toRouteLine(fi, line) {
+      const id = line.id;
+      if (this.$route.name === 'line') {
+        const fid = parseInt(this.$route.params.id)
+        let fi = -1, ti;
+        let dir = '';
+        for (let i = 0; i < this.lines.length; i++) {
+          if (this.lines[i].id === fid)
+            fi = i
+          else if (this.lines[i].id === line.id)
+            ti = i
+        }
+        if (fi < ti) dir = 'slide-to-left';
+        else if (fi > ti) dir = 'slide-to-right';
+
+        this.$router.push({ name: 'line', params: { id, dir } });
+        return
+      }
       this.$router.push({ path: `/line/${line.id}` });
+    },
+    toRouteLeftOrRight(dir) {
+      if (this.$route.name !== 'line') return
+      const fid = parseInt(this.$route.params.id)
+      let fi = -1
+      for (let i = 0; i < this.lines.length; i++) {
+        if (this.lines[i].id === fid) {
+          fi = i
+          break
+        }
+      }
+      if (fi < 0) return
+
+      if (dir === 'left' && fi < this.lines.length - 1) {
+        this.toRouteLine(fi, this.lines[fi + 1])
+      } else if (dir === 'right' && fi > 0) {
+        this.toRouteLine(fi, this.lines[fi - 1])
+      }
     },
     toRoute(name) {
       this.$router.push({ name });
@@ -233,7 +269,9 @@ export default {
   },
 };
 </script>
-<style lang="scss" scoped>
+<style lang="scss">
+@import '@/assets/css/function.scss';
+
 nav {
   position: relative;
   display: flex;
@@ -252,7 +290,7 @@ nav {
 
 .tabs {
   display: flex;
-  height: $nav-height;
+  height: var(--size-navbar);
   overflow: hidden;
   width: 100%;
 
@@ -263,7 +301,7 @@ nav {
     justify-content: flex-start;
     flex-grow: 1;
     flex-shrink: unset;
-    height: $nav-height;
+    height: var(--size-navbar);
     border: none;
 
     &::-webkit-scrollbar {
@@ -271,12 +309,12 @@ nav {
     }
 
     .navbar-item {
-      flex-basis: $nav-item-width;
+      flex-basis: var(--size-navbar-item);
       flex-shrink: 0;
       display: flex;
       flex-direction: column;
-      width: $nav-item-width;
-      height: $nav-height;
+      width: var(--size-navbar-item);
+      height: var(--size-navbar);
       background: var(--color-navbar-bg);
       border: 1px solid var(--color-border);
       border-right-color: var(--color-navbar-bg);
@@ -315,8 +353,8 @@ nav {
 
         .delete-line {
           position: absolute;
-          top: -3px;
-          right: 9px;
+          top: 3px;
+          right: 5px;
           width: 0.8rem;
           color: var(--color-secondary);
 
@@ -328,10 +366,11 @@ nav {
         span {
           font-size: 0.7rem;
           margin-top: 0.5rem;
-          max-width: 80px;
+          max-width: calc(var(--size-navbar-item) - 15px);
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
+          width: 100%;
         }
       }
 
@@ -459,10 +498,26 @@ nav {
 
 }
 
-@media screen and (max-width: 819px) {
-  .tabs {
-    .navbar-item {
-      padding: 0;
+@include for_breakpoint(mobile) {
+  #app {
+    --size-navbar: 60px;
+    --size-navbar-item: 80px;
+  }
+
+  .navbar {
+    .navbar-list {
+      .navbar-item {
+        padding: 0;
+
+        a {
+          padding: 10px 0;
+        }
+
+        .svg-icon {
+          width: 16px;
+          height: 16px;
+        }
+      }
     }
   }
 }

@@ -1,12 +1,5 @@
 import socket from '@/common/ws';
 
-if (process.env.NODE_ENV !== 'production') {
-  window.socket = socket
-  if ( process.env.Mock) {
-    require('../mock');
-  }
-}
-
 const Command = Object.freeze({
   Server: 1,
   Speaker: 2,

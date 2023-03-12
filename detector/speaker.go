@@ -25,10 +25,10 @@ func initSpeaker(sp *speaker.Speaker, res *SpeakerResponse) {
 }
 
 func isSupport(res *SpeakerResponse) bool {
-	if !res.BitsMask.CombineSlice(config.SupportAudioBits) {
+	if !res.BitsMask.Combine(config.SupportAudioBits) {
 		return false
 	}
-	if !res.RateMask.CombineSlice(config.SupportAudioRates) {
+	if !res.RateMask.Combine(config.SupportAudioRates) {
 		return false
 	}
 
@@ -93,12 +93,12 @@ func CheckSpeaker(res *SpeakerResponse) error {
 	err = updateSpeaker(sp, support, res, true)
 	log.Info("found a new speaker " + sp.String())
 
+	// 触发设备发现事件，通知管理后台
+	websockets.BroadcastSpeakerEvent(sp, websockets.Event_SP_Detected)
+
 	if err != nil {
 		return err
 	}
-
-	// 触发设备发现事件，通知管理后台
-	websockets.BroadcastSpeakerEvent(sp, websockets.Event_SP_Detected)
 
 	return nil
 }

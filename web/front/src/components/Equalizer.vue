@@ -116,7 +116,7 @@ export default {
   },
   methods: {
     setNewEQ(newVal) {
-      this.equalizes = Array.from(this.defaultEQs[this.eqbands]);
+      this.equalizes = JSON.parse(JSON.stringify(this.defaultEQs[this.eqbands]));
       if (newVal === undefined) return;
       newVal.forEach(e => {
         let freq = 0;

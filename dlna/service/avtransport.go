@@ -23,17 +23,15 @@ func setAVTransportURIHandler(input any, output any, ctx *fasthttp.RequestCtx, u
 	playUri = in.CurrentURI
 	metaData = in.CurrentURIMetaData
 
-	audio := pipeline.FileStreamer(uuid)
-	audio.Close()
+	audioFS := pipeline.FileStreamer(uuid)
 
 	var err error
-	if err = audio.OpenFile(playUri); err != nil {
+	if err = audioFS.OpenFile(playUri); err != nil {
 		log.Error("create decoder failed", zap.Error(err))
 		return &soap.Error{Code: 500, Desc: err.Error()}
 	}
-	localspeaker.Init()
 
-	log.Info("set uri", zap.String("url", in.CurrentURI), zap.String("format", audio.AudioFormat().String()))
+	log.Info("set uri", zap.String("url", in.CurrentURI), zap.String("format", audioFS.AudioFormat().String()))
 
 	return nil
 }
@@ -41,17 +39,17 @@ func setAVTransportURIHandler(input any, output any, ctx *fasthttp.RequestCtx, u
 func avtGetPositionInfo(input any, output any, ctx *fasthttp.RequestCtx, uuid string) error {
 	out := output.(*avtransport1.ArgOutGetPositionInfo)
 
-	audio := pipeline.FileStreamer(uuid)
+	audioFS := pipeline.FileStreamer(uuid)
 
-	dur := utils.FormatDuration(audio.Duration())
+	dur := utils.FormatDuration(audioFS.Duration())
 	out.TrackDuration = dur
-	out.TrackURI = audio.CurrentFile()
+	out.TrackURI = audioFS.CurrentFile()
 	out.RelTime = dur
 	out.AbsTime = dur
 	out.Track = 0
 	out.TrackMetaData = metaData
-	out.AbsCount = int32(audio.Position())
-	out.RelCount = int32(audio.Position())
+	out.AbsCount = int32(audioFS.Position())
+	out.RelCount = int32(audioFS.Position())
 
 	return nil
 }
@@ -62,17 +60,17 @@ func avtPlay(input any, output any, ctx *fasthttp.RequestCtx, uuid string) error
 	if playUri == "" {
 		return nil
 	}
-	audio := pipeline.FileStreamer(uuid)
+	audioFS := pipeline.FileStreamer(uuid)
 
-	if audio.CurrentFile() == "" { // 重新播放
+	if audioFS.CurrentFile() == "" { // 重新播放
 		var err error
-		if err = audio.OpenFile(playUri); err != nil {
+		if err = audioFS.OpenFile(playUri); err != nil {
 			log.Error("create decoder failed", zap.Error(err))
 			return &soap.Error{Code: 500, Desc: err.Error()}
 		}
 		localspeaker.Init()
 	}
-	audio.Pause(false)
+	audioFS.Pause(false)
 
 	return nil
 }

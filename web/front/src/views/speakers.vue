@@ -17,7 +17,6 @@ import * as ApiSpeaker from '@/api/speaker';
 import { socket, Event as SrvEvent } from '@/common/request';
 
 let level = new VolumeLevel('200ms');
-window.level = level;
 
 let frameIndex = 0;
 function renderVolumeLevel() {

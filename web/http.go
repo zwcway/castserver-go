@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/valyala/fasthttp"
+	"github.com/zwcway/castserver-go/config"
 	"github.com/zwcway/castserver-go/utils"
 	"github.com/zwcway/castserver-go/web/api"
 	"github.com/zwcway/castserver-go/web/websockets"
@@ -23,7 +24,7 @@ import (
 //go:embed public/*
 var httpfs embed.FS
 
-func startStaticServer(address string, root string) error {
+func startStaticServer(listen *config.Interface, root string) error {
 	root, err := filepath.Abs(root + "/")
 	if err != nil {
 		return err
@@ -89,7 +90,7 @@ func startStaticServer(address string, root string) error {
 	s := &fasthttp.Server{
 		Handler: requestHandle,
 	}
-	ln, err := net.Listen("tcp", address)
+	ln, err := net.Listen("tcp", listen.AddrPort.String())
 	if err != nil {
 		log.Error("http listen error", zap.Error(err))
 		return err

@@ -19,9 +19,10 @@ type Element interface {
 	Name() string
 	Type() ElementType
 	Sample(*float64, int, int)
+	Close() error
 }
 
-type ComputeElement interface {
+type SwitchElement interface {
 	Element
 
 	On()
@@ -30,7 +31,7 @@ type ComputeElement interface {
 }
 
 type VolumeElement interface {
-	ComputeElement
+	SwitchElement
 
 	SetVolume(float64)
 	Volume() float64
@@ -46,9 +47,17 @@ type MixerElement interface {
 	Del(Streamer)
 	Has(Streamer) bool
 	Add(...Streamer)
+	PreAdd(...Streamer)
 	AddFileStreamer(FileStreamer)
 	FileStreamer() FileStreamer
 	Clear()
+}
+
+type ChannelMixerElement interface {
+	Element
+
+	SetRoute([]audio.ChannelRoute)
+	Route() []audio.ChannelRoute
 }
 
 // 播放临时 pcm 格式
@@ -61,27 +70,30 @@ type RawPlayerElement interface {
 }
 
 type ResampleElement interface {
-	ComputeElement
+	SwitchElement
 
-	SetFormat(*audio.Format)
-	Format() *audio.Format
+	SetFormat(audio.Format)
+	Format() audio.Format
 }
 
 type SpectrumElement interface {
-	ComputeElement
+	SwitchElement
+
+	SetLogAxis(bool)
+	LogAxis() bool
 
 	LevelMeter() float64
 	Spectrum() []float64
 }
 
 type EqualizerElement interface {
-	ComputeElement
+	SwitchElement
 
 	SetFilterType(dsp.FilterType)
 	FilterType() dsp.FilterType
 
-	SetEqualizer([]dsp.FreqEqualizer)
-	Equalizer() []dsp.FreqEqualizer
+	SetEqualizer([]dsp.Equalizer)
+	Equalizer() []dsp.Equalizer
 
 	Add(int, float64, float64)
 
@@ -89,7 +101,7 @@ type EqualizerElement interface {
 	Delay() time.Duration
 }
 
-type FileStreamerOpenFileHandler func(stream FileStreamer, format *audio.Format)
+type FileStreamerOpenFileHandler func(stream FileStreamer, inFormat, outFormat audio.Format)
 
 type PipeLiner interface {
 	StreamCloser
@@ -102,7 +114,7 @@ type PipeLiner interface {
 	Append(s ...Element)
 	Clear()
 
-	Format() *audio.Format
+	Format() audio.Format // 获取输入格式
 
 	LastCost() time.Duration
 	LastMaxCost() time.Duration

@@ -77,16 +77,19 @@ function onresponse(id, code, data) {
   }
 
   if (apiCallback[id]) {
-    let cb = apiCallback[id];
-    let cmd = cb['command'];
-    let resolve = cb['resolve'];
-    let reject = cb['reject'];
-    let st = cb['st'];
-    let params = cb['params'];
+    const cb = apiCallback[id];
+    const cmd = cb['command'];
+    const resolve = cb['resolve'];
+    const reject = cb['reject'];
+    const st = cb['st'];
+    const params = cb['params'];
+    const options = cb['options'];
     clearTimeout(st);
     delete apiCallback[id];
 
-    console.log('Received Message: ', cmd, id, params, code, data);
+    if (!options || options.log === undefined || options.log) {
+      console.log('Received Message: ', cmd, id, params, code, data);
+    }
 
     if (code === 0) {
       resolve(data);
@@ -197,7 +200,7 @@ function connect(isRetry) {
 }
 
 function send(cmd, params, options) {
-  let opt_nocallback = options && options.noResponse;
+  let opt_nocallback = (typeof options === 'boolean') ? options : (options && options.noResponse);
   let isString = (options && options.raw) || false;
 
   const id = Number(Math.random().toString().substring(2) + Date.now())
@@ -225,7 +228,7 @@ function send(cmd, params, options) {
     ws.send(encodeReq(id, cmd, params));
   }
 
-  return opt_nocallback ? true : promiseCallback(id, cmd, params);
+  return opt_nocallback ? true : promiseCallback(id, cmd, params, options);
 }
 
 function sendPing() {
@@ -289,6 +292,16 @@ function removeEvent(evt, arg, sub) {
       delete receiver[e + '.' + sub];
       delete receiver[e + '.' + sub + '-' + a];
     });
+    if (a === undefined) {
+      evt.forEach(e => {
+        for (let r in receiver) {
+          if (r.startsWith(e + '-'))
+            delete receiver[r];
+          else if (r.startsWith(e + '.' + sub + '-'))
+            delete receiver[r];
+        }
+      });
+    }
     sendSubscribe(false, evt, sub, a)
   });
 }
@@ -311,7 +324,7 @@ function getReceiver() {
   return receiver;
 }
 
-function promiseCallback(id, command, params) {
+function promiseCallback(id, command, params, options) {
   return new Promise((resolve, reject) => {
     let st = setTimeout(() => {
       console.log('websocket timeout', id, command, params);
@@ -319,7 +332,7 @@ function promiseCallback(id, command, params) {
       delete apiCallback[id];
       reject();
     }, 1000);
-    apiCallback[id] = { command, resolve, reject, st, params };
+    apiCallback[id] = { command, resolve, reject, st, params, options };
   });
 }
 

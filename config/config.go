@@ -7,19 +7,31 @@ import (
 	"net/netip"
 	"path/filepath"
 
+	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/fasthttp-upnp/utils"
 )
+
+type Interface struct {
+	Iface    *net.Interface
+	AddrPort netip.AddrPort
+	IPV6     bool
+}
+
+func (f Interface) String() string {
+	if f.Iface != nil {
+		return f.Iface.Name
+	}
+	return f.AddrPort.String()
+}
 
 var (
 	ConfigFile string = "castserver.conf"
 
 	RuntimeThreads int
 
-	ServerUseIPV6    bool
-	ServerInterface  *net.Interface // 监听的网卡
-	ServerAddrPort   netip.AddrPort // 监听的地址
-	MulticastAddress netip.Addr     // 多播的地址
-	MulticastPort    uint16         // 多播端口
+	ServerListen     Interface  // 监听的地址
+	MulticastAddress netip.Addr // 多播的地址
+	MulticastPort    uint16     // 多播端口
 	ServerNetMTU     uint32
 
 	ReadBufferSize  int
@@ -27,38 +39,34 @@ var (
 	SendRoutinesMax int
 	SendQueueSize   int
 
-	SupportAudioBits  []uint8
-	SupportAudioRates []uint8
+	SupportAudioBits  []audio.Bits
+	SupportAudioRates []audio.Rate
+
+	AudioBuferSize int
 
 	SpeakerOfflineTimeout       int
 	SpeakerOfflineCheckInterval int
 
-	HTTPUseIPV6   bool
-	HTTPInterface *net.Interface
-	HTTPAddrPort  string
-	HTTPNetMTU    uint32
-	HTTPRoot      string
+	HTTPListen Interface
+	HTTPNetMTU uint32
+	HTTPRoot   string
 
-	ReceiveUseIPV6   bool
-	ReceiveAddrPort  netip.AddrPort
-	ReceiveInterface *net.Interface
-	ReceiveTempDir   string
-	EnableDLNA       bool
-	EnableAirPlay    bool
+	ReceiveListen  Interface
+	ReceiveTempDir string
+	EnableDLNA     bool
+	EnableAirPlay  bool
 
-	DLNAUseIPV6        bool
-	DLNAInterface      *net.Interface
-	DLNAAddrPort       netip.AddrPort
+	DLNAListen         Interface
 	DLNANotifyInterval uint8
 	DLNAAllowIps       []*net.IPNet
 	DLNADenyIps        []*net.IPNet
 )
 
 func MTU() int {
-	if ServerInterface == nil {
+	if ServerListen.Iface == nil {
 		return int(ServerNetMTU)
 	}
-	return ServerInterface.MTU
+	return ServerListen.Iface.MTU
 }
 
 func OfflineValue() int {

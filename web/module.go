@@ -23,7 +23,7 @@ func (webModule) Init(ctx utils.Context) error {
 	api.Init(ctx)
 	websockets.ApiDispatch = api.ApiDispatch
 
-	err := startStaticServer(config.HTTPAddrPort, config.HTTPRoot)
+	err := startStaticServer(&config.HTTPListen, config.HTTPRoot)
 	if err != nil {
 		return err
 	}

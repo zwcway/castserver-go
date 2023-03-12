@@ -2,8 +2,8 @@ package pusher
 
 import (
 	"github.com/zwcway/castserver-go/common/speaker"
-	config "github.com/zwcway/castserver-go/config"
-	utils "github.com/zwcway/castserver-go/utils"
+	"github.com/zwcway/castserver-go/config"
+	"github.com/zwcway/castserver-go/utils"
 
 	"go.uber.org/zap"
 )
@@ -28,6 +28,8 @@ func (pusherModule) Init(ctx utils.Context) error {
 	}
 
 	receiveQueue = make(chan speaker.QueueData, config.ReadQueueSize)
+
+	initTrigger()
 
 	return nil
 }

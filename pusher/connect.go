@@ -18,8 +18,8 @@ func Connect(sp *speaker.Speaker) error {
 		return nil
 	}
 
-	addr := config.ServerAddrPort.Addr()
-	port := config.ServerAddrPort.Port()
+	addr := config.ServerListen.AddrPort.Addr()
+	port := config.ServerListen.AddrPort.Port()
 	udpAddr := utils.UDPAddrFromAddr(&addr, port)
 	if addr.IsUnspecified() {
 		udpAddr = nil

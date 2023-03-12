@@ -31,7 +31,7 @@ func apiLineDelete(c *websockets.WSConnection, req Requester, log *zap.Logger) (
 		return nil, err
 	}
 
-	receiver.DelDLNA(nl)
+	receiver.DelLine(nl)
 	websockets.BroadcastLineEvent(nl, websockets.Event_Line_Deleted)
 
 	return nl.Id, nil

@@ -17,7 +17,7 @@ func FileStreamerFromLine(line *speaker.Line) stream.FileStreamer {
 	fs := line.Mixer.FileStreamer()
 
 	if fs == nil {
-		fs = ffmpeg.New(onFileOpened)
+		fs = ffmpeg.New(onFileOpened, line.Output)
 		line.Mixer.AddFileStreamer(fs)
 	}
 
@@ -33,18 +33,17 @@ func findLineByFileStreamer(s stream.FileStreamer) *speaker.Line {
 	return nil
 }
 
-func onFileOpened(s stream.FileStreamer, format *audio.Format) {
-	bufSize := format.SampleBits.Size() * int(format.SampleRate.ToInt()) * 10 / 1000 * format.Layout.Count
+func onFileOpened(s stream.FileStreamer, inFormat, outFormat audio.Format) {
+	// bufSize := outFormat.SampleBits.Size() * int(inFormat.SampleRate.ToInt()) * 10 / 1000 * inFormat.Layout.Count
 
 	l := findLineByFileStreamer(s)
 	if l == nil {
 		return
 	}
-	pl := l.Input.PipeLine
 
-	pl.Lock()
-	pl.SetBuffer(stream.NewSamples(bufSize, format))
-	pl.Unlock()
+	// pl.Lock()
+	// pl.SetBuffer(stream.NewSamples(bufSize, outFormat))
+	// pl.Unlock()
 
 	// 通知输入格式
 	l.Input.FromFileStreamer(s)

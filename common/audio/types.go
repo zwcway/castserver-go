@@ -1,9 +1,9 @@
 package audio
 
 type AudioEnum interface {
-	FromInt(int32)
-	ToInt() int32
-	Name() string
+	FromInt(int)
+	ToInt() int
+	String() string
 	IsValid() bool
 }
 
@@ -35,4 +35,12 @@ func maskCombineSlice(m uint, a []uint8) uint {
 	}
 
 	return r
+}
+
+func toSlice[E Rate | Channel | Bits](s []E) []uint8 {
+	ret := make([]uint8, len(s))
+	for i, ss := range s {
+		ret[i] = uint8(ss)
+	}
+	return ret
 }

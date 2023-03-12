@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <libavformat/avformat.h>
 #include <libswresample/swresample.h>
+#include "resample/resample.c"
 
 static const AVStream *go_streams_index(const AVStream **streams, int n)
 {
@@ -23,18 +24,21 @@ static int go_averror_is_eof(int code)
     return code == AVERROR_EOF;
 }
 
-typedef struct
+typedef struct GOAVDecoder
 {
     AVCodecContext *codecCtx;
     AVFormatContext *formatCtx;
-    SwrContext *swrCtx;
+    GOResample *swrCtx;
     AVFrame *avFrame;
     AVPacket *avPacket;
     AVStream *stream;
     int streamIndex;
     int duration;
+    /**
+     * @brief 指向 GOResample 中的 out_buffer
+     * 
+     */
     uint8_t *buffer;
-    int bufferSize;
     enum AVSampleFormat outputFmt;
     int debug;
     int finished;
@@ -45,42 +49,30 @@ typedef struct
 
 } GOAVDecoder;
 
-static const int go_init_resample(GOAVDecoder *ctx, int rate, int channels, enum AVSampleFormat fmt)
+static const int go_init_resample(GOAVDecoder *ctx, int rate, int64_t channel_layout, enum AVSampleFormat fmt)
 {
+    int ret = 0;
+
     if (ctx == NULL || ctx->codecCtx == NULL)
     {
         return -250;
     }
-    int64_t inChannelLayout = av_get_default_channel_layout(channels);
 
-    if (ctx->swrCtx == NULL)
-    {
-        // 初始化转码器
-        ctx->swrCtx = swr_alloc();
-        if (ctx->swrCtx == NULL)
-        {
-            return -1;
-        }
-    }
     if (fmt == AV_SAMPLE_FMT_NONE)
     {
         fmt = ctx->codecCtx->sample_fmt;
     }
     ctx->outputFmt = fmt;
 
-    swr_alloc_set_opts(ctx->swrCtx,
-                       inChannelLayout, ctx->outputFmt, ctx->codecCtx->sample_rate,
-                       inChannelLayout, ctx->codecCtx->sample_fmt, ctx->codecCtx->sample_rate,
-                       0, NULL);
-
-    int ret = swr_init(ctx->swrCtx);
-    if (ret < 0)
+    if (ctx->swrCtx == NULL)
     {
-        swr_free(&ctx->swrCtx);
-        return ret;
+        // 初始化转码器
+        ret = go_swr_init(&ctx->swrCtx,
+                          ctx->codecCtx->sample_rate, ctx->codecCtx->channel_layout, ctx->codecCtx->sample_fmt,
+                          rate, channel_layout, fmt);
     }
 
-    return 0;
+    return ret;
 }
 
 static void go_free(GOAVDecoder **ctx)
@@ -92,10 +84,9 @@ static void go_free(GOAVDecoder **ctx)
 
     if ((*ctx)->swrCtx != NULL)
     {
-        swr_close((*ctx)->swrCtx);
-        swr_free(&(*ctx)->swrCtx);
-        (*ctx)->swrCtx = NULL;
+        go_swr_free(&(*ctx)->swrCtx);
     }
+
     if ((*ctx)->codecCtx != NULL)
     {
         avcodec_flush_buffers((*ctx)->codecCtx);
@@ -114,10 +105,6 @@ static void go_free(GOAVDecoder **ctx)
     if ((*ctx)->avFrame != NULL)
     {
         av_frame_free(&(*ctx)->avFrame);
-    }
-    if ((*ctx)->buffer != NULL)
-    {
-        av_freep(&(*ctx)->buffer);
     }
     (*ctx)->stream = NULL;
     av_freep(ctx);
@@ -211,6 +198,10 @@ static const int go_init(GOAVDecoder **ctxp, const char *fileName,
         goto _exit_;
     }
 
+    if (ctx->codecCtx->channel_layout == 0) {
+        ctx->codecCtx->channel_layout = av_get_default_channel_layout(ctx->codecCtx->channels);
+    }
+    
     *channels = ctx->codecCtx->channels;
     *rate = ctx->codecCtx->sample_rate;
     *fmt = ctx->codecCtx->sample_fmt;
@@ -271,7 +262,7 @@ static const int go_seek(GOAVDecoder *ctx, int p)
     {
         ctx->finished = 0;
     }
-    
+
     return ret;
 }
 
@@ -286,7 +277,7 @@ static const int go_decode(GOAVDecoder *ctx)
 
     while (1)
     {
-_receive_:
+    _receive_:
         ret = avcodec_receive_frame(ctx->codecCtx, ctx->avFrame);
         if (ret >= 0)
             break; // 交给转码
@@ -335,31 +326,12 @@ _receive_:
             goto _flush_buffer_;
     }
 
-    int outBufferSize = av_samples_get_buffer_size(NULL, ctx->codecCtx->channels, ctx->avFrame->nb_samples, ctx->outputFmt, 0);
+    ctx->swrCtx->in_buffer = (uint8_t*)ctx->avFrame->extended_data;
 
-    if (ctx->bufferSize < outBufferSize)
-    {
-        if (ctx->buffer != NULL)
-            av_freep(&ctx->buffer);
+    ret = go_convert(ctx->swrCtx, ctx->avFrame->nb_samples);
 
-        ctx->buffer = (uint8_t *)av_malloc(outBufferSize);
-        if (ctx->buffer == NULL)
-        {
-            ctx->bufferSize = 0;
-            return -1;
-        }
-        ctx->bufferSize = outBufferSize;
-        if (ctx->debug)
-            printf("decode new bufer size is %d\n", outBufferSize);
-    }
-
-    ret = swr_convert(ctx->swrCtx,
-                      // buffer 是一维数组，因此初始化 swr 参数时，
-                      // fmt 必须是 packed 类型，不可以是 panlar 类型,
-                      // 否则转码多声道时会崩溃
-                      &ctx->buffer, ctx->avFrame->nb_samples,
-                      // 声道有可能超过8个，因此使用 extened_data
-                      (const uint8_t **)ctx->avFrame->extended_data, ctx->avFrame->nb_samples);
+    ctx->swrCtx->in_buffer = NULL;
+    ctx->buffer = ctx->swrCtx->out_buffer;
     if (ret < 0)
         return ret;
 

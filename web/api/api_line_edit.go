@@ -11,8 +11,9 @@ import (
 )
 
 type requestLineEdit struct {
-	ID   uint8  `jp:"id"`
-	Name string `jp:"name"`
+	ID              uint8   `jp:"id"`
+	Name            *string `jp:"name,omitempty"`
+	SpectrumLogAxis *bool   `jp:"sl,omitempty"`
 }
 
 func apiLineEdit(c *websockets.WSConnection, req Requester, log *zap.Logger) (ret any, err error) {
@@ -21,18 +22,24 @@ func apiLineEdit(c *websockets.WSConnection, req Requester, log *zap.Logger) (re
 	if err != nil {
 		return
 	}
-	if len(p.Name) == 0 || utf8.RuneCountInString(p.Name) > 10 {
-		err = fmt.Errorf("name invalid")
-		return
-	}
 	nl := speaker.FindLineByID(speaker.LineID(p.ID))
 	if nl == nil {
 		err = fmt.Errorf("add new line faild")
 		return
 	}
 
-	nl.Name = p.Name
-	receiver.EditDLNA(nl)
+	if p.Name != nil {
+		if len(*p.Name) == 0 || utf8.RuneCountInString(*p.Name) > 10 {
+			err = fmt.Errorf("name invalid")
+			return
+		}
+		nl.Name = *p.Name
+		receiver.EditDLNA(nl)
+	}
+
+	if p.SpectrumLogAxis != nil {
+		nl.Spectrum.SetLogAxis(*p.SpectrumLogAxis)
+	}
 
 	ret = true
 	return

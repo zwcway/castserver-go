@@ -1,7 +1,9 @@
 package element
 
 import (
+	"github.com/pkg/errors"
 	"github.com/zwcway/castserver-go/common/stream"
+	"github.com/zwcway/castserver-go/config"
 	"github.com/zwcway/castserver-go/utils"
 	"golang.org/x/exp/slices"
 )
@@ -11,12 +13,14 @@ type Mixer struct {
 	streamers []stream.Streamer
 
 	fileStreamer stream.FileStreamer
+
+	bufSize int
+	buffer  *stream.Samples
+	bufPos  int
 }
 
-const MixerName = "Mixer"
-
 func (m *Mixer) Name() string {
-	return MixerName
+	return "Mixer"
 }
 
 func (m *Mixer) Type() stream.ElementType {
@@ -32,8 +36,13 @@ func (m *Mixer) Add(ss ...stream.Streamer) {
 		if s == nil {
 			continue
 		}
+
 		m.streamers = append(m.streamers, s)
 	}
+}
+
+func (m *Mixer) PreAdd(ss ...stream.Streamer) {
+	utils.SlicePrepend(&m.streamers, ss...)
 }
 
 func (m *Mixer) AddFileStreamer(s stream.FileStreamer) {
@@ -66,40 +75,92 @@ func (m *Mixer) Stream(samples *stream.Samples) {
 		return
 	}
 
-	var tmp = stream.NewSamples(samples.Size, samples.Format)
+	if m.buffer == nil || !m.buffer.Format.Equal(&samples.Format) {
+		m.buffer = stream.NewSamples(m.bufSize, samples.Format)
+	}
 
-	mixed := 0
-	for si := 0; si < len(m.streamers); si++ {
-		stream := m.streamers[si]
-		// TODO 处理在line删除后的情况
+	nbSamples := 0
 
-		// 混合音频流
-		stream.Stream(tmp)
-		for ch := 0; ch < tmp.Format.Layout.Count && ch < samples.Format.Layout.Count; ch++ {
-			for i := 0; i < tmp.LastSize && i < samples.Size; i++ {
-				samples.Buffer[ch][i] += tmp.Buffer[ch][i]
+	for nbSamples < samples.NbSamples {
+		if m.bufPos > 0 && m.bufPos < m.buffer.LastNbSamples {
+			// 残留数据
+			i := 0
+			for ch := 0; ch < m.buffer.Format.Layout.Count && ch < samples.Format.Layout.Count; ch++ {
+				for i = 0; m.bufPos+i < m.buffer.LastNbSamples && nbSamples+i < samples.NbSamples; i++ {
+					samples.Data[ch][i] += m.buffer.Data[ch][m.bufPos+i]
+				}
+			}
+			nbSamples += i
+			m.bufPos += i
+			continue
+		}
+		m.bufPos = 0
+		mixed := 0
+		for si := 0; si < len(m.streamers); si++ {
+			stream := m.streamers[si]
+			// TODO 处理在line删除后的情况
+
+			m.buffer.BeZero()
+			// 混合音频流
+			stream.Stream(m.buffer)
+			i := 0
+			for ch := 0; ch < m.buffer.Format.Layout.Count && ch < samples.Format.Layout.Count; ch++ {
+				for i = 0; i < m.buffer.LastNbSamples && i+nbSamples < samples.NbSamples; i++ {
+					samples.Data[ch][nbSamples+i] += m.buffer.Data[ch][i]
+				}
+			}
+			if mixed < i {
+				mixed = i
 			}
 		}
-		if mixed < tmp.LastSize {
-			mixed = tmp.LastSize
+		if mixed == 0 {
+			break
+		}
+		nbSamples += mixed
+		m.bufPos += mixed
+	}
+
+	if m.buffer.LastErr != nil {
+		if samples.LastErr != nil {
+			samples.LastErr = errors.Wrap(m.buffer.LastErr, samples.LastErr.Error())
+		} else {
+			samples.LastErr = m.buffer.LastErr
 		}
 	}
-	// // 复制所有的buffer
-	// for ch := 0; ch < samples.Format.Layout.Count; ch++ {
-	// 	for i := 0; i < samples.LastSize; i++ {
-	// 		samples.Buffer[ch][i] = tmp.Buffer[ch][i]
-	// 	}
-	// }
-	samples.Format = tmp.Format
-	if mixed > samples.LastSize {
-		samples.LastSize = mixed
+
+	if m.buffer.HasData {
+		samples.HasData = true
+	}
+
+	samples.SetFormat(m.buffer.Format)
+	if nbSamples > samples.LastNbSamples {
+		samples.LastNbSamples = nbSamples
 	}
 }
 
 func (m *Mixer) Sample(*float64, int, int) {}
 
+func (e *Mixer) Close() error {
+	for _, s := range e.streamers {
+		if sc, ok := s.(stream.StreamCloser); ok {
+			sc.Close()
+		}
+	}
+
+	e.Clear()
+	return nil
+}
+
 func NewMixer(streamers ...stream.Streamer) stream.MixerElement {
-	m := &Mixer{streamers: make([]stream.Streamer, 0)}
+	m := NewEmptyMixer()
 	m.Add(streamers...)
+	return m
+}
+
+func NewEmptyMixer() stream.MixerElement {
+	m := &Mixer{
+		streamers: make([]stream.Streamer, 0),
+		bufSize:   config.AudioBuferSize,
+	}
 	return m
 }

@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"net/netip"
 	"os"
@@ -18,121 +19,68 @@ import (
 	"go.uber.org/zap"
 )
 
-func parseListen(log *zap.Logger, listen string, port uint16) (ap netip.AddrPort, iface *net.Interface) {
+const (
+	SEP     = '|'
+	Unknown = "unknown"
+)
+
+func parseListen(log *zap.Logger, cfg reflect.Value, listen string, port uint16) {
+	var li Interface
 	if len(listen) != 0 {
 		var err error
 		// 支持 IP:PORT 或 [IPV6]:PORT 格式
-		ap, err = netip.ParseAddrPort(listen)
+		li.AddrPort, err = netip.ParseAddrPort(listen)
 		if err == nil {
-			return
+			goto _default_
 		}
 
 		// 支持仅 IP 或  IPV6 格式
 		addr, err := netip.ParseAddr(listen)
 		if err == nil {
-			ap = netip.AddrPortFrom(addr, port)
-			return
+			li.AddrPort = netip.AddrPortFrom(addr, port)
+			goto _default_
 		}
 
-		iface = utils.InterfaceByName(listen)
-		if iface == nil {
+		li.Iface = utils.InterfaceByName(listen)
+		if li.Iface != nil {
+			ip := utils.InterfaceAddr(li.Iface, false)
+			if addr, ok := netip.AddrFromSlice(ip.IP); ok {
+				li.AddrPort = netip.AddrPortFrom(addr, port)
+			}
+		} else {
 			log.Error("this is not a interface name", zap.String("listen", listen))
 		}
 	}
-	ap = netip.AddrPortFrom(netip.MustParseAddr("0.0.0.0"), port)
+	if !li.AddrPort.IsValid() {
+		li.AddrPort = netip.AddrPortFrom(netip.MustParseAddr("0.0.0.0"), port)
+	}
+_default_:
+	li.IPV6 = !li.AddrPort.Addr().Is4()
 
+	cfg.Set(reflect.ValueOf(li))
 	return
 }
 
-func parseDetectListen(log *zap.Logger, cfg reflect.Value, k *ini.Key, def *ini.Key, ck *cfgKey) {
-	port, err := def.Uint()
-	if err != nil {
-		panic(err)
-	}
-	var listen string
-	if k != nil {
-		listen = k.String()
-	}
-	addr, iface := parseListen(log, listen, uint16(port))
-
-	ServerUseIPV6 = addr.Addr().Is6()
-	ServerAddrPort = addr
-	ServerInterface = iface
-}
-func parseHttpListen(log *zap.Logger, cfg reflect.Value, k *ini.Key, def *ini.Key, ck *cfgKey) {
-	port, err := def.Uint()
-	if err != nil {
-		panic(err)
-	}
-	var listen string
-	if k != nil {
-		listen = k.String()
-	}
-	addr, iface := parseListen(log, listen, uint16(port))
-
-	HTTPUseIPV6 = addr.Addr().Is6()
-	HTTPAddrPort = addr.String()
-	HTTPInterface = iface
-}
-func parseReceiveListen(log *zap.Logger, cfg reflect.Value, k *ini.Key, def *ini.Key, ck *cfgKey) {
-	port, err := def.Uint()
-	if err != nil {
-		port = 0
-	}
-	var listen string
-	if k != nil {
-		listen = k.String()
-	}
-
-	addr, iface := parseListen(log, listen, uint16(port))
-
-	ReceiveUseIPV6 = addr.IsValid() && addr.Addr().Is6()
-	ReceiveAddrPort = addr
-	ReceiveInterface = iface
-}
-
-func parseDLNAListen(log *zap.Logger, cfg reflect.Value, k *ini.Key, def *ini.Key, ck *cfgKey) {
-	port, err := def.Uint()
-	if err != nil {
-		port = 0
-	}
-	var listen string
-	if k != nil {
-		listen = k.String()
-	}
-
-	addr, iface := parseListen(log, listen, uint16(port))
-
-	DLNAUseIPV6 = addr.IsValid() && addr.Addr().Is6()
-	DLNAAddrPort = addr
-	DLNAInterface = iface
-}
-
-func parseBits(log *zap.Logger, cfg reflect.Value, k *ini.Key, def *ini.Key, ck *cfgKey) {
+func parseBits(log *zap.Logger, cfg reflect.Value, k *ini.Key, def *ini.Key, ck *CfgKey) {
 	parse := func(b string) bool {
 		r := strings.FieldsFunc(b, func(r rune) bool {
 			return r == ' ' || r == '|' || r == '/'
 		})
 
-		SupportAudioBits = make([]uint8, 0)
+		SupportAudioBits = make([]audio.Bits, 0)
 		for _, v := range r {
 			var a audio.Bits
-			a = a.FromName(v)
-			if a != audio.AudioBits_NONE {
-				SupportAudioBits = append(SupportAudioBits, uint8(a))
+			a.FromName(v)
+			if a == audio.Bits_NONE {
+				log.Error("bits is invalid", zap.String("bits", v), zap.String("key", ck.Key))
 				continue
 			}
-			i, err := strconv.ParseInt(v, 0, 1)
-			if err != nil {
-				return false
+			if utils.SliceContains(SupportAudioBits, a) {
+				continue
 			}
-			a = audio.NewAudioBits(int32(i))
-			if !a.IsValid() {
-				return false
-			}
-			SupportAudioBits = append(SupportAudioBits, uint8(a))
+			SupportAudioBits = append(SupportAudioBits, a)
 		}
-		return true
+		return len(SupportAudioBits) > 0
 	}
 	if k != nil {
 		b := k.String()
@@ -143,25 +91,30 @@ func parseBits(log *zap.Logger, cfg reflect.Value, k *ini.Key, def *ini.Key, ck 
 	parse(def.String())
 }
 
-func parseRates(log *zap.Logger, cfg reflect.Value, k *ini.Key, def *ini.Key, ck *cfgKey) {
+func parseRates(log *zap.Logger, cfg reflect.Value, k *ini.Key, def *ini.Key, ck *CfgKey) {
 	parse := func(b string) bool {
 		r := strings.FieldsFunc(b, func(r rune) bool {
 			return r == ' ' || r == '|' || r == '/'
 		})
 
-		SupportAudioRates = make([]uint8, 0)
+		SupportAudioRates = make([]audio.Rate, 0)
 		for _, v := range r {
 			i, err := strconv.ParseInt(v, 0, 32)
 			if err != nil {
-				return false
+				log.Error("rate is invalid", zap.String("rate", v), zap.String("key", ck.Key))
+				continue
 			}
 			a := audio.NewAudioRate(int(i))
 			if !a.IsValid() {
-				return false
+				log.Error("rate is invalid", zap.String("rate", v), zap.String("key", ck.Key))
+				continue
 			}
-			SupportAudioRates = append(SupportAudioRates, uint8(a))
+			if utils.SliceContains(SupportAudioRates, a) {
+				continue
+			}
+			SupportAudioRates = append(SupportAudioRates, a)
 		}
-		return true
+		return len(SupportAudioRates) > 0
 	}
 	if k != nil {
 		b := k.String()
@@ -173,19 +126,19 @@ func parseRates(log *zap.Logger, cfg reflect.Value, k *ini.Key, def *ini.Key, ck
 	parse(def.String())
 }
 
-func parsePath(log *zap.Logger, cfg reflect.Value, k *ini.Key, def *ini.Key, ck *cfgKey) {
+func parsePath(log *zap.Logger, cfg reflect.Value, k *ini.Key, def *ini.Key, ck *CfgKey) {
 	path := def.String()
 	if k != nil {
 		path = k.String()
 	}
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		log.Error("path not exists", zap.String("path", path), zap.String("key", ck.key))
+		log.Error("path not exists", zap.String("path", path), zap.String("key", ck.Key))
 		cfg.SetString(def.String())
 	} else {
 		cfg.SetString(path)
 	}
 }
-func parseTempDir(log *zap.Logger, cfg reflect.Value, k *ini.Key, def *ini.Key, ck *cfgKey) {
+func parseTempDir(log *zap.Logger, cfg reflect.Value, k *ini.Key, def *ini.Key, ck *CfgKey) {
 	path := def.String()
 	if k != nil {
 		path = k.String()
@@ -205,15 +158,33 @@ func parseTempDir(log *zap.Logger, cfg reflect.Value, k *ini.Key, def *ini.Key, 
 	cfg.SetString(path)
 }
 
-type cfgKey struct {
-	cfg any
-	key string
-	def string
-	cb  func(log *zap.Logger, cfg reflect.Value, k *ini.Key, def *ini.Key, ck *cfgKey)
+func Clear(cfg reflect.Value) {
+	switch cfg.Kind() {
+	case reflect.String:
+		cfg.SetString("")
+	case reflect.Int32, reflect.Int, reflect.Int16, reflect.Int8, reflect.Int64:
+		cfg.SetInt(0)
+	case reflect.Uint, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint8:
+		cfg.SetUint(0)
+	case reflect.Bool:
+		cfg.SetBool(false)
+	case reflect.Struct:
+		cfg.Set(reflect.New(cfg.Type()).Elem())
+	case reflect.Slice:
+		cfg.Set(reflect.MakeSlice(cfg.Type(), 0, 0))
+	}
 }
-type cfgSection struct {
-	name string
-	keys []cfgKey
+
+type CfgKey struct {
+	Cfg  any
+	Key  string
+	Def  string
+	Desc string
+	cb   func(log *zap.Logger, cfg reflect.Value, k *ini.Key, def *ini.Key, ck *CfgKey)
+}
+type CfgSection struct {
+	Name string
+	Keys []CfgKey
 }
 
 func FromFile(log *zap.Logger, file string) error {
@@ -234,52 +205,15 @@ func FromContent(log *zap.Logger, data []byte) error {
 		return err
 	}
 
-	for _, cs := range configStruct {
-		section := c.Section(cs.name)
+	for _, cs := range ConfigStruct {
+		section := c.Section(cs.Name)
 
-		for _, ck := range cs.keys {
-			key, _ := section.GetKey(ck.key)
-			defKey, _ := section.NewKey(ck.key+"-default", ck.def)
-
-			isNil := ck.cfg == nil
-
-			cfgrv := reflect.ValueOf(ck.cfg)
-
-			if !isNil && cfgrv.Kind() != reflect.Pointer {
-				panic(fmt.Errorf("the '%s' must be a pointer", reflect.TypeOf(ck.cfg).Name()))
-			}
-
-			if !isNil {
-				cfgrv = cfgrv.Elem()
-			}
-
-			if ck.cb != nil {
-				ck.cb(log, cfgrv, key, defKey, &ck)
-				continue
-			}
-
-			if isNil {
-				continue
-			}
-
-			switch cfgrv.Kind() {
-			case reflect.String:
-				setReflectString(log, key, defKey, cfgrv, &ck)
-			case reflect.Int32, reflect.Int, reflect.Int16, reflect.Int8, reflect.Int64:
-				setReflectInt(log, key, defKey, cfgrv, &ck)
-			case reflect.Uint, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint8:
-				setReflectUInt(log, key, defKey, cfgrv, &ck)
-			case reflect.Bool:
-				setReflectBool(log, key, defKey, cfgrv, &ck)
-			case reflect.Struct:
-				setReflectStruct(log, key, defKey, cfgrv, &ck)
-			case reflect.Slice:
-				setReflectSlice(log, key, defKey, cfgrv, &ck)
-			}
+		for _, ck := range cs.Keys {
+			setKey(log, section, &ck)
 		}
 	}
 
-	if ServerUseIPV6 {
+	if ServerListen.IPV6 {
 		MulticastAddress = netip.MustParseAddr("FF02:2C:4D:FF::16")
 	} else {
 		MulticastAddress = netip.MustParseAddr("239.44.77.16")
@@ -289,20 +223,64 @@ func FromContent(log *zap.Logger, data []byte) error {
 	return nil
 }
 
-func setReflectString(log *zap.Logger, key *ini.Key, defKey *ini.Key, cfgrv reflect.Value, ck *cfgKey) {
+func setKey(log *zap.Logger, section *ini.Section, ck *CfgKey) {
+
+	key, _ := section.GetKey(ck.Key)
+	defKey, _ := section.NewKey(ck.Key+"-default", ck.Def)
+
+	isNil := ck.Cfg == nil
+
+	cfgrv := reflect.ValueOf(ck.Cfg)
+
+	if !isNil && cfgrv.Kind() != reflect.Pointer {
+		panic(fmt.Errorf("the '%s' must be a pointer", reflect.TypeOf(ck.Cfg).Name()))
+	}
+
+	if !isNil {
+		cfgrv = cfgrv.Elem()
+	}
+
+	Clear(cfgrv)
+
+	if ck.cb != nil {
+		ck.cb(log, cfgrv, key, defKey, ck)
+		return
+	}
+
+	if isNil {
+		return
+	}
+
+	switch cfgrv.Kind() {
+	case reflect.String:
+		setReflectString(log, key, defKey, cfgrv, ck)
+	case reflect.Int32, reflect.Int, reflect.Int16, reflect.Int8, reflect.Int64:
+		setReflectInt(log, key, defKey, cfgrv, ck)
+	case reflect.Uint, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint8:
+		setReflectUInt(log, key, defKey, cfgrv, ck)
+	case reflect.Bool:
+		setReflectBool(log, key, defKey, cfgrv, ck)
+	case reflect.Struct:
+		setReflectStruct(log, key, defKey, cfgrv, ck)
+	case reflect.Slice:
+		setReflectSlice(log, key, defKey, cfgrv, ck)
+	}
+}
+
+func setReflectString(log *zap.Logger, key *ini.Key, defKey *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
 	if key == nil {
-		cfgrv.SetString(ck.def)
+		cfgrv.SetString(ck.Def)
 	} else {
 		i := key.String()
 		if key == nil || len(key.String()) == 0 {
-			log.Error("value empty", zap.String("key", ck.key), zap.String("val", key.String()))
-			i = ck.def
+			log.Error("value empty", zap.String("key", ck.Key), zap.String("val", key.String()))
+			i = ck.Def
 		}
 		cfgrv.SetString(i)
 	}
 }
 
-func setReflectInt(log *zap.Logger, key *ini.Key, defKey *ini.Key, cfgrv reflect.Value, ck *cfgKey) {
+func setReflectInt(log *zap.Logger, key *ini.Key, defKey *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
 	i, err := defKey.Int()
 	if err != nil {
 		panic(nil)
@@ -310,25 +288,25 @@ func setReflectInt(log *zap.Logger, key *ini.Key, defKey *ini.Key, cfgrv reflect
 
 	if key != nil {
 		if len(key.String()) == 0 {
-			log.Error("value empty", zap.String("key", ck.key), zap.String("val", key.String()))
+			log.Error("value empty", zap.String("key", ck.Key), zap.String("val", key.String()))
 		} else if ki, err := key.Int(); err != nil {
-			log.Error("value invalid", zap.String("key", ck.key), zap.String("val", key.String()))
+			log.Error("value invalid", zap.String("key", ck.Key), zap.String("val", key.String()))
 			i = ki
 		}
 	}
 	cfgrv.SetInt(int64(i))
 
 }
-func setReflectUInt(log *zap.Logger, key *ini.Key, defKey *ini.Key, cfgrv reflect.Value, ck *cfgKey) {
+func setReflectUInt(log *zap.Logger, key *ini.Key, defKey *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
 	i, err := defKey.Uint()
 	if err != nil {
 		panic(nil)
 	}
 	if key != nil {
 		if len(key.String()) == 0 {
-			log.Error("value empty", zap.String("key", ck.key), zap.String("val", key.String()))
+			log.Error("value empty", zap.String("key", ck.Key), zap.String("val", key.String()))
 		} else if ki, err := key.Uint(); err != nil {
-			log.Error("value invalid", zap.String("key", ck.key), zap.String("val", key.String()))
+			log.Error("value invalid", zap.String("key", ck.Key), zap.String("val", key.String()))
 			i = ki
 		}
 	}
@@ -336,22 +314,22 @@ func setReflectUInt(log *zap.Logger, key *ini.Key, defKey *ini.Key, cfgrv reflec
 	cfgrv.SetUint(uint64(i))
 
 }
-func setReflectBool(log *zap.Logger, key *ini.Key, defKey *ini.Key, cfgrv reflect.Value, ck *cfgKey) {
+func setReflectBool(log *zap.Logger, key *ini.Key, defKey *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
 	i, err := defKey.Bool()
 	if err != nil {
 		panic(nil)
 	}
 	if key != nil {
 		if len(key.String()) == 0 {
-			log.Error("value empty", zap.String("key", ck.key), zap.String("val", key.String()))
+			log.Error("value empty", zap.String("key", ck.Key), zap.String("val", key.String()))
 		} else if ki, err := key.Bool(); err != nil {
-			log.Error("value invalid", zap.String("key", ck.key), zap.String("val", key.String()))
+			log.Error("value invalid", zap.String("key", ck.Key), zap.String("val", key.String()))
 			i = ki
 		}
 	}
 	cfgrv.SetBool(i)
 }
-func setReflectStruct(log *zap.Logger, key *ini.Key, defKey *ini.Key, cfgrv reflect.Value, ck *cfgKey) {
+func setReflectStruct(log *zap.Logger, key *ini.Key, defKey *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
 	var keyV string
 	isEmpty := key != nil && len(key.String()) == 0
 
@@ -361,11 +339,23 @@ func setReflectStruct(log *zap.Logger, key *ini.Key, defKey *ini.Key, cfgrv refl
 		keyV = key.String()
 	}
 	if isEmpty {
-		log.Error("value empty", zap.String("key", ck.key), zap.String("val", key.String()))
+		log.Error("value empty", zap.String("key", ck.Key), zap.String("val", key.String()))
 	}
+
+	if cfgrv.Kind() == reflect.Pointer {
+		cfgrv = cfgrv.Elem()
+	}
+
 	as := cfgrv.Type().AssignableTo
 
-	if as(reflect.PointerTo(reflect.TypeOf(net.Interface{}))) {
+	if as(reflect.TypeOf((*Interface)(nil)).Elem()) {
+		port, _ := defKey.Int()
+		val := ""
+		if key != nil {
+			val = key.String()
+		}
+		parseListen(log, cfgrv, val, uint16(port))
+	} else if as(reflect.TypeOf((*net.Interface)(nil)).Elem()) {
 		if len(keyV) == 0 {
 			cfgrv.Set(reflect.Zero(cfgrv.Type()))
 			return
@@ -378,87 +368,126 @@ func setReflectStruct(log *zap.Logger, key *ini.Key, defKey *ini.Key, cfgrv refl
 	}
 }
 
-func setReflectSlice(log *zap.Logger, key *ini.Key, defKey *ini.Key, cfgrv reflect.Value, ck *cfgKey) {
-	var keyV string
+func setReflectSlice(log *zap.Logger, key *ini.Key, defKey *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
 	isEmpty := key != nil && len(key.String()) == 0
 
+	if isEmpty {
+		log.Error("value empty", zap.String("key", ck.Key), zap.String("val", key.String()))
+	}
+	elemRT := cfgrv.Type().Elem()
+	as := elemRT.AssignableTo
+
+	if as(reflect.PointerTo(reflect.TypeOf((*net.IPNet)(nil)).Elem())) {
+		setReflectSliceIPNet(log, key, defKey, cfgrv, ck)
+	}
+}
+
+func setReflectSliceIPNet(log *zap.Logger, key *ini.Key, defKey *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
+	var keyV string
+	elemRT := cfgrv.Type().Elem()
 	if key == nil {
 		keyV = defKey.String()
 	} else {
 		keyV = key.String()
 	}
-	if isEmpty {
-		log.Error("value empty", zap.String("key", ck.key), zap.String("val", key.String()))
+	if len(keyV) == 0 {
+		cfgrv.Set(reflect.Zero(cfgrv.Type()))
+		return
 	}
-	elemRT := cfgrv.Type().Elem()
-	as := elemRT.AssignableTo
-
-	if as(reflect.PointerTo(reflect.TypeOf(net.IPNet{}))) {
-		if len(keyV) == 0 {
-			cfgrv.Set(reflect.Zero(cfgrv.Type()))
-			return
-		}
-		keyList := strings.FieldsFunc(keyV, func(r rune) bool {
-			return r == ' ' || r == '|'
-		})
-		for _, ipstr := range keyList {
-			_, ipnet, err := net.ParseCIDR(ipstr)
-			if err != nil {
-				ip := net.ParseIP(ipstr)
-				if ip == nil {
-					log.Error("ip invalid", zap.String("key", ck.key), zap.String("val", key.String()))
-					return
-				}
-				var m net.IPMask
-				if strings.ContainsRune(ipstr, '.') {
-					m = net.CIDRMask(32, 8*net.IPv4len)
-				} else {
-					m = net.CIDRMask(128, 8*net.IPv6len)
-				}
-				ipnet = &net.IPNet{IP: ip.Mask(m), Mask: m}
+	keyList := strings.FieldsFunc(keyV, func(r rune) bool {
+		return r == ' ' || r == SEP
+	})
+	for _, ipstr := range keyList {
+		_, ipnet, err := net.ParseCIDR(ipstr)
+		if err != nil {
+			ip := net.ParseIP(ipstr)
+			if ip == nil {
+				log.Error("ip invalid", zap.String("key", ck.Key), zap.String("val", key.String()))
+				return
 			}
-			ele := reflect.New(elemRT.Elem())
-			ele.Elem().Set(reflect.ValueOf(ipnet).Elem())
-			cfgrv.Set(reflect.Append(cfgrv, ele))
+			var m net.IPMask
+			if strings.ContainsRune(ipstr, '.') {
+				m = net.CIDRMask(32, 8*net.IPv4len)
+			} else {
+				m = net.CIDRMask(128, 8*net.IPv6len)
+			}
+			ipnet = &net.IPNet{IP: ip.Mask(m), Mask: m}
 		}
+		ele := reflect.New(elemRT.Elem())
+		ele.Elem().Set(reflect.ValueOf(ipnet).Elem())
+		cfgrv.Set(reflect.Append(cfgrv, ele))
 	}
 }
 
-// TODO 增加配置项的通用校验规则
+func configToString(cr reflect.Value) (val string, tn string) {
+	tn = cr.Type().Name()
+	if s, ok := cr.Interface().(fmt.Stringer); ok {
+		return s.String(), tn
+	}
 
-var configStruct = []cfgSection{
-	{"", []cfgKey{
-		{&ServerNetMTU, "mtu", "1500", nil},
-		{&RuntimeThreads, "max thread", "100", nil},
-	}},
-	{"audio", []cfgKey{
-		{&SupportAudioBits, "support bits", "u8/u16le/u24le/s32le/u32le/fltle", parseBits},
-		{&SupportAudioRates, "support rates", "44100/48000/96000/192000", parseRates},
-	}},
-	{"detect", []cfgKey{
-		{nil, "listen", "4414", parseDetectListen},
-		{&SpeakerOfflineTimeout, "offline timeout", "5", nil},
-		{&SpeakerOfflineCheckInterval, "offline check interval", "5", nil},
-	}},
-	{"speaker", []cfgKey{
-		{&ReadBufferSize, "receive buffer", "1024", nil},
-		{&SendRoutinesMax, "send thread max", "2", nil},
-		{&SendQueueSize, "send queue size", "16", nil},
-		{&ReadQueueSize, "read queue size", "512", nil},
-	}},
-	{"http", []cfgKey{
-		{nil, "listen", "4415", parseHttpListen},
-		{&HTTPRoot, "root", "web/public", parsePath},
-	}},
-	{"receive", []cfgKey{
-		{nil, "listen", "4416", parseReceiveListen},
-		{&ReceiveTempDir, "tempdir", "", parseTempDir},
-		{&EnableDLNA, "dlna", "true", nil},
-	}},
-	{"dlna", []cfgKey{
-		{nil, "listen", "4416", parseDLNAListen},
-		{&DLNANotifyInterval, "notify interval", "30", nil},
-		{&DLNAAllowIps, "allow ips", "", nil},
-		{&DLNADenyIps, "deny ips", "", nil},
-	}},
+	switch cr.Kind() {
+	case reflect.Uint, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint8:
+		return fmt.Sprintf("%d", cr.Uint()), tn
+	case reflect.Int, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int8:
+		return fmt.Sprintf("%d", cr.Int()), tn
+	case reflect.String:
+		return cr.String(), tn
+	case reflect.Bool:
+		if cr.Bool() {
+			return "true", tn
+		} else {
+			return "false", tn
+		}
+	case reflect.Slice:
+		strs := make([]string, cr.Len())
+		var v, k string
+		for i := 0; i < cr.Len(); i++ {
+			v, k = configToString(cr.Index(i))
+			strs[i] = v
+		}
+		if cr.Len() == 0 {
+			se := cr.Type().Elem()
+			if se.Kind() == reflect.Pointer {
+				se = se.Elem()
+			}
+			k = se.Name()
+		}
+		return strings.Join(strs, string(SEP)), "[]" + k
+	case reflect.Pointer:
+		return configToString(cr.Elem())
+	case reflect.Struct:
+		if s, ok := cr.Interface().(*net.Interface); ok {
+			return s.Name, "iface"
+		}
+	}
+
+	return "", tn
+}
+
+func ConfigString(cs *CfgSection, ck *CfgKey) (string, string) {
+	if ck.Cfg == nil {
+		return "", Unknown
+	}
+	cr := reflect.ValueOf(ck.Cfg).Elem()
+	return configToString(cr)
+}
+
+func Save(fp io.ReadWriter) error {
+	c, err := ini.Load([]byte{})
+	if err != nil {
+		return err
+	}
+	for _, cs := range ConfigStruct {
+		s := c.Section(cs.Name)
+		for _, ck := range cs.Keys {
+			val, t := ConfigString(&cs, &ck)
+			if t == Unknown {
+				continue
+			}
+			s.NewKey(ck.Key, val)
+		}
+	}
+
+	_, err = c.WriteTo(fp)
+	return err
 }

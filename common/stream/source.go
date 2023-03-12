@@ -32,7 +32,7 @@ type Source struct {
 func (s *Source) FromFileStreamer(f FileStreamer) {
 	s.FileStreamer = f
 	s.From = ST_File
-	s.Format = *f.AudioFormat()
+	s.Format = f.AudioFormat()
 }
 
 func (s *Source) Duration() time.Duration {

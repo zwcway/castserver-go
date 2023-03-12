@@ -1,15 +1,21 @@
 package element
 
 import (
+	"sync"
 	"time"
 
+	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/dsp"
 	"github.com/zwcway/castserver-go/common/stream"
 )
 
 type Equalizer struct {
 	power     bool
+	format    audio.Format
 	equalizer *dsp.DataProcess
+	filters   [][]*dsp.Filter
+
+	locker sync.Mutex
 }
 
 func (e *Equalizer) Name() string {
@@ -21,10 +27,27 @@ func (e *Equalizer) Type() stream.ElementType {
 }
 
 func (e *Equalizer) Stream(samples *stream.Samples) {
-	if !e.power {
+	if !e.power || samples == nil || samples.LastNbSamples == 0 {
 		return
 	}
 
+	if !e.locker.TryLock() {
+		return
+	}
+	defer e.locker.Unlock()
+
+	if !e.format.Equal(&samples.Format) {
+		e.format = samples.Format
+		e.init()
+	}
+
+	for ch := 0; ch < samples.Format.Layout.Count; ch++ {
+		for f := 0; f < len(e.filters[ch]); f++ {
+			for i := 0; i < samples.LastNbSamples; i++ {
+				samples.Data[ch][i] = e.filters[ch][f].Process(samples.Data[ch][i])
+			}
+		}
+	}
 }
 
 func (e *Equalizer) Sample(sample *float64, ch int, n int) {
@@ -49,19 +72,27 @@ func (e *Equalizer) FilterType() dsp.FilterType {
 	return e.equalizer.Type
 }
 
-func (e *Equalizer) SetEqualizer(eq []dsp.FreqEqualizer) {
-	e.equalizer.FEQ = eq
+func (e *Equalizer) changing(f func()) {
+	e.locker.Lock()
+	defer e.locker.Unlock()
+
+	f()
+
+	e.init()
+}
+func (e *Equalizer) SetEqualizer(eq []dsp.Equalizer) {
+	e.changing(func() {
+		e.equalizer.FEQ = eq
+	})
 }
 
-func (e *Equalizer) Equalizer() []dsp.FreqEqualizer {
+func (e *Equalizer) Equalizer() []dsp.Equalizer {
 	return e.equalizer.FEQ
 }
 
 func (e *Equalizer) Add(freq int, gain, q float64) {
-	e.equalizer.FEQ = append(e.equalizer.FEQ, dsp.FreqEqualizer{
-		Frequency: freq,
-		Gain:      gain,
-		Q:         q,
+	e.changing(func() {
+		e.equalizer.FEQ = append(e.equalizer.FEQ, dsp.NewFIREqualizer(freq, gain, q))
 	})
 }
 
@@ -73,9 +104,30 @@ func (e *Equalizer) SetDelay(delay time.Duration) {
 	e.equalizer.Delay = delay
 }
 
+func (e *Equalizer) init() {
+	e.filters = make([][]*dsp.Filter, e.format.Layout.Count)
+
+	for ch := 0; ch < len(e.filters); ch++ {
+		e.filters[ch] = make([]*dsp.Filter, len(e.equalizer.FEQ))
+
+		for i := 0; i < len(e.equalizer.FEQ); i++ {
+			e.filters[ch][i] = dsp.NewFilter(&e.equalizer.FEQ[i], &e.format)
+		}
+	}
+}
+
+func (e *Equalizer) Close() error {
+	e.Off()
+	if e.filters != nil {
+		e.filters = e.filters[:0]
+	}
+	return nil
+}
+
 func NewEqualizer(eq *dsp.DataProcess) stream.EqualizerElement {
 	if eq == nil {
 		eq = &dsp.DataProcess{}
 	}
-	return &Equalizer{equalizer: eq}
+	e := &Equalizer{equalizer: eq}
+	return e
 }

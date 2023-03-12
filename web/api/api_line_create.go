@@ -30,7 +30,7 @@ func apiLineCreate(c *websockets.WSConnection, req Requester, log *zap.Logger) (
 
 	line := websockets.NewResponseLineInfo(nl)
 
-	receiver.AddDLNA(nl)
+	receiver.AddLine(nl)
 	websockets.BroadcastLineEvent(nl, websockets.Event_Line_Created)
 
 	return line, nil

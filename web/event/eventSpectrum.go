@@ -23,9 +23,9 @@ func spectrum(arg int, ctx context.Context, log *zap.Logger, ctrl chan int, ls s
 		runtime.Gosched()
 		st := ls.Spectrum()
 
-		if len(st) == 0 && ls.LevelMeter() == 0 {
-			continue
-		}
+		// if len(st) == 0 && ls.LevelMeter() == 0 {
+		// 	continue
+		// }
 
 		resp := notifySpectrum{
 			LevelMeter: [2]float32{float32(arg), float32(ls.LevelMeter())},

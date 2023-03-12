@@ -18,14 +18,78 @@ var soundsLeft []byte
 //go:embed right.pcm
 var soundsRight []byte
 
+//go:embed center.pcm
+var soundsCenter []byte
+
+//go:embed back.pcm
+var soundsBack []byte
+
+//go:embed surround.pcm
+var soundsSurround []byte
+
+//go:embed lowbass.pcm
+var soundsLowBass []byte
+
+//go:embed iamhere.pcm
+var soundsHere []byte
+
 func FrontLeft() []float64 {
-	sound := append(soundsFront, soundsLeft...)
-	return resample(sound)
+	return appends(soundsFront, soundsLeft)
 }
 
 func FrontRight() []float64 {
-	sound := append(soundsFront, soundsRight...)
-	return resample(sound)
+	return appends(soundsFront, soundsRight)
+}
+
+func FrontCenter() []float64 {
+	return appends(soundsFront, soundsCenter)
+}
+
+func LowBass() []float64 {
+	return resample(soundsLowBass)
+}
+
+func BackLeft() []float64 {
+	return appends(soundsBack, soundsSurround, soundsLeft)
+}
+
+func BackRight() []float64 {
+	return appends(soundsBack, soundsSurround, soundsRight)
+}
+
+func BackCenter() []float64 {
+	return appends(soundsBack, soundsCenter)
+}
+
+func SideLeft() []float64 {
+	return appends(soundsSurround, soundsLeft)
+}
+
+func SideRight() []float64 {
+	return appends(soundsSurround, soundsRight)
+}
+
+func Here() []float64 {
+	return resample(soundsHere)
+}
+
+func appends(a ...[]byte) []float64 {
+	l := 0
+	for _, s := range a {
+		l += len(s)
+	}
+
+	ret := make([]byte, l)
+
+	l = 0
+	for i := 0; i < len(a); i++ {
+		for b := 0; b < len(a[i]); b++ {
+			ret[l] = a[i][b]
+			l++
+		}
+	}
+
+	return resample(ret)
 }
 
 func resample(s []byte) []float64 {

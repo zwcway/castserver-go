@@ -1,6 +1,9 @@
 package audio
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 type Rate uint8 // uint4
 
@@ -37,8 +40,8 @@ func (a *Rate) FromInt(i int) {
 	}
 }
 
-func (a *Rate) ToInt() int {
-	switch *a {
+func (a Rate) ToInt() int {
+	switch a {
 	case AudioRate_44100:
 		return 44100
 	case AudioRate_48000:
@@ -54,11 +57,15 @@ func (a *Rate) ToInt() int {
 	}
 }
 
-func (a *Rate) IsValid() bool {
-	return *a > AudioRate_NONE && *a < AudioRate_MAX
+func (a Rate) String() string {
+	return fmt.Sprintf("%d", a.ToInt())
 }
 
-func (a *Rate) ResampleTo(r Rate, s int) int {
+func (a Rate) IsValid() bool {
+	return a > AudioRate_NONE && a < AudioRate_MAX
+}
+
+func (a Rate) ResampleTo(r Rate, s int) int {
 	return a.ToInt() / r.ToInt() * s
 }
 
@@ -80,12 +87,12 @@ func (m *AudioRateMask) FromSlice(arr []uint8) error {
 	return nil
 }
 
-func (m *AudioRateMask) Isset(a uint8) bool {
-	return maskIsset(uint(*m), a)
+func (m AudioRateMask) Isset(a uint8) bool {
+	return maskIsset(uint(m), a)
 }
 
-func (m *AudioRateMask) IssetSlice(a []uint8) bool {
-	return maskIssetSlice(uint(*m), a)
+func (m AudioRateMask) IssetSlice(a []uint8) bool {
+	return maskIssetSlice(uint(m), a)
 }
 
 func (m *AudioRateMask) CombineSlice(a []uint8) bool {
@@ -94,14 +101,20 @@ func (m *AudioRateMask) CombineSlice(a []uint8) bool {
 	return r > 0
 }
 
-func (m *AudioRateMask) IsValid() bool {
-	return *m > 0 && ((*m)>>(AudioRate_MAX-1)) == 0
+func (m *AudioRateMask) Combine(a []Rate) bool {
+	r := maskCombineSlice(uint(*m), toSlice(a))
+	*m = AudioRateMask(r)
+	return r > 0
 }
 
-func (m *AudioRateMask) Slice() []int {
+func (m AudioRateMask) IsValid() bool {
+	return m > 0 && ((m)>>(AudioRate_MAX-1)) == 0
+}
+
+func (m AudioRateMask) Slice() []int {
 	s := []int{}
 	for i := 0; i < 16; i++ {
-		if (*m>>i)&0x01 == 1 {
+		if (m>>i)&0x01 == 1 {
 			b := Rate(i + 1)
 			s = append(s, b.ToInt())
 		}

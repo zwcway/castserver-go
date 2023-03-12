@@ -5,9 +5,12 @@ let localStorage = {
     serverHost: '',
     serverPort: '4415',
     enableDebugTool: false,
+    enableMock: false,
     closeAppOption: 'ask',
     subTitleDefault: false,
     linuxEnableCustomTitlebar: false,
+
+    showSpectrum: true,
   },
   data: {
     loginMode: null,

@@ -87,8 +87,8 @@ func (s *DLNAServer) newUPnPServer(ctx utils.Context, name string) (err error) {
 		"xmlns:dlna": "urn:schemas-dlna-org:device-1-0",
 	}
 	s.upnp.ServiceList = service.NewServiceList(ctx)
-	s.upnp.ListenInterface = config.DLNAInterface
-	s.upnp.ListenPort = config.DLNAAddrPort.Port()
+	s.upnp.ListenInterface = config.DLNAListen.Iface
+	s.upnp.ListenPort = config.DLNAListen.AddrPort.Port()
 	s.upnp.DenyIps = config.DLNADenyIps
 	s.upnp.AllowIps = config.DLNAAllowIps
 	s.upnp.ErrorHandler = s.onError

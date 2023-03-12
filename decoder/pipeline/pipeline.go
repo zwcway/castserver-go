@@ -62,6 +62,9 @@ func (p *PipeLine) Prepend(s stream.Element) {
 // TODO 防止循环引用
 func (p *PipeLine) Append(s ...stream.Element) {
 	for _, ss := range s {
+		if ss == nil {
+			continue
+		}
 		ps := &PipeLineStreamer{
 			stream: ss,
 			cost:   0,
@@ -79,8 +82,8 @@ func (p *PipeLine) Clear() {
 	p.oneStreams = p.oneStreams[:0]
 }
 
-func (p *PipeLine) Format() *audio.Format {
-	return p.format
+func (p *PipeLine) Format() audio.Format {
+	return *p.format
 }
 
 func (p *PipeLine) Close() error {
@@ -93,17 +96,22 @@ func (p *PipeLine) Close() error {
 }
 
 func (p *PipeLine) Stream(sample *stream.Samples) {
+	if sample == nil && p.buffer == nil {
+		return
+	}
+
 	p.locker.Lock()
 	defer p.locker.Unlock()
 
-	if sample != nil {
-		p.buffer = sample
+	buf := sample
+	if buf == nil {
+		buf = p.buffer
 	}
 
 	var t time.Time
 	for _, s := range p.wholeStreams {
 		t = time.Now()
-		s.stream.Stream(p.buffer)
+		s.stream.Stream(buf)
 		s.cost = time.Since(t)
 	}
 
@@ -145,7 +153,10 @@ func (p *PipeLine) Unlock() {
 
 func NewPipeLine(line *speaker.Line) *PipeLine {
 	p := &PipeLine{
-		line: line,
+		line:         line,
+		wholeStreams: make([]*PipeLineStreamer, 0),
+		oneStreams:   make([]*PipeLineStreamer, 0),
+		format:       &line.Output,
 	}
 
 	p.Append(line.Elements()...)

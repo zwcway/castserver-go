@@ -111,17 +111,22 @@ func DefaultAddr() *netip.Addr {
 			continue
 		}
 		for _, addr := range addrs {
-			ip := addr.IP
-			if len(addr.Mask) == net.IPv4len {
-				ip = ip[len(ip)-4:]
-			}
-
-			if ip, ok := netip.AddrFromSlice(ip); ok {
-				return &ip
-			}
+			return IpNetToAddr(addr)
 		}
 	}
 
+	return nil
+}
+
+func IpNetToAddr(addr *net.IPNet) *netip.Addr {
+	ip := addr.IP
+	if len(addr.Mask) == net.IPv4len {
+		ip = ip[len(ip)-4:]
+	}
+
+	if ip, ok := netip.AddrFromSlice(ip); ok {
+		return &ip
+	}
 	return nil
 }
 

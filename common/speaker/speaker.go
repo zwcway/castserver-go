@@ -41,6 +41,7 @@ type Speaker struct {
 	Volume    stream.VolumeElement // 音量
 	Spectrum  stream.SpectrumElement
 	Equalizer stream.EqualizerElement
+	Resample  stream.ResampleElement
 
 	Conn  *net.UDPConn
 	Queue chan QueueData
@@ -127,6 +128,14 @@ func (sp *Speaker) ChangeLine(newLine *Line) {
 	newLine.AppendSpeaker(sp)
 }
 
+func (sp *Speaker) Format() audio.Format {
+	return audio.Format{
+		SampleRate: sp.Rate,
+		Layout:     audio.NewChannelLayout(sp.Channel),
+		SampleBits: sp.Bits,
+	}
+}
+
 func initSpeaker() error {
 	maxSize := 0
 
@@ -167,6 +176,7 @@ func NewSpeaker(id ID, line LineID, channel audio.Channel) (*Speaker, error) {
 	sp.Volume = element.NewVolume(1)
 	sp.Spectrum = element.NewSpectrum()
 	sp.Equalizer = element.NewEqualizer(nil)
+	sp.Resample = element.NewResample(sp.Format())
 
 	speakerList = append(speakerList, &sp)
 

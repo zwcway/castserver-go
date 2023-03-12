@@ -3,6 +3,7 @@ package pusher
 import (
 	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/speaker"
+	"github.com/zwcway/castserver-go/common/stream"
 
 	"go.uber.org/zap"
 )
@@ -38,6 +39,30 @@ func pushRoutine(queue chan speaker.QueueData) {
 	}
 }
 
+func PushLine(line *speaker.Line) {
+	pl := line.Input.PipeLine
+	if pl == nil {
+		return
+	}
+	buf := pl.Buffer()
+	if buf == nil {
+		return
+	}
+	PushLineBuffer(line, buf)
+}
+
+func PushLineBuffer(line *speaker.Line, buf *stream.Samples) {
+
+	for i, ch := range buf.Format.Channels() {
+
+		for _, ch = range line.ChannelRoute(ch) {
+
+		}
+
+		PushToLineChannel(line, ch, buf.ChannelBytes(i))
+	}
+}
+
 func PushToLineChannel(line *speaker.Line, ch audio.Channel, data []byte) {
 	buf := ServerPush{
 		Ver:     1,
@@ -53,11 +78,11 @@ func PushToLineChannel(line *speaker.Line, ch audio.Channel, data []byte) {
 	data = p.Bytes()
 
 	for _, sp := range line.SpeakersByChannel(ch) {
-		Push(sp, data)
+		PushSpeaker(sp, data)
 	}
 }
 
-func Push(sp *speaker.Speaker, data []byte) {
+func PushSpeaker(sp *speaker.Speaker, data []byte) {
 	queue := sp.Queue
 	if queue == nil {
 		// log.Error("speaker not connected", zap.String("speaker", sp.String()))

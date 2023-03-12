@@ -26,7 +26,6 @@ module.exports = defineConfig({
         'process.env.AppName': JSON.stringify(process.env.AppName),
         'process.env.AppID': JSON.stringify(process.env.AppID),
         'process.env.Lang': process.env.Lang,
-        'process.env.Mock': isProd ? false : (process.argv.indexOf('--mock') > 0 ? true : false),
       }),
     ],
     devtool: isProd ? false : "source-map",

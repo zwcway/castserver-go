@@ -31,16 +31,19 @@ func (v *Player) Stream(samples *stream.Samples) {
 	}
 	format := samples.Format
 
-	if format.SampleRate != audio.AudioRate_44100 || format.SampleBits != audio.AudioBits_32LEF {
+	if format.SampleRate != audio.AudioRate_44100 || format.SampleBits != audio.Bits_DEFAULT {
 		fmt.Println(format.String())
 		// TODO 转码 pcm 后播放
 		return
 	}
 
+	mixed := 0
+	i := 0
 	for s := 0; s < len(v.pcm); s++ {
 		pcm := &v.pcm[s]
 
-		for i := 0; i < samples.LastSize; i++ {
+		// 不使用 LastSize 强制混合
+		for i = 0; i < samples.NbSamples; i++ {
 			if pcm.pos >= len(pcm.pcm) {
 				// 播放完毕，移除
 				if utils.SliceQuickRemove(&v.pcm, s) {
@@ -50,12 +53,17 @@ func (v *Player) Stream(samples *stream.Samples) {
 			}
 
 			for ch := 0; ch < samples.Format.Layout.Count; ch++ {
-				samples.Buffer[ch][i] += pcm.pcm[pcm.pos]
+				samples.Data[ch][i] += pcm.pcm[pcm.pos]
 			}
 			pcm.pos++
 		}
+		if mixed < i {
+			mixed = i
+		}
 	}
-
+	if mixed > samples.LastNbSamples {
+		samples.LastNbSamples = mixed
+	}
 }
 
 func (v *Player) Sample(sample *float64, ch int, n int) {}
@@ -73,6 +81,11 @@ func (p *Player) Add(pcm []float64) {
 		return
 	}
 	p.pcm = append(p.pcm, playerStreamer{pcm: pcm})
+}
+
+func (p *Player) Close() error {
+	p.pcm = p.pcm[:0]
+	return nil
 }
 
 func NewPlayer() stream.RawPlayerElement {

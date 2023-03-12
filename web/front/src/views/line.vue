@@ -20,26 +20,37 @@
           </a-button>
         </div>
         <span class="source">
-          <span class="ratebits" v-show="line.source">{{
-            showSourceFormat(line.source)
-          }}</span>
+          <span class="ratebits" v-show="line.source && line.source.rate">
+            {{ showSourceFormat(line.source) }}
+          </span>
         </span>
       </div>
       <div :id="'line-' + line.id" class="level-meter-slider">
-        <Volume :volume="volume" :mute="line.mute || false" @change="onVolumeChanged" tooltip-placement="bottom" />
-        <a-select :value="layout" class="layout-select" :options="layoutList" @select="layout = $event"></a-select>
+        <Volume :volume="line.vol" :mute="line.mute || false" @change="onVolumeChanged" tooltip-placement="bottom"
+          @mute="onVolumeChanged" />
+        <a-button type="link" @click="isLayout3d = !isLayout3d" icon="code-sandbox"
+          :class="{ active: isLayout3d }"></a-button>
+        <a-select :value="layout" class="layout-select" :options="layoutList" @select="onLayoutChanged"
+          :dropdownMatchSelectWidth="false"></a-select>
         <a-button type="link" @click.stop.prevent="isShowEqualizer = true">
           <i class="codicon codicon-settings"></i>
         </a-button>
       </div>
     </div>
-    <div class="container" @click="onShowChannelInfo(-1)">
-      <canvas id="spectrum" class="spectrum" height="0" width="0"></canvas>
+    <div class="container room room-2d" :class="{ 'room-3d': isLayout3d }" @click="onShowChannelInfo(-1)">
+      <canvas :id="`spectrum-${line.id}`" class="spectrum" height="0" width="0"></canvas>
       <div class="background" rel="background"></div>
-      <div class="room">
-        <div class="line"></div>
-        <div class="line"></div>
-        <div class="line"></div>
+      <div class="wall">
+        <div class="cube">
+          <div class="cube-face wall-floor">
+            <div class="line"></div>
+            <div class="line"></div>
+            <div class="line"></div>
+          </div>
+          <div class="cube-face wall-background"></div>
+          <div class="cube-face wall-left"></div>
+          <div class="cube-face wall-right"></div>
+        </div>
       </div>
       <div class="channels channels-layout" :class="layoutClass()">
         <div class="speaker" v-for="(ch, id) in channelAttr" :key="ch.id" v-bind:id="ch.id"
@@ -62,12 +73,15 @@
     </div>
     <div class="infomation">
       <div class="channel-name" v-show="infomation.channelId">
-        <span>{{ infomation.name }}</span>
+        <div>
+          <svg-icon icon-class="speaker" :size="0" @click.native="onChannelTest(infomation.channelId)"></svg-icon>
+          <span>{{ infomation.name }}</span>
+        </div>
       </div>
       <ul class="speaker-list" v-show="infomation.speakers && infomation.speakers.length">
         <li class="speaker level-meter-slider" v-for="sp in infomation.speakers" :key="sp.id" :id="'speaker-' + sp.id">
           <div>
-            <svg-icon icon-class="speaker" :size="0"></svg-icon>
+            <svg-icon icon-class="speaker" :size="0" @click.native="onIamHere(sp.id)"></svg-icon>
             <span class="name" @click.stop.prevent="gotoSpeaker(sp.id)">
               {{ sp.name }}
             </span>
@@ -90,18 +104,20 @@
       <input v-show="!infomation.speakers || infomation.speakers.length === 0" type="button" value="选择扬声器" />
     </div>
     <a-modal :visible="isShowEqualizer" width="fit-content" :footer="null" @cancel="isShowEqualizer = false">
-      <equalizer id="equalizer" :bands="equalizerBands" :eq="line.eq" ref="equalizer" @change="onEQChange" />
+      <equalizer id="equalizer" :bands="equalizerBands" :eq="line.eq.eqs" ref="equalizer" @change="onEQChange" />
       <template slot="title">
         <div class="eq-toolbar">
           <span>均衡器</span>
-          <a-switch v-model="line.eqenable" checked-children="开" un-checked-children="关" @change="onEqEnable" />
-          <a-select class="eq-band-select" :options="equalizerBandsList" :value="eqBandsSelected"
+          <a-button type="danger" shape="circle" icon="rest" @click="onEQClear()"></a-button>
+          <a-switch v-model="line.eq.enable" checked-children="开" un-checked-children="关" @change="onEqEnable" />
+          <a-select class="eq-band-select" :options="equalizerBandsList" :value="eqBandsSelected + ''"
             @select="eqBandsSelected = $event">
           </a-select>
         </div>
       </template>
     </a-modal>
-    <div class="select-channel-mask" v-show="specifyChannel >= 0">
+    <div class="select-channel-mask" v-show="specifyChannel >= 0"
+      :class="{ 'animate__animated animate__fadeIn': specifyChannel >= 0 }">
       <a-button icon="close" @click.stop.prevent="specifyChannel = -1"></a-button>
     </div>
   </div>
@@ -125,64 +141,7 @@ import { formatRate, formatBits, formatLayout, formatDuration } from '@/common/f
 import '@/assets/css/popper.scss';
 import '@/assets/css/speaker.scss';
 
-var SP, ctx;
-let spdata = [];
-let slow = [];
-let title = [];
-let spRequestId;
-let speakerIndex = 0;
-let level = new VolumeLevel('200ms');
-let playerDurationTimeout;
-
-function drawSpectrum() {
-  ctx.clearRect(0, 0, SP.width, SP.height);
-  let spc = Math.min(128, spdata.length);
-  let w = SP.width / (spc + 1);
-  let left = 0;
-  for (var i = 0; i < spc; i++) {
-    left = i * w + 4;
-
-    ctx.beginPath();
-    ctx.lineWidth = 4;
-    ctx.strokeStyle = 'hsl(171deg 100% 41% / 20%)';
-
-    if (slow[i] > spdata[i]) {
-      slow[i] -= 2;
-    } else if (spdata[i] - slow[i] > 8) {
-      slow[i] += 5;
-    } else {
-      slow[i] = spdata[i];
-    }
-
-    ctx.moveTo(left, SP.height);
-    ctx.lineTo(left, SP.height - slow[i]);
-    ctx.stroke();
-
-    if (title[i] > slow[i]) {
-      title[i] -= 0.5;
-    } else {
-      title[i] = slow[i];
-    }
-
-    ctx.beginPath();
-    ctx.lineWidth = 4;
-    ctx.strokeStyle = '#bbb';
-    ctx.moveTo(left, SP.height - title[i]);
-    ctx.lineTo(left, SP.height - title[i] + 1);
-    ctx.stroke();
-  }
-
-  if (speakerIndex > level.length) {
-    speakerIndex = 0;
-  }
-
-  if (level.length) {
-    level.commitWidth(speakerIndex);
-    speakerIndex++;
-  }
-
-  spRequestId = requestAnimationFrame(drawSpectrum);
-}
+const layoutDefault = '2-0';
 
 export default {
   name: 'Speaker',
@@ -193,14 +152,22 @@ export default {
   },
   data() {
     return {
-      line: { id: 0, name: '', newName: '' },
+      line: { id: 0, name: '', newName: '', eq: { enable: false, eqs: [] }, vol: 0, mute: false },
       isLineNameEdit: false,
-      layout: '2-0',
+      isLayout3d: false,
+      layout: layoutDefault,
       layoutList: [
-        { key: '2-0', label: '2.0 声道', disabled: false },
+        { key: '1-0', label: '单声道  ', disabled: false },
+        { key: '2-0', label: '立体声  ', disabled: false },
         { key: '2-1', label: '2.1 声道', disabled: false },
+        { key: '5-0', label: '5.0 声道', disabled: false },
+        { key: '5-0-back-', label: '5.0(后) 声道', disabled: false },
         { key: '5-1', label: '5.1 声道', disabled: false },
+        { key: '5-1-back-', label: '5.1(后) 声道', disabled: false },
+        { key: '7-0', label: '7.0 声道', disabled: false },
         { key: '7-1', label: '7.1 声道', disabled: false },
+        { key: '7-1-2', label: '7.1.2 声道', disabled: false },
+        { key: '7-1-4', label: '7.1.4 声道', disabled: false },
       ],
       channels: 0,
       channelLayout: 'none',
@@ -220,6 +187,7 @@ export default {
       specifyChannel: -1, // speakerid
       fromAction: '',
       shownChannelId: 0,
+      specturmCtx: {},
     };
   },
   watch: {
@@ -231,7 +199,6 @@ export default {
         this.specifyChannel = -1;
         return;
       }
-      this.init();
     },
     isShowEqualizer(newVal) {
       if (!newVal) return;
@@ -240,8 +207,9 @@ export default {
         let bands = [];
         this.$refs.equalizer.bandList().forEach(band => {
           bands.push({
-            key: band,
             label: band + ' 段',
+            value: band,
+            key: band + ' 段',
           });
         });
 
@@ -263,21 +231,13 @@ export default {
     });
   },
   computed: {
-    ...mapState(['enableScrolling']),
+    ...mapState(['enableScrolling', 'settings']),
     scrolling: {
       get() {
         return this.enableScrolling || false;
       },
       set(value) {
         this.$store.commit('enableScrolling', value);
-      },
-    },
-    volume: {
-      get() {
-        return this.line.vol || 0;
-      },
-      set(value) {
-        this.line.vol = value;
       },
     },
     eqBandsSelected: {
@@ -288,7 +248,9 @@ export default {
         let band = parseInt(value);
         if (band == this.equalizerBands) return;
         this.equalizerBands = band;
-        clearEqualizer(this.line.id);
+        ApiLine.clearEqualizer(this.line.id).then(() => {
+          this.line.eq.eqs = []
+        });
       },
     },
     isPlayer() {
@@ -309,39 +271,42 @@ export default {
       }
     }
   },
-  mounted() {
-    socket.onConnected().then(() => this.init());
-  },
-  destroyed() {
-    this.deinit();
-  },
   activated() {
     // keep-alived 开启后生效
-    this.init();
+    socket.onConnected().then(() => this.init());
+  },
+  deactivated() {
+    // keep-alived 开启后生效
+    this.deinit();
   },
   methods: {
     deinit() {
-      cancelAnimationFrame(spRequestId);
       ApiLine.removelistenLineChanged();
       ApiLine.removeListenLineSpectrum();
       ApiLine.removeListenLineInput();
       ApiSpeaker.removeListenSpeakerSpectrum();
       ApiLine.removeListenLineSpeakerChanged();
-      level.clear();
+
+      cancelAnimationFrame(this.specturmCtx.spRequestId);
+      this.specturmCtx.ctx = null;
+      this.specturmCtx.SP = null;
+      this.specturmCtx.level.clear();
+
       this.$destroyAll();
       document.removeEventListener('keyup', this.onDocumentKeyUp);
-      clearTimeout(playerDurationTimeout);
+      clearTimeout(this.playerDurationTimeout);
     },
     init() {
-      this.deinit();
       this.line.id = parseInt(this.$route.params.id);
       this.$set(this.line, 'eq', []);
       this.specifyChannel = -1;
       this.isLineNameEdit = false;
       this.infomation = {};
-      this.initSpectrum();
       this.$destroyAll();
       this.$nextTick(function () {
+        if (this.settings.showSpectrum) {
+          this.initSpectrum();
+        }
         document.addEventListener('keyup', this.onDocumentKeyUp);
       });
 
@@ -384,7 +349,14 @@ export default {
         }
       });
 
-      ApiLine.listenLineSpectrum(this.line.id, this.onSpectrumChange);
+      if (this.settings.showSpectrum) {
+        ApiLine.listenLineSpectrum(this.line.id, this.onSpectrumChange);
+      } else {
+        this.onSpectrumChange({ l: [this.line.id, 0], s: [] })
+        cancelAnimationFrame(this.specturmCtx.spRequestId)
+        this.specturmCtx.level.clear();
+      }
+
       ApiLine.listenLineInput(this.line.id, s => {
         this.$set(this.line, 'source', s)
         this.startPlayerDuration()
@@ -414,19 +386,16 @@ export default {
           this.onShowChannelInfo(-1);
 
           this.$nextTick(() => {
-            level.clear();
-            level.push(
+            this.specturmCtx.level.clear();
+            this.specturmCtx.level.push(
               'line-' + this.line.id,
               document.querySelector(
                 '#line-' + this.line.id + ' .vue-slider-process'
               )
             );
             this.line.speakers.forEach((sp, i) => {
-              level.push(
-                i,
-                document.querySelector(
-                  '#speaker-' + sp.id + ' .vue-slider-process'
-                )
+              this.specturmCtx.level.push(i,
+                document.querySelector('#speaker-' + sp.id + ' .vue-slider-process')
               );
             });
           });
@@ -435,6 +404,22 @@ export default {
           console.log(e);
           this.$router.push('/speakers');
         });
+    },
+    initSpectrum() {
+      cancelAnimationFrame(this.specturmCtx.spRequestId);
+
+      this.specturmCtx.SP = document.getElementById('spectrum-' + this.line.id);
+      let bg = this.specturmCtx.SP.nextSibling;
+      this.specturmCtx.SP.width = bg.offsetWidth;
+      this.specturmCtx.SP.height = bg.offsetHeight;
+      this.specturmCtx.ctx = this.specturmCtx.SP.getContext('2d');
+      this.specturmCtx.slow = [];
+      this.specturmCtx.title = [];
+      this.specturmCtx.spdata = [];
+      this.specturmCtx.speakerIndex = 0;
+      this.specturmCtx.level = new VolumeLevel('200ms');
+
+      this.drawSpectrum();
     },
     onDocumentKeyUp(e) {
       if (e.key === 'Escape') {
@@ -463,24 +448,24 @@ export default {
       this.computeLayout();
     },
     startPlayerDuration() {
-      clearTimeout(playerDurationTimeout)
-      if (this.line.source.cur >= this.line.source.dur) {
+      clearTimeout(this.playerDurationTimeout)
+      if (!this.isPlayer || this.line.source.cur >= this.line.source.dur) {
         return
       }
-      playerDurationTimeout = setInterval(() => {
-        ApiLine.getLineInfo(this.line.id).then(data => {
-          if (data.source.cur > data.source.dur) {
-            data.source.cur = data.source.dur;
+      this.playerDurationTimeout = setInterval(() => {
+        ApiLine.getLinePlayer(this.line.id).then(data => {
+          if (data.cur > data.dur) {
+            data.cur = data.dur;
           }
-          if (data.source.cur >= data.source.dur) {
-            clearTimeout(playerDurationTimeout)
+          if (data.cur >= data.dur) {
+            clearTimeout(this.playerDurationTimeout)
           }
-          this.$set(this.line, 'source', data.source)
+          this.$set(this.line, 'source', data)
         })
       }, 1000)
     },
     onPlayerSeekStart() {
-      clearTimeout(playerDurationTimeout)
+      clearTimeout(this.playerDurationTimeout)
     },
     onPlayerSeekStop() {
       ApiLine.playerSeek(this.line.id, this.line.source.cur)
@@ -502,33 +487,25 @@ export default {
     },
     onSpectrumChange(data) {
       const lm = data['l'] || [];
-      spdata = data['s'] || [];
-      level.setValById('line-' + lm[0], lm[1]);
+      this.specturmCtx.spdata = data['s'] || [];
+      this.specturmCtx.level.setValById('line-' + lm[0], lm[1]);
     },
     computeLayout() {
-      let chs = [];
-      for (let ch in this.channelSpeakers) {
-        if (this.channelAttr[ch] === undefined) continue;
-        if (this.channelSpeakers[ch].length) chs.push(ch);
+      let known = false;
+      let layout = this.line.layout.split(/[\.|\(|\)| ]/).join('-');
+      if (layout === 'mono') layout = '1-0';
+      else if (layout === 'stereo') layout = '2-0';
+      for (let i = 0; i < this.layoutList.length; i++) {
+        if (layout === this.layoutList[i].key) {
+          known = true;
+          break;
+        }
       }
-      let l = '-' + chs.sort().join('-') + '-';
-      if (l.length === 2) {
-        this.layout = '2-0';
-      } else if (l.indexOf('-7-') >= 0 || l.indexOf('-8-') >= 0) {
-        this.layout = '7-1';
-      } else if (
-        l.indexOf('-3-') >= 0 ||
-        l.indexOf('-10-') >= 0 ||
-        l.indexOf('-11-') >= 0
-      ) {
-        this.layout = '5-1';
-      } else if (l.indexOf('-6-') >= 0) {
-        this.layout = '2-1';
-      } else if (l.indexOf('-1-') >= 0 || l.indexOf('-2-') >= 0) {
-        this.layout = '2-0';
-      } else {
-        this.layout = '7-1';
-      }
+      if (known)
+        this.layout = layout;
+      else
+        this.layout = layoutDefault;
+
       this.disableLayoutSelect();
     },
     disableLayoutSelect() {
@@ -542,8 +519,17 @@ export default {
         this.layoutList[i].disabled = false;
       }
     },
+    onLayoutChanged(layout) {
+      this.layout = layout
+    },
     onVolumeChanged(v) {
-      ApiLine.setVolume(this.line.id, v);
+      ApiLine.setVolume(this.line.id, v).then(() => {
+        if (typeof v === 'boolean') {
+          this.line.mute = v
+        } else {
+          this.line.vol = v
+        }
+      });
     },
     onSpeakerVolumeChanged(v, id) {
       ApiSpeaker.setVolume(id, v);
@@ -551,21 +537,20 @@ export default {
     onSpeakerVolumeMute(v, id) {
       ApiSpeaker.setSpeaker(id, 'mute', v);
     },
-    initSpectrum() {
-      cancelAnimationFrame(spRequestId);
-
-      SP = document.getElementById('spectrum');
-      let bg = SP.nextSibling;
-      SP.width = bg.offsetWidth;
-      SP.height = bg.offsetHeight;
-      ctx = SP.getContext('2d');
-      drawSpectrum();
-    },
     onEQChange(freq, gain) {
-      ApiLine.setEqualizer(this.line.id, freq, gain);
+      ApiLine.setEqualizer(this.line.id, freq, gain).then((s) => {
+        this.line.eq = s
+      }).catch(() => {
+        this.line.eq.eqs = this.line.eq.eqs
+      });
     },
     onEqEnable(enable) {
       ApiLine.setEnableEqualizer(this.line.id, enable);
+    },
+    onEQClear() {
+      ApiLine.clearEqualizer(this.line.id).then(() => {
+        this.line.eq.eqs = [];
+      });
     },
     onSpecifyChannel(spid) {
       // this.$router.push({
@@ -653,7 +638,7 @@ export default {
     showSourceFormat(src) {
       if (src === undefined) return '';
       return (
-        formatRate(src.rate) + '/' + src.bits + '/' + formatLayout(src.channels)
+        formatRate(src.rate) + '/' + src.bits + '/' + src.layout
       );
     },
     onChannelMouseHover(id, shown) {
@@ -677,6 +662,12 @@ export default {
     },
     gotoSpeaker(id) {
       this.$router.push('/speaker/' + id);
+    },
+    onChannelTest(chid) {
+      ApiLine.testChannel(this.line.id, chid)
+    },
+    onIamHere(spid) {
+      ApiSpeaker.test(spid)
     },
     showRatebits(sp) {
       return formatRate(sp.rate) + '/' + formatBits(sp.bits);
@@ -713,6 +704,68 @@ export default {
     playerSliderFormater(val) {
       return formatDuration(val)
     },
+    drawSpectrum() {
+      const ctx = this.specturmCtx.ctx;
+      const SP = this.specturmCtx.SP;
+      const spdata = this.specturmCtx.spdata;
+      let slow = this.specturmCtx.slow;
+      let title = this.specturmCtx.title;
+
+      ctx.clearRect(0, 0, SP.width, SP.height);
+      const spc = Math.max(16, spdata.length);
+      let w = SP.width / spc;
+      let space = w > 1 ? w * 0.1 : 0;
+      let left = 0;
+      let spd = 0;
+      w -= space;
+      for (var i = 0; i < spc; i++) {
+        left = i * (w + space);
+        spd = spdata[i]
+        if (spd >= SP.height) {
+          spd = SP.height - 1;
+        }
+
+        ctx.beginPath();
+        ctx.lineWidth = w;
+        ctx.strokeStyle = 'hsl(171deg 100% 41% / 20%)';
+
+        if (slow[i] > spd) {
+          slow[i] -= 2;
+        } else if (spd - slow[i] > 8) {
+          slow[i] += 5;
+        } else {
+          slow[i] = spd;
+        }
+
+        ctx.moveTo(left, SP.height);
+        ctx.lineTo(left, SP.height - slow[i]);
+        ctx.stroke();
+
+        if (title[i] > slow[i]) {
+          title[i] -= 0.5;
+        } else {
+          title[i] = slow[i];
+        }
+
+        ctx.beginPath();
+        ctx.lineWidth = w;
+        ctx.strokeStyle = '#bbb';
+        ctx.moveTo(left, SP.height - title[i]);
+        ctx.lineTo(left, SP.height - title[i] + 1);
+        ctx.stroke();
+      }
+
+      if (this.specturmCtx.speakerIndex > this.specturmCtx.level.length) {
+        this.specturmCtx.speakerIndex = 0;
+      }
+
+      if (this.specturmCtx.level.length) {
+        this.specturmCtx.level.commitWidth(this.specturmCtx.speakerIndex);
+        this.specturmCtx.speakerIndex++;
+      }
+
+      this.specturmCtx.spRequestId = requestAnimationFrame(this.drawSpectrum);
+    }
   },
 };
 </script>
@@ -765,9 +818,11 @@ export default {
       flex: 1 1 auto;
       display: flex;
       flex-wrap: wrap;
+      align-items: center;
 
       .volume-controller {
         flex: 1 0 8rem;
+        margin-right: 1rem;
 
         .vue-slider {
           min-width: 5rem;
@@ -801,9 +856,7 @@ export default {
       display: block;
     }
 
-    .layout-select {
-      margin-left: 2rem;
-    }
+    .layout-select {}
   }
 
   .container {
@@ -811,26 +864,14 @@ export default {
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 480px;
-    height: 320px;
+    // width: 480px;
+    // height: 320px;
     margin: 0 auto;
-    margin-top: -3rem;
     padding-bottom: 4rem;
     overflow: hidden;
 
     .svg-icon {
       display: block;
-    }
-
-    .background {
-      width: 100%;
-      height: 100%;
-      position: relative;
-    }
-
-    .spectrum {
-      position: absolute;
-      bottom: 1rem;
     }
 
   }
@@ -843,6 +884,10 @@ export default {
     background-color: var(--color-secondary-bg);
     border-radius: 5px;
 
+    .svg-icon {
+      cursor: pointer;
+    }
+
     >.channel-name {
       text-align: center;
       font-weight: bold;
@@ -852,12 +897,21 @@ export default {
       margin-bottom: 1rem;
       margin-top: -0.5rem;
 
-      >span {
+      >div {
         display: inline-block;
         z-index: 1;
         position: relative;
-        color: #fff;
+        color: var(--color-text);
         top: 0;
+        display: flex;
+        align-items: center;
+        justify-items: center;
+        width: fit-content;
+        margin: 0 auto;
+
+        >span {
+          margin-left: 5px;
+        }
 
         &::after {
           content: '';
@@ -870,12 +924,19 @@ export default {
           background-color: #22d0b2;
           z-index: -1;
         }
+
+        .svg-icon {
+          width: 1rem;
+          height: 1rem;
+        }
       }
     }
 
   }
 
   .select-channel-mask {
+    --animate-duration: 0.5s;
+
     position: absolute;
     top: 0;
     bottom: 0;
@@ -926,35 +987,36 @@ export default {
   }
 
   @media only screen and (max-width: 479px) {
-    .container {
-      width: 320px;
-      height: 240px;
 
-      .room {}
+    // .container {
+    //   width: 320px;
+    //   height: 240px;
 
-      .channels {
-        .svg-icon {
-          width: 3rem;
-        }
+    //   .room {}
 
-        #front-bass .svg-icon {
-          width: 2em !important;
-        }
+    //   .channels {
+    //     .svg-icon {
+    //       width: 3rem;
+    //     }
 
-        #side-left .svg-icon,
-        #side-right .svg-icon {
-          width: 2em;
-        }
+    //     #front-bass .svg-icon {
+    //       width: 2em;
+    //     }
 
-        #front-center {
-          left: calc(50% - 1rem);
+    //     #side-left .svg-icon,
+    //     #side-right .svg-icon {
+    //       width: 2em;
+    //     }
 
-          .svg-icon {
-            width: 2em;
-          }
-        }
-      }
-    }
+    //     #front-center {
+    //       left: calc(50% - 1rem);
+
+    //       .svg-icon {
+    //         width: 2em;
+    //       }
+    //     }
+    //   }
+    // }
 
     .infomation {
       margin-left: 1rem;
@@ -967,23 +1029,20 @@ export default {
     }
   }
 
-  @media only screen and (min-width: 480px) {
-    .container {
-      width: 480px;
-      height: 320px;
+  @media only screen and (min-width: 480px) and (max-width: 819px) {
+    // .container {
+    // width: 480px;
+    // height: 320px;
 
-      .channels {
-        .speaker {
-          .svg-icon {
-            width: 3rem !important;
-          }
+    // .channels {
+    //   .speaker {
 
-          &#front-bass .svg-icon {
-            width: 2em !important;
-          }
-        }
-      }
-    }
+    //     &#front-bass .svg-icon {
+    //       width: 2em;
+    //     }
+    //   }
+    // }
+    // }
 
     .infomation {
       margin-left: 3rem;
@@ -992,16 +1051,11 @@ export default {
   }
 
   @media only screen and (min-width: 820px) {
-    .container {
-      width: 640px;
-      height: 320px;
-
-      .channels {
-        .svg-icon {
-          width: 6rem !important;
-        }
-      }
-    }
+    // .container {
+    //   width: 640px;
+    //   height: 320px;
+    //   margin-top: 0rem;
+    // }
 
     .infomation {
       margin-left: 5rem;

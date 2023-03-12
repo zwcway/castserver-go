@@ -73,7 +73,7 @@ func IsEof(err error) bool {
 	return ok
 }
 
-func ChannelFromAV(ch C.uint64_t) audio.Channel {
+func channelFromAV(ch C.uint64_t) audio.Channel {
 	switch ch {
 	case C.AV_CH_FRONT_LEFT:
 		return audio.Channel_FRONT_LEFT
@@ -97,8 +97,8 @@ func ChannelFromAV(ch C.uint64_t) audio.Channel {
 		return audio.Channel_SIDE_LEFT
 	case C.AV_CH_SIDE_RIGHT:
 		return audio.Channel_SIDE_RIGHT
-	case C.AV_CH_TOP_CENTER:
-		return audio.Channel_TOP_CENTER
+	// case C.AV_CH_TOP_CENTER:
+	// 	return audio.Channel_TOP_CENTER
 	case C.AV_CH_TOP_FRONT_LEFT:
 		return audio.Channel_TOP_FRONT_LEFT
 	case C.AV_CH_TOP_FRONT_CENTER:
@@ -119,36 +119,78 @@ func ChannelFromAV(ch C.uint64_t) audio.Channel {
 	return audio.Channel_NONE
 }
 
-func BitsFromAV(b C.enum_AVSampleFormat) audio.Bits {
+func avFromChannel(ch audio.Channel) C.uint64_t {
+	switch ch {
+	case audio.Channel_FRONT_LEFT:
+		return C.AV_CH_FRONT_LEFT
+	case audio.Channel_FRONT_RIGHT:
+		return C.AV_CH_FRONT_RIGHT
+	case audio.Channel_FRONT_CENTER:
+		return C.AV_CH_FRONT_CENTER
+	case audio.Channel_LOW_FREQUENCY:
+		return C.AV_CH_LOW_FREQUENCY
+	case audio.Channel_BACK_LEFT:
+		return C.AV_CH_BACK_LEFT
+	case audio.Channel_BACK_RIGHT:
+		return C.AV_CH_BACK_RIGHT
+	case audio.Channel_FRONT_LEFT_OF_CENTER:
+		return C.AV_CH_FRONT_LEFT_OF_CENTER
+	case audio.Channel_FRONT_RIGHT_OF_CENTER:
+		return C.AV_CH_FRONT_RIGHT_OF_CENTER
+	case audio.Channel_BACK_CENTER:
+		return C.AV_CH_BACK_CENTER
+	case audio.Channel_SIDE_LEFT:
+		return C.AV_CH_SIDE_LEFT
+	case audio.Channel_SIDE_RIGHT:
+		return C.AV_CH_SIDE_RIGHT
+	// case audio.Channel_TOP_CENTER:
+	// 	return C.AV_CH_TOP_CENTER
+	case audio.Channel_TOP_FRONT_LEFT:
+		return C.AV_CH_TOP_FRONT_LEFT
+	case audio.Channel_TOP_FRONT_CENTER:
+		return C.AV_CH_TOP_FRONT_CENTER
+	case audio.Channel_TOP_FRONT_RIGHT:
+		return C.AV_CH_TOP_FRONT_RIGHT
+	case audio.Channel_TOP_BACK_LEFT:
+		return C.AV_CH_TOP_BACK_LEFT
+	case audio.Channel_TOP_BACK_CENTER:
+		return C.AV_CH_TOP_BACK_CENTER
+	case audio.Channel_TOP_BACK_RIGHT:
+		return C.AV_CH_TOP_BACK_RIGHT
+	}
+	return 0
+}
+
+func BitsFromAVFormat(b C.enum_AVSampleFormat) audio.Bits {
 	switch b {
 	case C.AV_SAMPLE_FMT_U8, C.AV_SAMPLE_FMT_U8P:
-		return audio.AudioBits_U8
+		return audio.Bits_U8
 	case C.AV_SAMPLE_FMT_S16, C.AV_SAMPLE_FMT_S16P:
-		return audio.AudioBits_S16LE
+		return audio.Bits_S16LE
 	case C.AV_SAMPLE_FMT_S32, C.AV_SAMPLE_FMT_S32P:
-		return audio.AudioBits_S32LE
+		return audio.Bits_S32LE
 	case C.AV_SAMPLE_FMT_FLT, C.AV_SAMPLE_FMT_FLTP:
-		return audio.AudioBits_32LEF
+		return audio.Bits_32LEF
 	case C.AV_SAMPLE_FMT_DBL:
 	case C.AV_SAMPLE_FMT_DBLP:
 	case C.AV_SAMPLE_FMT_S64:
 	case C.AV_SAMPLE_FMT_S64P:
 	}
-	return audio.AudioBits_NONE
+	return audio.Bits_NONE
 }
 
-func FormatFromBits(b audio.Bits) C.enum_AVSampleFormat {
+func AVFormatFromBits(b audio.Bits) C.enum_AVSampleFormat {
 	switch b {
-	case audio.AudioBits_U8:
-		return C.AV_SAMPLE_FMT_U8
-	case audio.AudioBits_S16LE:
-		return C.AV_SAMPLE_FMT_S16
-	case audio.AudioBits_S32LE, audio.AudioBits_S24LE:
-		return C.AV_SAMPLE_FMT_S32
-	case audio.AudioBits_32LEF:
-		return C.AV_SAMPLE_FMT_FLT
-	case audio.AudioBits_64LEF:
-		return C.AV_SAMPLE_FMT_DBL
+	case audio.Bits_U8:
+		return C.AV_SAMPLE_FMT_U8P
+	case audio.Bits_S16LE:
+		return C.AV_SAMPLE_FMT_S16P
+	case audio.Bits_S32LE, audio.Bits_S24LE:
+		return C.AV_SAMPLE_FMT_S32P
+	case audio.Bits_32LEF:
+		return C.AV_SAMPLE_FMT_FLTP
+	case audio.Bits_64LEF:
+		return C.AV_SAMPLE_FMT_DBLP
 	}
 	return C.AV_SAMPLE_FMT_NONE
 }
@@ -157,7 +199,7 @@ func ChannelsFromLayout(layout uint64) (m audio.ChannelLayout) {
 	acSlice := []audio.Channel{}
 	for i := 0; i < 64; i++ {
 		ch := C.av_channel_layout_extract_channel(C.uint64_t(layout), C.int(i))
-		ac := ChannelFromAV(ch)
+		ac := channelFromAV(ch)
 		if !ac.IsValid() {
 			continue
 		}
@@ -166,18 +208,10 @@ func ChannelsFromLayout(layout uint64) (m audio.ChannelLayout) {
 	return audio.NewChannelLayout(acSlice...)
 }
 
-// 构建一个新的 C 二维数组 uint8_t*[]
-func NewPointerArray(one int, two int) unsafe.Pointer {
-	ptrSize := unsafe.Sizeof(uintptr(0))
-	cahead := one * int(ptrSize)
-	c := (**C.uint8_t)(C.go_malloc(C.int(one*two + cahead)))
-	if c == nil {
-		return nil
+func AVLayoutFromChannelLayout(layout audio.ChannelLayout) uint64 {
+	av := C.uint64_t(0)
+	for _, ch := range layout.Mask.Slice() {
+		av |= avFromChannel(ch)
 	}
-	for ch := 0; ch < one; ch++ {
-		ap := (*C.uint8_t)(unsafe.Pointer(uintptr(unsafe.Pointer(c)) + uintptr(ch*two+cahead)))
-		ai := (**C.uint8_t)(unsafe.Pointer(uintptr(unsafe.Pointer(c)) + uintptr(ch)*ptrSize))
-		*ai = ap
-	}
-	return unsafe.Pointer(c)
+	return uint64(av)
 }

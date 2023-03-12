@@ -1,6 +1,8 @@
 import Vue from 'vue';
 import Router from 'vue-router';
 import Antd from 'ant-design-vue';
+import Vue2TouchEvents from 'vue2-touch-events'
+
 import App from './App.vue';
 import router from './router';
 import store from './store';
@@ -13,7 +15,10 @@ import '@/assets/css/ant-design-vue.scss';
 import 'animate.css';
 import 'ionicons';
 
+window.store = store;
+
 if (process.env.NODE_ENV !== 'production') {
+  store.commit('updateSettings', { key: 'enableDebugTool', value: true });
   window.resetApp = () => {
     localStorage.clear();
     indexedDB.deleteDatabase(process.env.AppID);
@@ -29,6 +34,15 @@ if (process.env.NODE_ENV !== 'production') {
     'background: #eaeffd;color:#335eea;padding: 4px 6px;border-radius:3px;',
     'background:unset;color:unset;'
   );
+
+  if (store.state.settings.enableMock) {
+    require('./mock');
+  }
+  window.socket = require('@/common/ws').default;
+  window.socket.mock = (b) => {
+    store.commit('updateSettings', { key: 'enableMock', value: b === undefined || b })
+    window.location.reload()
+  }
 }
 
 const originalPush = Router.prototype.push;
@@ -39,6 +53,15 @@ Router.prototype.push = function push(location) {
 Vue.config.productionTip = false;
 
 Vue.use(Antd);
+Vue.use(Vue2TouchEvents, {
+  disableClick: false,
+  touchClass: 'touching',
+  tapTolerance: 10,
+  touchHoldTolerance: 400,
+  swipeTolerance: 30,
+  longTapTimeInterval: 400,
+  namespace: 'touch'
+})
 
 new Vue({
   router,

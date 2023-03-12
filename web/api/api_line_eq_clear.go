@@ -21,7 +21,7 @@ func apiLineClearEqualizer(c *websockets.WSConnection, req Requester, log *zap.L
 		return nil, fmt.Errorf("line[%d] not exists", params.ID)
 	}
 
-	nl.Equalizer.SetEqualizer([]dsp.FreqEqualizer{})
+	nl.Equalizer.SetEqualizer([]dsp.Equalizer{})
 	nl.Equalizer.Off()
 
 	return true, nil

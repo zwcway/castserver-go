@@ -2,7 +2,27 @@ package receiver
 
 import (
 	"github.com/zwcway/castserver-go/common/speaker"
+	config "github.com/zwcway/castserver-go/config"
+	dlna "github.com/zwcway/castserver-go/dlna"
 )
+
+func initDlna() error {
+	var err error
+
+	if !config.EnableDLNA {
+		return nil
+	}
+
+	line := speaker.DefaultLine()
+
+	dlnaInstance, line.UUID, err = dlna.NewDLNAServer(ctx, line.Name)
+	if err != nil {
+		return err
+	}
+	go dlnaInstance.ListenAndServe()
+
+	return nil
+}
 
 func AddDLNA(line *speaker.Line) {
 	if dlnaInstance == nil {

@@ -1,5 +1,3 @@
-$nav-height: 90px !default;
-$nav-item-width: 98px !default;
 
 
 @font-face {
@@ -57,7 +55,9 @@ $nav-item-width: 98px !default;
   --color-border: #cfcfcf;
   --color-border-hover: var(--color-primary);
   --color-danger: hsl(348, 86%, 61%);
-  --html-overflow-y: overlay;
+  --size-navbar: 90px;
+  --size-navbar-item: 98px ;
+  --html-overflow-y: none;
 }
 
 [data-theme='dark'] {
@@ -92,7 +92,7 @@ html {
   overscroll-behavior: none;
 }
 
-* {
+div,span,a {
   color: var(--color-text);
 }
 

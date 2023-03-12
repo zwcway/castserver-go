@@ -25,7 +25,7 @@ func listenUDP() error {
 	var err error
 	addrPort := utils.UDPAddrFromAddr(&config.MulticastAddress, config.MulticastPort)
 
-	conn, err = net.ListenMulticastUDP("udp", config.ServerInterface, addrPort)
+	conn, err = net.ListenMulticastUDP("udp", config.ServerListen.Iface, addrPort)
 	if err != nil {
 		return err
 	}

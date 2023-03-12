@@ -11,5 +11,5 @@ func DefaultRate() audio.Rate {
 }
 
 func DefaultBits() audio.Bits {
-	return audio.AudioBits_S16LE
+	return audio.Bits_S16LE
 }

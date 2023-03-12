@@ -33,8 +33,8 @@ func SendServerInfo(sp *speaker.Speaker) {
 	sr := &ServerResponse{
 		Ver:  1,
 		Type: ST_Response,
-		Addr: config.ServerAddrPort.Addr(),
-		Port: config.ServerAddrPort.Port(),
+		Addr: config.ServerListen.AddrPort.Addr(),
+		Port: config.ServerListen.AddrPort.Port(),
 	}
 	p, err := sr.Pack()
 	if err != nil {
@@ -130,7 +130,7 @@ func readUDPRoutine(buferSize int) {
 func listenUDP(ctx utils.Context) error {
 	var err error
 	addrPort := utils.UDPAddrFromAddr(&config.MulticastAddress, config.MulticastPort)
-	conn, err = net.ListenMulticastUDP("udp", config.ServerInterface, addrPort)
+	conn, err = net.ListenMulticastUDP("udp", config.ServerListen.Iface, addrPort)
 	if err != nil {
 		return err
 	}

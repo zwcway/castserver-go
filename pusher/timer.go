@@ -4,59 +4,76 @@ import (
 	"time"
 
 	"github.com/zwcway/castserver-go/common/speaker"
+	"github.com/zwcway/castserver-go/common/stream"
 )
 
-func InitTimer(line *speaker.Line) {
-	CloseTimer(line)
+type lineTimer struct {
+	ticker *time.Ticker
+}
 
+var (
+	lineList        map[*speaker.Line]lineTimer
+	timerQuitSignal chan struct{}
+)
+
+func TimerAddLine(line *speaker.Line) {
+	TimerRemoveLine(line)
+	LineFormatChanged(line)
+	go linePushTimerRoutine(line)
+}
+
+func LineFormatChanged(line *speaker.Line) {
 	pl := line.Input.PipeLine
 	if pl == nil || pl.Buffer() == nil {
 		return
 	}
-	fs := line.Mixer.FileStreamer()
-	if fs == nil {
-		return
-	}
+	pl.SetBuffer(stream.NewSamples(2048, line.Output))
 
-	format := fs.AudioFormat()
-	nbSamples := pl.Buffer().Size
+	nbSamples := pl.Buffer().NbSamples
 
-	rate := time.Duration(format.SampleRate.ToInt())
+	rate := time.Duration(line.Output.SampleRate.ToInt())
 	t := time.Duration(nbSamples) * time.Second / rate
 
-	line.Ticker = time.NewTicker(t)
-	go linePushTimerRoutine(line)
+	lineList[line] = lineTimer{
+		ticker: time.NewTicker(t),
+	}
 }
 
-func CloseTimer(line *speaker.Line) {
-	if line.Ticker != nil {
-		line.Ticker.Stop()
-		line.Ticker = nil
+func TimerRemoveLine(line *speaker.Line) {
+	lt, ok := lineList[line]
+	if !ok {
+		return
 	}
+	if lt.ticker != nil {
+		timerQuitSignal <- struct{}{}
+		lt.ticker.Stop()
+		lt.ticker = nil
+	}
+	delete(lineList, line)
 }
 
 func linePushTimerRoutine(line *speaker.Line) {
-	defer CloseTimer(line)
+	defer TimerRemoveLine(line)
 
 	for {
+		lt, ok := lineList[line]
+		if !ok {
+			return
+		}
+
 		select {
 		case <-context.Done():
 			return
-		case <-line.Ticker.C:
+		case <-timerQuitSignal:
+			return
+		case <-lt.ticker.C:
 		}
 		// todo 高精度，所有设备播放时以该时钟为基准
-
-		pl := line.Input.PipeLine
-		if pl == nil || pl.Buffer() == nil {
-			return
+		if currentTrigger != trigger_timer {
+			continue
 		}
-		buf := pl.Buffer()
 
-		pl.Stream(buf)
-
-		chs := buf.Format.Layout.Mask.Slice()
-		for i, ch := range chs {
-			PushToLineChannel(line, ch, buf.ToPacked(i))
-		}
+		line.Input.PipeLine.Stream(nil)
+		PushLine(line)
 	}
 }

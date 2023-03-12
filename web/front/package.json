@@ -8,7 +8,6 @@
   "main": "background.js",
   "scripts": {
     "serve": "vue-cli-service serve",
-    "serve-mock": "vue-cli-service serve --mock",
     "build": "vue-cli-service build",
     "lint": "vue-cli-service lint",
     "prettier": "npx prettier --write ./src",
@@ -32,6 +31,7 @@
     "vue": "^2.7.14",
     "vue-router": "^3.6.5",
     "vue-slider-component": "^3.2.20",
+    "vue2-touch-events": "^3.2.2",
     "vuedraggable": "^2.24.3",
     "vuex": "^3.6.2",
     "webpack": "^5.75.0"
@@ -54,7 +54,7 @@
     "mockjs": "^1.1.0",
     "postcss": "^8.4.21",
     "prettier": "2.5.1",
-    "sass": "^1.26.11",
+    "sass": "~1.26.11",
     "sass-loader": "^10.0.2",
     "vue-loader": "^15.10.0",
     "vue-template-compiler": "^2.6.11",

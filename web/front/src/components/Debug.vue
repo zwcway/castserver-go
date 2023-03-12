@@ -3,22 +3,26 @@
     <a-button class="debug-btn" type="primary" icon="tool" @click="show = !show"></a-button>
     <a-modal :visible="show" :mask="false" width="fit-content" :footer="null" :header="null"
       wrap-class-name="debug-page debug-wrap" dialog-class="debug-dialog" @cancel="show = false">
-      <a-select :value="appearance" @select="appearance = $event" dropdownClassName="debug-item">
+      <a-select size="small" v-model="appearance" @select="appearance = $event" dropdownClassName="debug-item">
         <a-select-option value="auto">自动&nbsp;&nbsp;&nbsp;&nbsp;</a-select-option>
         <a-select-option value="light">🌞 浅色</a-select-option>
         <a-select-option value="dark">🌚 暗黑</a-select-option>
       </a-select>
-      <a-button type="" @click="onSpeakerDetect">发现设备</a-button>
+      <a-button size="small" type="" @click="onSpeakerDetect">发现设备</a-button>
 
       <div v-if="speakerId >= 0">
-        <a-button @click="speakerSendServerInfo">发送服务器信息</a-button>
-        <a-button @click="speakerReconnect">重新连接</a-button>
+        <a-button size="small" @click="speakerSendServerInfo">发送服务器信息</a-button>
+        <a-button size="small" @click="speakerReconnect">重新连接</a-button>
       </div>
       <div v-if="lineId >= 0" style="margin: 1rem 0;width: 20rem;">
-        <a-input v-model="audioFile" placeholder="音频文件全路径" />
-        <a-button @click="playFile">设置文件</a-button>
-        <a-button @click="playPause">{{ pause ? '开始' : "播放" }}</a-button>
-        <a-button @click="localSpeaker">{{ lsp ? '关闭声卡' : '打开声卡' }}</a-button>
+        <a-input-search size="small" v-model="audioFile" placeholder="音频文件全路径" @search="playFile">
+          <a-button size="small" slot="enterButton">播放文件</a-button>
+        </a-input-search>
+        <label for="">{{ playing ? '正在播放' : '已暂停' }}<a-switch size="small" v-model="playing" /></label>
+        <label for="">{{ localSpeaker ? '声卡已打开' : '声卡已关闭' }}<a-switch size="small" v-model="localSpeaker" /></label>
+        <div>
+          <label for="">{{ spectrumLog ? '频谱图对数' : '频谱图线性' }}<a-switch size="small" v-model="spectrumLog" /></label>
+        </div>
       </div>
     </a-modal>
   </div>
@@ -28,7 +32,6 @@
 import { mapState } from 'vuex';
 import { changeAppearance } from '@/common/theme';
 import { socket } from '@/common/request';
-import * as ApiSpeaker from '@/api/speaker';
 import mock from 'mockjs';
 window.mock = mock;
 
@@ -39,8 +42,9 @@ export default {
       speakerId: -1,
       lineId: -1,
       audioFile: "",
-      pause: true,
-      lsp: false, 
+      playing: true,
+      localSpeaker: false,
+      spectrumLog: false,
     };
   },
   computed: {
@@ -53,7 +57,7 @@ export default {
       set(value) {
         this.$store.commit('updateSettings', {
           key: 'appearance',
-          value,
+          value: value,
         });
         changeAppearance(value);
       },
@@ -68,13 +72,41 @@ export default {
       } else if (newVal.name === 'line') {
         this.lineId = parseInt(newVal.params.id);
       }
+    },
+    show(newVal) {
+      if (newVal) {
+        if (this.$route.name === 'line') {
+          this.lineId = parseInt(this.$route.params.id);
+        }
+        this.loadStatus()
+      }
+    },
+    lineId(line) {
+      if (line < 0) return;
+      this.loadStatus()
+    },
+    playing(newVal) {
+      socket.send('pause', { Line: this.lineId, Pause: !newVal });
+    },
+    localSpeaker(newVal) {
+      socket.send('localSpeaker', newVal);
+    },
+    spectrumLog(newVal) {
+      socket.send('setLine', { id: this.lineId, sl: newVal });
     }
   },
   methods: {
     isDebug() {
-      return (
-        process.env.NODE_ENV !== 'production' && this.settings.enableDebugTool
-      );
+      return this.settings.enableDebugTool;
+    },
+    loadStatus() {
+      if (this.lineId < 0) return;
+      socket.send('debugStatus', { line: this.lineId }).then(s => {
+        this.playing = s.fplay
+        this.audioFile = s.furl
+        this.localSpeaker = s.local
+        this.spectrumLog = s.sl
+      })
     },
     onSpeakerDetect() {
       socket.send('addSpeaker', {
@@ -91,30 +123,20 @@ export default {
       });
     },
     speakerSendServerInfo() {
-      ApiSpeaker.sendServerInfo(this.speakerId);
+      socket.send('sendServerInfo', this.speakerId);
     },
     speakerReconnect() {
-      ApiSpeaker.reconnect(this.speakerId);
+      socket.send('spReconnect', this.speakerId);
     },
     playFile() {
-      if (this.audioFile.length < 12) {
+      if (this.audioFile.length < 4) {
         return;
       }
       let file = this.audioFile
       if (file[0] === '"') {
         file = file.substring(1, file.length - 1)
       }
-      socket.send('playFile', {Line: this.lineId, File: file});
-    },
-    playPause() {
-      socket.send('pause', {Line: this.lineId, Pause: !this.pause}).then(()=> {
-        this.pause = !this.pause
-      });
-    },
-    localSpeaker() {
-      socket.send('localSpeaker', !this.lsp).then(() => {
-        this.lsp = !this.lsp
-      });
+      socket.send('playFile', { Line: this.lineId, File: file });
     },
   },
 };

@@ -39,9 +39,14 @@ const routes = [
     component: () => import('@/views/line.vue'),
     props: true,
     meta: {
-      keepAlive: false,
+      keepAlive: true,
       savePosition: true,
     },
+  },
+  {
+    path: '/css3gen',
+    name: 'css3gen',
+    component: () => import('@/views/css3gen.vue'),
   },
   {
     path: '/settings',

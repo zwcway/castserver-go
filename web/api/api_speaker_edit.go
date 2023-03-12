@@ -37,8 +37,10 @@ func apiSpeakerEdit(c *websockets.WSConnection, req Requester, log *zap.Logger) 
 	} else if p.Channel == -1 {
 		sp.ChangeChannel(0)
 	}
-	if p.Volume != nil || p.Mute != nil {
-		control.ControlSpeakerVolume(sp, float64(*p.Volume)/100, *p.Mute)
+	if p.Volume != nil {
+		control.ControlSpeakerVolume(sp, float64(*p.Volume)/100, sp.Volume.Mute())
+	} else if p.Mute != nil {
+		control.ControlSpeakerVolume(sp, sp.Volume.Volume(), *p.Mute)
 	}
 
 	return true, nil

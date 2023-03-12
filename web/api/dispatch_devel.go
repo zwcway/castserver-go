@@ -7,8 +7,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
+	"net/netip"
 
 	"github.com/valyala/fasthttp"
+	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/decoder/localspeaker"
 	"github.com/zwcway/castserver-go/decoder/pipeline"
@@ -63,12 +66,60 @@ func ApiDispatchDevel(ctx *fasthttp.RequestCtx) bool {
 }
 
 func initDebug() {
+	apiRouterList["addSpeaker"] = apiRouter{apiSpeakerCreate}
 	apiRouterList["spReconnect"] = apiRouter{apiReconnect}
 	apiRouterList["sendServerInfo"] = apiRouter{apiSendServerInfo}
 	apiRouterList["eventDebug"] = apiRouter{apiEventDebug}
 	apiRouterList["localSpeaker"] = apiRouter{apiLocalSpeaker}
 	apiRouterList["playFile"] = apiRouter{apiPlayFile}
 	apiRouterList["pause"] = apiRouter{apiPlayPause}
+	apiRouterList["debugStatus"] = apiRouter{apiDebugStatus}
+}
+
+type requestSpeakerCreate struct {
+	Ver      uint8
+	ID       uint32
+	IP       string
+	MAC      string
+	DataPort uint16
+	BitsMask []uint8
+	RateMask []uint8
+	AVol     bool
+}
+
+func apiSpeakerCreate(c *websockets.WSConnection, req Requester, log *zap.Logger) (any, error) {
+	p := requestSpeakerCreate{}
+	if err := req.Unmarshal(&p); err != nil {
+		return nil, err
+	}
+
+	mac, err := net.ParseMAC(p.MAC)
+	if err != nil {
+		return nil, err
+	}
+	rm, err := audio.NewAudioRateMask(p.RateMask)
+	if err != nil {
+		return nil, err
+	}
+	bm, err := audio.NewAudioBitsMask(p.BitsMask)
+	if err != nil {
+		return nil, err
+	}
+	res := &detector.SpeakerResponse{
+		Ver:        uint8(p.Ver),
+		ID:         speaker.ID(p.ID),
+		Connected:  false,
+		Addr:       netip.MustParseAddr(p.IP),
+		MAC:        mac,
+		RateMask:   rm,
+		BitsMask:   bm,
+		DataPort:   p.DataPort,
+		AbsolueVol: p.AVol,
+		PowerSave:  true,
+	}
+	detector.CheckSpeaker(res)
+
+	return true, nil
 }
 
 func apiReconnect(c *websockets.WSConnection, req Requester, log *zap.Logger) (any, error) {
@@ -146,6 +197,10 @@ func apiLocalSpeaker(c *websockets.WSConnection, req Requester, log *zap.Logger)
 	}
 	if power {
 		err = localspeaker.Init()
+		for _, line := range speaker.LineList() {
+			localspeaker.AddLine(line)
+		}
+		localspeaker.Play()
 	} else {
 		localspeaker.Close()
 	}
@@ -200,4 +255,40 @@ func apiPlayPause(c *websockets.WSConnection, req Requester, log *zap.Logger) (r
 	audio := pipeline.FileStreamer(line.UUID)
 	audio.Pause(p.Pause)
 	return true, nil
+}
+
+func apiDebugStatus(c *websockets.WSConnection, req Requester, log *zap.Logger) (ret any, err error) {
+	var p struct {
+		Line *int `jp:"line,omitempty"`
+	}
+	err = req.Unmarshal(&p)
+	if err != nil {
+		return
+	}
+	resp := struct {
+		LocalSpeaker bool   `jp:"local"`
+		LocalPlaying bool   `jp:"lplay"`
+		FilePlaying  bool   `jp:"fplay"`
+		FileName     string `jp:"furl"`
+		SpectrumLog  bool   `jp:"sl"`
+	}{
+		LocalSpeaker: localspeaker.IsOpened(),
+		LocalPlaying: localspeaker.IsPlaying(),
+	}
+
+	if p.Line != nil {
+		line := speaker.FindLineByID(speaker.LineID(*p.Line))
+		if line == nil {
+			err = errors.New("no line")
+			return
+		}
+		fs := line.Mixer.FileStreamer()
+		if fs != nil {
+			resp.FilePlaying = !fs.IsPaused()
+			resp.FileName = fs.CurrentFile()
+		}
+		resp.SpectrumLog = line.Spectrum.LogAxis()
+	}
+
+	return resp, nil
 }

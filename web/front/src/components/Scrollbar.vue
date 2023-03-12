@@ -1,21 +1,9 @@
 <template>
   <div>
     <transition name="fade">
-      <div
-        v-show="show"
-        id="scrollbar"
-        :class="{ 'on-drag': isOnDrag }"
-        @click="handleClick"
-      >
-        <div
-          id="thumbContainer"
-          :class="{ active }"
-          :style="thumbStyle"
-          @mouseenter="handleMouseenter"
-          @mouseleave="handleMouseleave"
-          @mousedown="handleDragStart"
-          @click.stop
-        >
+      <div v-show="show" id="scrollbar" :class="{ 'on-drag': isOnDrag }" @click="handleClick">
+        <div id="thumbContainer" :class="{ active }" :style="thumbStyle" @mouseenter="handleMouseenter"
+          @mouseleave="handleMouseleave" @mousedown="handleDragStart" @click.stop>
           <div></div>
         </div>
       </div>
@@ -139,7 +127,7 @@ export default {
       this.hideTimer = setTimeout(() => {
         if (!this.active) this.show = false;
         this.hideTimer = null;
-      }, 4000);
+      }, 1000);
     },
     restorePosition() {
       const route = this.$route;
@@ -152,6 +140,18 @@ export default {
       }
       this.main.scrollTo({ top: this.positions[route.name].scrollTop });
     },
+    scrollTo(to) {
+      if (typeof to === 'number') {
+        this.main.scrollTo({
+          top: to,
+          behavior: 'smooth'
+        })
+      } else if (typeof to === 'string') {
+        const ele = document.getElementById(to)
+        if (ele === undefined) return
+        ele.offsetParent
+      }
+    },
   },
 };
 </script>
@@ -162,21 +162,23 @@ export default {
   right: 0;
   top: 0;
   bottom: 0;
-  width: 16px;
+  width: 12px;
   z-index: 1000;
 
   #thumbContainer {
-    margin-top: $nav-height;
+    margin-top: var(--size-navbar);
+
     div {
-      transition: background 0.4s;
+      transition: background-color 0.4s;
       position: absolute;
       right: 2px;
       width: 8px;
       height: 100%;
       border-radius: 4px;
-      background: rgba(128, 128, 128, 0.38);
+      background-color: rgba(128, 128, 128, 0.38);
     }
   }
+
   #thumbContainer.active div {
     background: rgba(128, 128, 128, 0.58);
   }
@@ -193,11 +195,20 @@ export default {
   width: auto;
 }
 
-.fade-enter-active,
-.fade-leave-active {
+.fade-enter-active {
+  opacity: 0;
   transition: opacity 0.2s;
 }
-.fade-enter,
+
+.fade-enter-to {
+  opacity: 1;
+}
+
+.fade-leave-active {
+  opacity: 1;
+  transition: opacity 1s;
+}
+
 .fade-leave-to {
   opacity: 0;
 }

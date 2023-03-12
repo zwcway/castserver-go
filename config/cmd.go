@@ -111,25 +111,38 @@ func FromOptions(log *zap.Logger, opts map[string]string) error {
 
 	if v, ok = opts["i"]; ok {
 		var (
-			iface *net.Interface
+			iface Interface
 		)
 		if utils.IsUint(v) {
 			i, _ := strconv.ParseInt(v, 0, 32)
-			iface = utils.InterfaceByIndex(int(i))
+			iface.Iface = utils.InterfaceByIndex(int(i))
 		} else {
-			iface = utils.InterfaceByName(v)
+			iface.Iface = utils.InterfaceByName(v)
 		}
 
-		if iface == nil {
+		if iface.Iface == nil {
 			fmt.Printf("interface '%s' is invalid\n", v)
 			printInterfaces()
 			return fmt.Errorf("")
 		}
 
-		ServerInterface = iface
-		ReceiveInterface = iface
-		HTTPInterface = iface
-		DLNAInterface = iface
+		ip := utils.InterfaceAddr(iface.Iface, false)
+
+		if addr := utils.IpNetToAddr(ip); addr != nil {
+			iface.AddrPort = netip.AddrPortFrom(*addr, ServerListen.AddrPort.Port())
+			ServerListen = iface
+			iface.AddrPort = netip.AddrPortFrom(*addr, ReceiveListen.AddrPort.Port())
+			ReceiveListen = iface
+			iface.AddrPort = netip.AddrPortFrom(*addr, HTTPListen.AddrPort.Port())
+			HTTPListen = iface
+			iface.AddrPort = netip.AddrPortFrom(*addr, DLNAListen.AddrPort.Port())
+			DLNAListen = iface
+		} else {
+			ServerListen = iface
+			ReceiveListen = iface
+			HTTPListen = iface
+			DLNAListen = iface
+		}
 	}
 
 	return nil

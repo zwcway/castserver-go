@@ -17,7 +17,6 @@ const (
 	Channel_BACK_CENTER
 	Channel_SIDE_LEFT
 	Channel_SIDE_RIGHT
-	Channel_TOP_CENTER
 	Channel_TOP_FRONT_LEFT
 	Channel_TOP_FRONT_CENTER
 	Channel_TOP_FRONT_RIGHT
@@ -27,22 +26,22 @@ const (
 	Channel_MAX
 )
 
-func NewAudioChannel(i int32) Channel {
+func NewAudioChannel(i int) Channel {
 	var a Channel
 	a.FromInt(i)
 	return a
 }
 
-func (a *Channel) FromInt(i int32) {
+func (a *Channel) FromInt(i int) {
 	*a = Channel(i)
 }
 
-func (a *Channel) toInt() int32 {
-	return int32(*a)
+func (a Channel) ToInt() int {
+	return int(a)
 }
 
-func (a *Channel) Name() string {
-	switch *a {
+func (a Channel) String() string {
+	switch a {
 	case Channel_FRONT_LEFT:
 		return "Front Left"
 	case Channel_FRONT_RIGHT:
@@ -65,8 +64,6 @@ func (a *Channel) Name() string {
 		return "Side Left"
 	case Channel_SIDE_RIGHT:
 		return "Side Right"
-	case Channel_TOP_CENTER:
-		return "Top Center"
 	case Channel_TOP_FRONT_LEFT:
 		return "Top Front Left"
 	case Channel_TOP_FRONT_CENTER:
@@ -84,13 +81,13 @@ func (a *Channel) Name() string {
 	}
 }
 
-func (a *Channel) IsValid() bool {
-	return *a > Channel_NONE && *a < Channel_MAX
+func (a Channel) IsValid() bool {
+	return a > Channel_NONE && a < Channel_MAX
 }
 
 type ChannelMask uint32
 
-func NewAudioChannelMask(arr []uint8) (ChannelMask, error) {
+func NewChannelMask(arr []uint8) (ChannelMask, error) {
 	var a ChannelMask
 	err := a.FromSlice(arr)
 	return a, err
@@ -100,38 +97,44 @@ func (m *ChannelMask) FromSlice(arr []uint8) error {
 	if len(arr) > 32 {
 		return errors.New("channels too large")
 	}
+	*m = 0
 	for _, a := range arr {
-		*m |= 1 << (a - 1)
+		m.Add(Channel(a))
 	}
 	return nil
+}
+
+func (m *ChannelMask) Add(ch Channel) {
+	*m |= 1 << (ch - 1)
 }
 
 func (m *ChannelMask) FromChannelSlice(arr []Channel) error {
 	if len(arr) > 32 {
 		return errors.New("channels too large")
 	}
+	*m = 0
 	for _, a := range arr {
-		*m |= 1 << (a - 1)
+		m.Add(a)
 	}
 	return nil
 }
 
-func (m *ChannelMask) Count() int {
+func (m ChannelMask) Count() int {
 	c := 0
 	for i := 0; i < 32; i++ {
-		if (*m>>i)&0x01 > 0 {
+		if (m>>i)&0x01 > 0 {
 			c++
 		}
 	}
 	return c
 }
 
-func (m *ChannelMask) Isset(a uint8) bool {
-	return maskIsset(uint(*m), a)
+func (m ChannelMask) Isset(a uint8) bool {
+	return maskIsset(uint(m), a)
 }
 
-func (m *ChannelMask) IssetSlice(a []uint8) bool {
-	return maskIssetSlice(uint(*m), a)
+func (m ChannelMask) IssetSlice(a []uint8) bool {
+	return maskIssetSlice(uint(m), a)
 }
 
 func (m *ChannelMask) CombineSlice(a []uint8) bool {
@@ -140,14 +143,20 @@ func (m *ChannelMask) CombineSlice(a []uint8) bool {
 	return r > 0
 }
 
-func (m *ChannelMask) IsValid() bool {
-	return *m > 0 && ((*m)>>(Channel_MAX-1)) == 0
+func (m *ChannelMask) Combine(a []Channel) bool {
+	r := maskCombineSlice(uint(*m), toSlice(a))
+	*m = ChannelMask(r)
+	return r > 0
 }
 
-func (m *ChannelMask) Slice() []Channel {
+func (m ChannelMask) IsValid() bool {
+	return m > 0 && ((m)>>(Channel_MAX-1)) == 0
+}
+
+func (m ChannelMask) Slice() []Channel {
 	s := []Channel{}
-	for i := 0; i < 16; i++ {
-		if (*m>>i)&0x01 == 1 {
+	for i := 0; i < 32; i++ {
+		if (m>>i)&0x01 == 1 {
 			b := Channel(i + 1)
 			s = append(s, b)
 		}
@@ -155,28 +164,50 @@ func (m *ChannelMask) Slice() []Channel {
 	return s
 }
 
-var (
-	ChannelLayout10  = NewChannelLayout(Channel_FRONT_CENTER)
-	ChannelLayout20  = NewChannelLayout(Channel_FRONT_LEFT, Channel_FRONT_RIGHT)
-	ChannelLayout21  = extendLayout(ChannelLayout20, Channel_LOW_FREQUENCY)
-	ChannelLayout22  = extendLayout(ChannelLayout20, Channel_SIDE_LEFT, Channel_SIDE_RIGHT)
-	ChannelLayout30  = extendLayout(ChannelLayout20, Channel_FRONT_CENTER)
-	ChannelLayout31  = extendLayout(ChannelLayout30, Channel_LOW_FREQUENCY)
-	ChannelLayout40  = extendLayout(ChannelLayout30, Channel_BACK_CENTER)
-	ChannelLayout41  = extendLayout(ChannelLayout40, Channel_LOW_FREQUENCY)
-	ChannelLayout50  = extendLayout(ChannelLayout30, Channel_SIDE_LEFT, Channel_SIDE_RIGHT)
-	ChannelLayout502 = extendLayout(ChannelLayout30, Channel_BACK_LEFT, Channel_BACK_RIGHT)
-	ChannelLayout51  = extendLayout(ChannelLayout50, Channel_LOW_FREQUENCY)
-	ChannelLayout512 = extendLayout(ChannelLayout502, Channel_LOW_FREQUENCY)
-	ChannelLayout60  = extendLayout(ChannelLayout50, Channel_BACK_CENTER)
-	ChannelLayout602 = extendLayout(ChannelLayout22, Channel_FRONT_LEFT_OF_CENTER, Channel_FRONT_RIGHT_OF_CENTER)
-	ChannelLayout611 = extendLayout(ChannelLayout51, Channel_BACK_CENTER)
-	ChannelLayout70  = extendLayout(ChannelLayout50, Channel_BACK_LEFT, Channel_BACK_RIGHT)
-	ChannelLayout71  = extendLayout(ChannelLayout70, Channel_LOW_FREQUENCY)
+func (m ChannelMask) SliceInt() []int {
+	s := m.Slice()
+	si := make([]int, len(s))
+	for i, ss := range s {
+		si[i] = ss.ToInt()
+	}
+	return si
+}
 
-	ChannelLayoutMONO   = ChannelLayout10
-	ChannelLayoutSTEREO = ChannelLayout20
+var (
+	ChannelLayout10  = NewChannelLayout(Channel_FRONT_CENTER)                                         // 前中
+	ChannelLayout20  = NewChannelLayout(Channel_FRONT_LEFT, Channel_FRONT_RIGHT)                      // 前左、前右
+	ChannelLayout21  = extendLayout(ChannelLayout20, Channel_LOW_FREQUENCY)                           // 前左、前右，低音
+	ChannelLayout22  = extendLayout(ChannelLayout20, Channel_SIDE_LEFT, Channel_SIDE_RIGHT)           // 前左、前右，环左、环右
+	ChannelLayout30  = extendLayout(ChannelLayout20, Channel_FRONT_CENTER)                            // 前左、前右、前中
+	ChannelLayout31  = extendLayout(ChannelLayout30, Channel_LOW_FREQUENCY)                           // 前左、前右、前中，低音
+	ChannelLayout40  = extendLayout(ChannelLayout30, Channel_BACK_CENTER)                             // 前左、前右、前中、后中
+	ChannelLayout41  = extendLayout(ChannelLayout40, Channel_LOW_FREQUENCY)                           // 前左、前右、前中、后中，低音
+	ChannelLayout50  = extendLayout(ChannelLayout30, Channel_SIDE_LEFT, Channel_SIDE_RIGHT)           // 前左、前右、前中、环左、环右
+	ChannelLayout51  = extendLayout(ChannelLayout50, Channel_LOW_FREQUENCY)                           // 前左、前右、前中、环左、环右，低音
+	ChannelLayout5B0 = extendLayout(ChannelLayout30, Channel_BACK_LEFT, Channel_BACK_RIGHT)           // 前左、前右、前中、后左、后右
+	ChannelLayout5B1 = extendLayout(ChannelLayout5B0, Channel_LOW_FREQUENCY)                          // 前左、前右、前中、后左、后右，低音
+	ChannelLayout60  = extendLayout(ChannelLayout50, Channel_BACK_CENTER)                             // 前左、前右、前中、环左、环右、后中
+	ChannelLayout61  = extendLayout(ChannelLayout51, Channel_BACK_CENTER)                             // 前左、前右、前中、环左、环右、后中，低音
+	ChannelLayout70  = extendLayout(ChannelLayout50, Channel_BACK_LEFT, Channel_BACK_RIGHT)           // 前左、前右、前中、环左、环右、后左、后右
+	ChannelLayout71  = extendLayout(ChannelLayout70, Channel_LOW_FREQUENCY)                           // 前左、前右、前中、环左、环右、后左、后右，低音
+	ChannelLayout702 = extendLayout(ChannelLayout70, Channel_TOP_FRONT_LEFT, Channel_TOP_FRONT_RIGHT) // 前左、前右、前中、环左、环右、后左、后右，上前左、上前右
+	ChannelLayout712 = extendLayout(ChannelLayout71, Channel_TOP_FRONT_LEFT, Channel_TOP_FRONT_RIGHT) // 前左、前右、前中、环左、环右、后左、后右，低音，上前左、上前右
+	ChannelLayout714 = extendLayout(ChannelLayout712, Channel_TOP_BACK_LEFT, Channel_TOP_BACK_RIGHT)  // 前左、前右、前中、环左、环右、后左、后右，低音，上前左、上前右、上后左、上后右
+
+	ChannelLayoutMono   = ChannelLayout10
+	ChannelLayoutStereo = ChannelLayout20
+
+	ChannalLayoutMAX = newMaxLayout()
 )
+
+func newMaxLayout() ChannelLayout {
+	var a ChannelLayout
+	for ch := Channel_NONE + 1; ch < Channel_MAX; ch++ {
+		a.Mask.Add(ch)
+	}
+	a.Count = a.Mask.Count()
+	return a
+}
 
 func NewChannelLayout(ch ...Channel) ChannelLayout {
 	var a ChannelLayout
@@ -198,24 +229,61 @@ func (l *ChannelLayout) String() string {
 		return "stereo"
 	case ChannelLayout21.Mask:
 		return "2.1"
-	case ChannelLayout30.Mask:
-		return "3.0"
 	case ChannelLayout22.Mask:
 		return "2.2"
+	case ChannelLayout30.Mask:
+		return "3.0"
+	case ChannelLayout31.Mask:
+		return "3.1"
+	case ChannelLayout40.Mask:
+		return "4.0"
+	case ChannelLayout41.Mask:
+		return "4.1"
 	case ChannelLayout50.Mask:
 		return "5.0"
 	case ChannelLayout51.Mask:
 		return "5.1"
+	case ChannelLayout5B0.Mask:
+		return "5.0(back)"
+	case ChannelLayout5B1.Mask:
+		return "5.1(back)"
+	case ChannelLayout60.Mask:
+		return "6.0"
+	case ChannelLayout61.Mask:
+		return "6.1"
 	case ChannelLayout70.Mask:
 		return "7.0"
 	case ChannelLayout71.Mask:
 		return "7.1"
+	case ChannelLayout702.Mask:
+		return "7.0.2"
+	case ChannelLayout712.Mask:
+		return "7.1.2"
+	case ChannelLayout714.Mask:
+		return "7.1.4"
 	}
 	return ""
+}
+
+func (l *ChannelLayout) IsValid() bool {
+	return l.Mask.IsValid() && l.Count == l.Mask.Count()
+}
+
+func (l *ChannelLayout) Channels() []Channel {
+	return l.Mask.Slice()
+}
+
+func (l *ChannelLayout) Equal(r *ChannelLayout) bool {
+	return l.Mask == r.Mask
 }
 
 func extendLayout(a ChannelLayout, ch ...Channel) ChannelLayout {
 	a.Mask.FromChannelSlice(append(a.Mask.Slice(), ch...))
 	a.Count = a.Mask.Count()
 	return a
+}
+
+type ChannelRoute struct {
+	From []Channel
+	To   Channel
 }

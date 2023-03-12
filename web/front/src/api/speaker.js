@@ -70,9 +70,6 @@ export function setVolume(id, vol) {
   return socket.send('speakerVolume', data);
 }
 
-export function sendServerInfo(id) {
-  return socket.send('sendServerInfo', id);
-}
-export function reconnect(id) {
-  return socket.send('spReconnect', id);
+export function test(sp) {
+  return socket.send('soundTest', { sp });
 }

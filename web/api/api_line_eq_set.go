@@ -31,17 +31,21 @@ func apiLineSetEqualizer(c *websockets.WSConnection, req Requester, log *zap.Log
 	}
 
 	eqs := nl.Equalizer.Equalizer()
-
+	changed := false
 	for i := 0; i < len(eqs); i++ {
 		if eqs[i].Frequency == int(p.Frequency) {
 			eqs[i].Gain = float64(p.Gain)
-			return true, nil
+			changed = true
+			break
 		}
 	}
-
-	nl.Equalizer.Add(p.Frequency, float64(p.Gain), 0)
+	if changed {
+		nl.Equalizer.SetEqualizer(eqs)
+	} else {
+		nl.Equalizer.Add(p.Frequency, float64(p.Gain), 0)
+	}
 
 	nl.Equalizer.On()
 
-	return true, nil
+	return websockets.NewResponseEqualizer(nl), nil
 }

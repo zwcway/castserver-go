@@ -18,25 +18,39 @@ type Line struct {
 	Name string
 	UUID string // dlna 标识
 
-	channels audio.ChannelMask
+	chRoute  []audio.ChannelRoute // 输出的声道路由关系表
 	speakers []*Speaker
 
 	Input  stream.Source // 输入格式
-	Output *audio.Format // 输出格式
+	Output audio.Format  // 输出格式
 
 	Mixer     stream.MixerElement
 	Volume    stream.VolumeElement
 	Spectrum  stream.SpectrumElement
 	Equalizer stream.EqualizerElement
 	Player    stream.RawPlayerElement
-
-	Ticker *time.Ticker //仅文件播放时开启定时发送
+	Resample  stream.ResampleElement
+	Pusher    stream.SwitchElement
 
 	isDeleted bool
 }
 
-func (l *Line) Channels() audio.ChannelMask {
-	return l.channels
+func (l *Line) Layout() *audio.ChannelLayout {
+	return &l.Output.Layout
+}
+
+// 如果返回值不空，就表示有speaker
+func (l *Line) Channels() []audio.Channel {
+	return l.Output.Layout.Mask.Slice()
+}
+
+func (l *Line) ChannelRoute(dst audio.Channel) []audio.Channel {
+	for _, cr := range l.chRoute {
+		if cr.To == dst {
+			return cr.From
+		}
+	}
+	return nil
 }
 
 func (l *Line) Speakers() []*Speaker {
@@ -82,11 +96,11 @@ func (l *Line) RemoveSpeaker(sp *Speaker) {
 }
 
 func (l *Line) refresh() {
-	channels := []uint8{}
+	channels := []audio.Channel{}
 	for i := 0; i < len(l.speakers); i++ {
-		channels = append(channels, uint8(l.speakers[i].Channel))
+		channels = append(channels, (l.speakers[i].Channel))
 	}
-	l.channels, _ = audio.NewAudioChannelMask(channels)
+	l.Output.Layout = audio.NewChannelLayout(channels...)
 }
 
 func (l *Line) Elements() []stream.Element {
@@ -96,6 +110,7 @@ func (l *Line) Elements() []stream.Element {
 		l.Player,
 		l.Spectrum,
 		l.Volume,
+		l.Pusher,
 	}
 }
 
@@ -226,12 +241,6 @@ func initLine() error {
 	return nil
 }
 
-func lineIsValid(line LineID) bool {
-	l := FindLineByID(line)
-
-	return l != nil
-}
-
 func NewLine(name string) *Line {
 	var line Line
 
@@ -254,11 +263,14 @@ func NewLine(name string) *Line {
 	line.Name = name
 	line.UUID = generateUUID(name)
 
+	line.Output = audio.DefaultFormat
+
 	line.Volume = element.NewVolume(0.1)
-	line.Mixer = element.NewMixer(nil)
+	line.Mixer = element.NewEmptyMixer()
 	line.Spectrum = element.NewSpectrum()
 	line.Equalizer = element.NewEqualizer(nil)
 	line.Player = element.NewPlayer()
+	line.Resample = element.NewResample(line.Output)
 
 	lineList = append(lineList, &line)
 
