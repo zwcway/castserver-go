@@ -76,47 +76,47 @@ func IsEof(err error) bool {
 func ChannelFromAV(ch C.uint64_t) audio.Channel {
 	switch ch {
 	case C.AV_CH_FRONT_LEFT:
-		return audio.AudioChannel_FRONT_LEFT
+		return audio.Channel_FRONT_LEFT
 	case C.AV_CH_FRONT_RIGHT:
-		return audio.AudioChannel_FRONT_RIGHT
+		return audio.Channel_FRONT_RIGHT
 	case C.AV_CH_FRONT_CENTER:
-		return audio.AudioChannel_FRONT_CENTER
+		return audio.Channel_FRONT_CENTER
 	case C.AV_CH_LOW_FREQUENCY:
-		return audio.AudioChannel_LOW_FREQUENCY
+		return audio.Channel_LOW_FREQUENCY
 	case C.AV_CH_BACK_LEFT:
-		return audio.AudioChannel_BACK_LEFT
+		return audio.Channel_BACK_LEFT
 	case C.AV_CH_BACK_RIGHT:
-		return audio.AudioChannel_BACK_RIGHT
+		return audio.Channel_BACK_RIGHT
 	case C.AV_CH_FRONT_LEFT_OF_CENTER:
-		return audio.AudioChannel_FRONT_LEFT_OF_CENTER
+		return audio.Channel_FRONT_LEFT_OF_CENTER
 	case C.AV_CH_FRONT_RIGHT_OF_CENTER:
-		return audio.AudioChannel_FRONT_RIGHT_OF_CENTER
+		return audio.Channel_FRONT_RIGHT_OF_CENTER
 	case C.AV_CH_BACK_CENTER:
-		return audio.AudioChannel_BACK_CENTER
+		return audio.Channel_BACK_CENTER
 	case C.AV_CH_SIDE_LEFT:
-		return audio.AudioChannel_SIDE_LEFT
+		return audio.Channel_SIDE_LEFT
 	case C.AV_CH_SIDE_RIGHT:
-		return audio.AudioChannel_SIDE_RIGHT
+		return audio.Channel_SIDE_RIGHT
 	case C.AV_CH_TOP_CENTER:
-		return audio.AudioChannel_TOP_CENTER
+		return audio.Channel_TOP_CENTER
 	case C.AV_CH_TOP_FRONT_LEFT:
-		return audio.AudioChannel_TOP_FRONT_LEFT
+		return audio.Channel_TOP_FRONT_LEFT
 	case C.AV_CH_TOP_FRONT_CENTER:
-		return audio.AudioChannel_TOP_FRONT_CENTER
+		return audio.Channel_TOP_FRONT_CENTER
 	case C.AV_CH_TOP_FRONT_RIGHT:
-		return audio.AudioChannel_TOP_FRONT_RIGHT
+		return audio.Channel_TOP_FRONT_RIGHT
 	case C.AV_CH_TOP_BACK_LEFT:
-		return audio.AudioChannel_TOP_BACK_LEFT
+		return audio.Channel_TOP_BACK_LEFT
 	case C.AV_CH_TOP_BACK_CENTER:
-		return audio.AudioChannel_TOP_BACK_CENTER
+		return audio.Channel_TOP_BACK_CENTER
 	case C.AV_CH_TOP_BACK_RIGHT:
-		return audio.AudioChannel_TOP_BACK_RIGHT
+		return audio.Channel_TOP_BACK_RIGHT
 	case C.AV_CH_STEREO_LEFT:
 	case C.AV_CH_STEREO_RIGHT:
 	case C.AV_CH_WIDE_LEFT:
 	case C.AV_CH_WIDE_RIGHT:
 	}
-	return audio.AudioChannel_NONE
+	return audio.Channel_NONE
 }
 
 func BitsFromAV(b C.enum_AVSampleFormat) audio.Bits {
@@ -163,7 +163,7 @@ func ChannelsFromLayout(layout uint64) (m audio.ChannelLayout) {
 		}
 		acSlice = append(acSlice, ac)
 	}
-	return audio.NewChannelLayout(acSlice)
+	return audio.NewChannelLayout(acSlice...)
 }
 
 // 构建一个新的 C 二维数组 uint8_t*[]

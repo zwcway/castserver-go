@@ -94,6 +94,7 @@
       <template slot="title">
         <div class="eq-toolbar">
           <span>均衡器</span>
+          <a-switch v-model="line.eqenable" checked-children="开" un-checked-children="关" @change="onEqEnable" />
           <a-select class="eq-band-select" :options="equalizerBandsList" :value="eqBandsSelected"
             @select="eqBandsSelected = $event">
           </a-select>
@@ -563,6 +564,9 @@ export default {
     onEQChange(freq, gain) {
       ApiLine.setEqualizer(this.line.id, freq, gain);
     },
+    onEqEnable(enable) {
+      ApiLine.setEnableEqualizer(this.line.id, enable);
+    },
     onSpecifyChannel(spid) {
       // this.$router.push({
       //   name: this.$route.name,
@@ -708,7 +712,7 @@ export default {
     },
     playerSliderFormater(val) {
       return formatDuration(val)
-    }
+    },
   },
 };
 </script>

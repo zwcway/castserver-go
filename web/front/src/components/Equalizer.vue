@@ -6,15 +6,8 @@
         <div class="axis-db"></div>
         <div class="sliders" :class="`band-${eqbands}`">
           <div class="slider" v-for="(eq, i) in equalizes" :key="i">
-            <vue-slider
-              v-model="eq[2]"
-              :direction="`btt`"
-              :min="-15"
-              :max="15"
-              :process="gainProcess"
-              @change="gainChanged(i, $event)"
-              @drag-end="gainChanged(i, 'finally')"
-            />
+            <vue-slider v-model="eq[2]" :direction="`btt`" :min="-15" :max="15" :process="gainProcess"
+              @change="gainChanged(i, $event)" @drag-end="gainChanged(i, 'finally')" />
             <label for="">{{ label(eq[0]) }}</label>
           </div>
         </div>
@@ -96,7 +89,7 @@ export default {
           [20000, 1, 0],
         ],
       },
-      equalizes:[],
+      equalizes: [],
       gainProcess(dotsPos) {
         return [[0, dotsPos, { backgroundColor: 'pink' }]];
       },
@@ -130,11 +123,11 @@ export default {
         if (!(e instanceof Array)) {
           freq = e;
         } else if (e.length != 3) {
-            return;
+          return;
         }
         freq = e[0];
 
-        for(let i = 0; i < this.equalizes.length; i ++) {
+        for (let i = 0; i < this.equalizes.length; i++) {
           if (this.equalizes[i][0] == freq) {
             this.equalizes[i][1] = e[2];
             this.equalizes[i][2] = e[1];
@@ -176,31 +169,39 @@ export default {
   display: flex;
   margin: auto;
   background: var(--color-body-bg);
+
   .body {
     display: flex;
   }
+
   .sliders {
     display: flex;
     flex-direction: row;
     justify-content: center;
     align-content: flex-start;
-    > .slider {
+
+    >.slider {
       display: flex;
       flex-direction: column;
       flex: 0 0 2rem;
       width: 2rem;
+      align-items: center;
+
       &.band-21 {
         flex-basis: 1.8rem;
         width: 1.8rem;
       }
+
       &.band-31 {
         flex-basis: 1.5rem;
         width: 1.5rem;
       }
+
       .vue-slider {
         flex-basis: 150px;
       }
-      > label {
+
+      >label {
         font-size: 0.5rem;
       }
     }

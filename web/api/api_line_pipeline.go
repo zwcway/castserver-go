@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/zwcway/castserver-go/common/speaker"
+	"github.com/zwcway/castserver-go/decoder/pipeline"
 	"github.com/zwcway/castserver-go/web/websockets"
 	"go.uber.org/zap"
 )
@@ -29,8 +30,8 @@ func apiLinePipeLineInfo(c *websockets.WSConnection, req Requester, log *zap.Log
 		return nil, fmt.Errorf("add new line faild")
 	}
 
-	pl := nl.Input.PipeLine
-	if pl == nil {
+	pl, ok := nl.Input.PipeLine.(*pipeline.PipeLine)
+	if !ok {
 		return nil, fmt.Errorf("no found")
 	}
 

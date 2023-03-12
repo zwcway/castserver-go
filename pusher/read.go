@@ -7,12 +7,13 @@ import (
 	"go.uber.org/zap"
 )
 
-var receiveQueue chan QueueData
+var receiveQueue chan speaker.QueueData
 
 func receiveSpeakerRoutine(sp *speaker.Speaker) {
-	receiveBuffer := make([]byte, config.ReadBufferSize)
 
 	for {
+		receiveBuffer := make([]byte, config.ReadBufferSize)
+
 		numBytes, addrPort, err := sp.Conn.ReadFromUDPAddrPort(receiveBuffer)
 		if err != nil {
 			if utils.IsConnectCloseError(err) {
@@ -29,7 +30,10 @@ func receiveSpeakerRoutine(sp *speaker.Speaker) {
 		}
 
 		if len(receiveQueue) < cap(receiveQueue) {
-			receiveQueue <- QueueData{sp, receiveBuffer[:numBytes]}
+			receiveQueue <- speaker.QueueData{
+				Speaker: sp,
+				Data:    receiveBuffer[:numBytes],
+			}
 		}
 	}
 }

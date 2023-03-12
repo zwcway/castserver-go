@@ -116,6 +116,7 @@ type ResponseLineInfo struct {
 	Speakers   []*ResponseSpeakerList `jp:"speakers,omitempty"`
 	Input      *ResponseLineSource    `jp:"source,omitempty"`
 	Equalizers [][3]float32           `jp:"eq,omitempty"`
+	EqSwitch   bool                   `jp:"eqenable"`
 }
 
 func NewResponseEqualizer(line *speaker.Line) [][3]float32 {
@@ -139,6 +140,7 @@ func NewResponseLineInfo(line *speaker.Line) *ResponseLineInfo {
 		Speakers:   make([]*ResponseSpeakerList, line.SpeakerCount()),
 		Input:      NewResponseLineSource(line),
 		Equalizers: NewResponseEqualizer(line),
+		EqSwitch:   line.Equalizer.IsOn(),
 	}
 
 	for i, s := range line.Speakers() {

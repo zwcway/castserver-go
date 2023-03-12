@@ -1,6 +1,10 @@
 package stream
 
-import "github.com/zwcway/castserver-go/common/audio"
+import (
+	"unsafe"
+
+	"github.com/zwcway/castserver-go/common/audio"
+)
 
 type ChannelSamples []float64
 
@@ -13,11 +17,11 @@ type Samples struct {
 	LastSize int
 }
 
-func (s *Samples) Bytes() int {
-	return s.Samples() * s.Format.SampleBits.Size()
+func (s *Samples) TotalSize() int {
+	return s.AllSamples() * s.Format.SampleBits.Size()
 }
 
-func (s *Samples) Samples() int {
+func (s *Samples) AllSamples() int {
 	return s.Format.Layout.Count * s.Size
 }
 
@@ -35,6 +39,54 @@ func (s *Samples) BeZeroLeft(j int) int {
 		return 0
 	}
 	return len(s.Buffer[0])
+}
+
+func (s *Samples) ToPacked(ch int) []byte {
+	bits := s.Format.SampleBits.Size()
+	bs := make([]byte, s.Size*bits)
+	planr := s.Buffer[ch]
+
+	switch bits {
+	case 1:
+		for i := 0; i < s.LastSize; i++ {
+			bs[i] = *(*byte)(unsafe.Pointer(&planr[i]))
+		}
+	case 2:
+		j := 0
+		for i := 0; i < s.LastSize; i++ {
+			valuint16 := *(*uint16)(unsafe.Pointer(&planr[i]))
+			bs[j] = byte(valuint16)
+			j++
+			bs[j] = byte(valuint16 >> 8)
+			j++
+		}
+	case 3:
+		j := 0
+		for i := 0; i < s.LastSize; i++ {
+			valuint24 := *(*uint32)(unsafe.Pointer(&planr[i]))
+			bs[j] = byte(valuint24)
+			j++
+			bs[j] = byte(valuint24 >> 8)
+			j++
+			bs[j] = byte(valuint24 >> 16)
+			j++
+		}
+	case 4:
+		j := 0
+		for i := 0; i < s.LastSize; i++ {
+			valuint32 := *(*uint32)(unsafe.Pointer(&planr[i]))
+			bs[j] = byte(valuint32)
+			j++
+			bs[j] = byte(valuint32 >> 8)
+			j++
+			bs[j] = byte(valuint32 >> 16)
+			j++
+			bs[j] = byte(valuint32 >> 24)
+			j++
+		}
+	}
+
+	return bs
 }
 
 func NewSamples(samples int, format *audio.Format) (s *Samples) {

@@ -30,6 +30,8 @@ type Line struct {
 	Equalizer stream.EqualizerElement
 	Player    stream.RawPlayerElement
 
+	Ticker *time.Ticker //仅文件播放时开启定时发送
+
 	isDeleted bool
 }
 

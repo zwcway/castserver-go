@@ -21,14 +21,13 @@ func (pusherModule) Init(ctx utils.Context) error {
 	context = ctx
 
 	// 初始化并启动发送队列
-	queueList = make([]chan QueueData, config.SendRoutinesMax)
+	queueList = make([]chan speaker.QueueData, config.SendRoutinesMax)
 	for i := range queueList {
-		queueList[i] = make(chan QueueData, config.SendQueueSize)
-		go pushRoutine(&queueList[i])
+		queueList[i] = make(chan speaker.QueueData, config.SendQueueSize)
+		go pushRoutine(queueList[i])
 	}
 
-	receiveQueue = make(chan QueueData, config.ReadQueueSize)
-	queueSpeaker = make(map[*speaker.Speaker]*chan QueueData)
+	receiveQueue = make(chan speaker.QueueData, config.ReadQueueSize)
 
 	return nil
 }

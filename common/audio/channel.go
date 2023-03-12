@@ -5,26 +5,26 @@ import "errors"
 type Channel uint8
 
 const (
-	AudioChannel_NONE Channel = iota
-	AudioChannel_FRONT_LEFT
-	AudioChannel_FRONT_RIGHT
-	AudioChannel_FRONT_CENTER
-	AudioChannel_FRONT_LEFT_OF_CENTER
-	AudioChannel_FRONT_RIGHT_OF_CENTER
-	AudioChannel_LOW_FREQUENCY
-	AudioChannel_BACK_LEFT
-	AudioChannel_BACK_RIGHT
-	AudioChannel_BACK_CENTER
-	AudioChannel_SIDE_LEFT
-	AudioChannel_SIDE_RIGHT
-	AudioChannel_TOP_CENTER
-	AudioChannel_TOP_FRONT_LEFT
-	AudioChannel_TOP_FRONT_CENTER
-	AudioChannel_TOP_FRONT_RIGHT
-	AudioChannel_TOP_BACK_LEFT
-	AudioChannel_TOP_BACK_CENTER
-	AudioChannel_TOP_BACK_RIGHT
-	AudioChannel_MAX
+	Channel_NONE Channel = iota
+	Channel_FRONT_LEFT
+	Channel_FRONT_RIGHT
+	Channel_FRONT_CENTER
+	Channel_FRONT_LEFT_OF_CENTER
+	Channel_FRONT_RIGHT_OF_CENTER
+	Channel_LOW_FREQUENCY
+	Channel_BACK_LEFT
+	Channel_BACK_RIGHT
+	Channel_BACK_CENTER
+	Channel_SIDE_LEFT
+	Channel_SIDE_RIGHT
+	Channel_TOP_CENTER
+	Channel_TOP_FRONT_LEFT
+	Channel_TOP_FRONT_CENTER
+	Channel_TOP_FRONT_RIGHT
+	Channel_TOP_BACK_LEFT
+	Channel_TOP_BACK_CENTER
+	Channel_TOP_BACK_RIGHT
+	Channel_MAX
 )
 
 func NewAudioChannel(i int32) Channel {
@@ -43,41 +43,41 @@ func (a *Channel) toInt() int32 {
 
 func (a *Channel) Name() string {
 	switch *a {
-	case AudioChannel_FRONT_LEFT:
+	case Channel_FRONT_LEFT:
 		return "Front Left"
-	case AudioChannel_FRONT_RIGHT:
+	case Channel_FRONT_RIGHT:
 		return "Front Right"
-	case AudioChannel_FRONT_CENTER:
+	case Channel_FRONT_CENTER:
 		return "Front Center"
-	case AudioChannel_LOW_FREQUENCY:
+	case Channel_LOW_FREQUENCY:
 		return "Subwoofer"
-	case AudioChannel_BACK_LEFT:
+	case Channel_BACK_LEFT:
 		return "Rear Left"
-	case AudioChannel_BACK_RIGHT:
+	case Channel_BACK_RIGHT:
 		return "Rear Right"
-	case AudioChannel_FRONT_LEFT_OF_CENTER:
+	case Channel_FRONT_LEFT_OF_CENTER:
 		return "Front Left Of Center"
-	case AudioChannel_FRONT_RIGHT_OF_CENTER:
+	case Channel_FRONT_RIGHT_OF_CENTER:
 		return "Front Right Of Center"
-	case AudioChannel_BACK_CENTER:
+	case Channel_BACK_CENTER:
 		return "Rear Center"
-	case AudioChannel_SIDE_LEFT:
+	case Channel_SIDE_LEFT:
 		return "Side Left"
-	case AudioChannel_SIDE_RIGHT:
+	case Channel_SIDE_RIGHT:
 		return "Side Right"
-	case AudioChannel_TOP_CENTER:
+	case Channel_TOP_CENTER:
 		return "Top Center"
-	case AudioChannel_TOP_FRONT_LEFT:
+	case Channel_TOP_FRONT_LEFT:
 		return "Top Front Left"
-	case AudioChannel_TOP_FRONT_CENTER:
+	case Channel_TOP_FRONT_CENTER:
 		return "Top Front Center"
-	case AudioChannel_TOP_FRONT_RIGHT:
+	case Channel_TOP_FRONT_RIGHT:
 		return "Top Front Right"
-	case AudioChannel_TOP_BACK_LEFT:
+	case Channel_TOP_BACK_LEFT:
 		return "Top Rear Left"
-	case AudioChannel_TOP_BACK_CENTER:
+	case Channel_TOP_BACK_CENTER:
 		return "Top Rear Center"
-	case AudioChannel_TOP_BACK_RIGHT:
+	case Channel_TOP_BACK_RIGHT:
 		return "Top Rear Right"
 	default:
 		return "Unknown"
@@ -85,7 +85,7 @@ func (a *Channel) Name() string {
 }
 
 func (a *Channel) IsValid() bool {
-	return *a > AudioChannel_NONE && *a < AudioChannel_MAX
+	return *a > Channel_NONE && *a < Channel_MAX
 }
 
 type ChannelMask uint32
@@ -141,23 +141,44 @@ func (m *ChannelMask) CombineSlice(a []uint8) bool {
 }
 
 func (m *ChannelMask) IsValid() bool {
-	return *m > 0 && ((*m)>>(AudioChannel_MAX-1)) == 0
+	return *m > 0 && ((*m)>>(Channel_MAX-1)) == 0
 }
 
-func (m *ChannelMask) Slice() []int32 {
-	s := []int32{}
+func (m *ChannelMask) Slice() []Channel {
+	s := []Channel{}
 	for i := 0; i < 16; i++ {
 		if (*m>>i)&0x01 == 1 {
 			b := Channel(i + 1)
-			s = append(s, b.toInt())
+			s = append(s, b)
 		}
 	}
 	return s
 }
 
-var ChannelLayout20 ChannelLayout = NewChannelLayout([]Channel{AudioChannel_FRONT_LEFT, AudioChannel_FRONT_RIGHT})
+var (
+	ChannelLayout10  = NewChannelLayout(Channel_FRONT_CENTER)
+	ChannelLayout20  = NewChannelLayout(Channel_FRONT_LEFT, Channel_FRONT_RIGHT)
+	ChannelLayout21  = extendLayout(ChannelLayout20, Channel_LOW_FREQUENCY)
+	ChannelLayout22  = extendLayout(ChannelLayout20, Channel_SIDE_LEFT, Channel_SIDE_RIGHT)
+	ChannelLayout30  = extendLayout(ChannelLayout20, Channel_FRONT_CENTER)
+	ChannelLayout31  = extendLayout(ChannelLayout30, Channel_LOW_FREQUENCY)
+	ChannelLayout40  = extendLayout(ChannelLayout30, Channel_BACK_CENTER)
+	ChannelLayout41  = extendLayout(ChannelLayout40, Channel_LOW_FREQUENCY)
+	ChannelLayout50  = extendLayout(ChannelLayout30, Channel_SIDE_LEFT, Channel_SIDE_RIGHT)
+	ChannelLayout502 = extendLayout(ChannelLayout30, Channel_BACK_LEFT, Channel_BACK_RIGHT)
+	ChannelLayout51  = extendLayout(ChannelLayout50, Channel_LOW_FREQUENCY)
+	ChannelLayout512 = extendLayout(ChannelLayout502, Channel_LOW_FREQUENCY)
+	ChannelLayout60  = extendLayout(ChannelLayout50, Channel_BACK_CENTER)
+	ChannelLayout602 = extendLayout(ChannelLayout22, Channel_FRONT_LEFT_OF_CENTER, Channel_FRONT_RIGHT_OF_CENTER)
+	ChannelLayout611 = extendLayout(ChannelLayout51, Channel_BACK_CENTER)
+	ChannelLayout70  = extendLayout(ChannelLayout50, Channel_BACK_LEFT, Channel_BACK_RIGHT)
+	ChannelLayout71  = extendLayout(ChannelLayout70, Channel_LOW_FREQUENCY)
 
-func NewChannelLayout(ch []Channel) ChannelLayout {
+	ChannelLayoutMONO   = ChannelLayout10
+	ChannelLayoutSTEREO = ChannelLayout20
+)
+
+func NewChannelLayout(ch ...Channel) ChannelLayout {
 	var a ChannelLayout
 	a.Mask.FromChannelSlice(ch)
 	a.Count = a.Mask.Count()
@@ -170,5 +191,31 @@ type ChannelLayout struct {
 }
 
 func (l *ChannelLayout) String() string {
+	switch l.Mask {
+	case ChannelLayout10.Mask:
+		return "mono"
+	case ChannelLayout20.Mask:
+		return "stereo"
+	case ChannelLayout21.Mask:
+		return "2.1"
+	case ChannelLayout30.Mask:
+		return "3.0"
+	case ChannelLayout22.Mask:
+		return "2.2"
+	case ChannelLayout50.Mask:
+		return "5.0"
+	case ChannelLayout51.Mask:
+		return "5.1"
+	case ChannelLayout70.Mask:
+		return "7.0"
+	case ChannelLayout71.Mask:
+		return "7.1"
+	}
 	return ""
+}
+
+func extendLayout(a ChannelLayout, ch ...Channel) ChannelLayout {
+	a.Mask.FromChannelSlice(append(a.Mask.Slice(), ch...))
+	a.Count = a.Mask.Count()
+	return a
 }

@@ -15,10 +15,13 @@ export function setVolume(id, vol) {
   return socket.send('lineVolume', data);
 }
 
-export function setEqualizer(id, freq, gain, q) {
-  if (q === undefined) q = 0;
-  return socket.send('setLineEQ', { id, freq, gain, q });
+export function setEqualizer(id, freq, gain) {
+  return socket.send('setLineEQ', { id, freq, gain });
 }
+export function setEnableEqualizer(id, enable) {
+  return socket.send('enableLineEQ', { id, enable });
+}
+
 export function clearEqualizer(id) {
   return socket.send('clearLineEQ', { id });
 }

@@ -61,6 +61,7 @@
   flex-direction: row;
   flex-wrap: nowrap;
   line-height: 2rem;
+  align-items: center;
 }
 
 .speaker-list .speaker > div .svg-icon {
@@ -83,6 +84,7 @@
 }
 
 .speaker-list .speaker > div .channel-name {
+  cursor: pointer;
   flex: 0 0 auto;
   width: auto;
   white-space: nowrap;

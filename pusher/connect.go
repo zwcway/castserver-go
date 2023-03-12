@@ -10,14 +10,8 @@ import (
 	"go.uber.org/zap"
 )
 
-type QueueData struct {
-	sp   *speaker.Speaker
-	data []byte
-}
-
-var queueList []chan QueueData
+var queueList []chan speaker.QueueData
 var queueIndex int = 0
-var queueSpeaker map[*speaker.Speaker]*chan QueueData
 
 func Connect(sp *speaker.Speaker) error {
 	if sp.Conn != nil {
@@ -43,15 +37,11 @@ func Connect(sp *speaker.Speaker) error {
 	sp.ConnTime = time.Now()
 
 	// 将设备添加到发送队列中
-	var queue *chan QueueData
 	if len(queueList) == queueIndex {
 		queueIndex = 0
-		queue = &queueList[queueIndex]
-	} else {
-		queue = &queueList[queueIndex]
-		queueIndex++
 	}
-	queueSpeaker[sp] = queue
+	sp.Queue = queueList[queueIndex]
+	queueIndex++
 
 	go receiveSpeakerRoutine(sp)
 
@@ -63,7 +53,7 @@ func Disconnect(sp *speaker.Speaker) error {
 		return nil
 	}
 
-	delete(queueSpeaker, sp)
+	sp.Queue = nil
 	// 关闭连接
 	sp.Conn.Close()
 	sp.Conn = nil
@@ -100,7 +90,7 @@ func connectionTest(sp *speaker.Speaker, udpAddr *net.UDPAddr) bool {
 
 	buf := make([]byte, 16)
 	conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
-	n, err = conn.Read(buf)
+	_, err = conn.Read(buf)
 	if err != nil {
 		log.Info("read speaker error", zap.Error(err))
 		return false

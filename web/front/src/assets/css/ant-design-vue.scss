@@ -1,0 +1,87 @@
+.ant-btn {
+    color: var(--color-text);
+    background-color: var(--color-body-bg);
+    border-color: var(--color-border);
+}
+
+.ant-btn-link {
+    border-color: transparent;
+    color: var(--color-primary);
+}
+
+.ant-input {
+    color: var(--color-text);
+    background-color: var(--color-body-bg);
+    border-color: var(--color-border);
+}
+
+.ant-input-number {
+    color: var(--color-text);
+    background-color: var(--color-body-bg);
+    border-color: var(--color-border);
+
+    .ant-input-number-input {}
+
+    .ant-input-number-handler-wrap {
+        background-color: var(--color-body-bg);
+        border-color: var(--color-border);
+    }
+}
+
+.ant-select-selection {
+    background-color: var(--color-body-bg);
+    border-color: var(--color-border);
+}
+
+
+
+.ant-modal-root {
+    .ant-modal-header {
+        background-color: var(--color-body-bg);
+        color: var(--color-text);
+        border-bottom-color: var(--color-border);
+    }
+
+    .ant-modal-title {
+        color: var(--color-text);
+    }
+
+    .ant-modal-content {
+        background-color: var(--color-secondary-bg);
+        box-shadow: 0 4px 12px var(--color-primary-bg-for-transparent);
+        border: 1px solid var(--color-border);
+    }
+}
+
+.anticon {
+    color: var(--color-text);
+}
+
+.ant-select {
+    color: var(--color-text);
+
+    .ant-select-selection {
+        background-color: var(--color-body-bg);
+        border-color: var(--color-border);
+    }
+}
+
+.ant-select-dropdown {
+    background-color: var(--color-body-bg);
+    color: var(--color-text);
+    box-shadow: 0 2px 8px var(--color-secondary-bg);
+
+    .ant-select-dropdown-menu-item {
+        color: var(--color-text);
+    }
+
+    .ant-select-dropdown-menu-item-active:not(.ant-select-dropdown-menu-item-disabled) {
+        background-color: var(--color-secondary-bg);
+    }
+    .ant-select-dropdown-menu-item-selected {
+        background-color: var(--color-secondary-bg);
+    }
+    .ant-select-dropdown-menu-item-disabled {
+        color: var(--color-secondary);
+    }
+}

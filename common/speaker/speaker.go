@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/zwcway/castserver-go/common/audio"
-	"github.com/zwcway/castserver-go/common/dsp"
 	"github.com/zwcway/castserver-go/common/stream"
 	"github.com/zwcway/castserver-go/decoder/element"
 )
@@ -43,16 +42,14 @@ type Speaker struct {
 	Spectrum  stream.SpectrumElement
 	Equalizer stream.EqualizerElement
 
-	Conn *net.UDPConn
+	Conn  *net.UDPConn
+	Queue chan QueueData
 
 	Timeout    int // 超时计数
 	ConnTime   time.Time
 	State      State
 	Statistic  Statistic
 	LevelMeter float32
-
-	DPEnable        bool
-	dsp.DataProcess // 数字频域均衡器
 }
 
 func (sp *Speaker) String() string {
@@ -117,7 +114,7 @@ func (sp *Speaker) ChangeChannel(ch audio.Channel) {
 	if ch.IsValid() {
 		sp.Channel = ch
 	} else {
-		sp.Channel = audio.AudioChannel_NONE
+		sp.Channel = audio.Channel_NONE
 	}
 	sp.Line.refresh()
 }
