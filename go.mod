@@ -37,4 +37,4 @@ require (
 
 replace github.com/zwcway/castserver-go => ./
 
-replace github.com/zwcway/fasthttp-upnp => ../upnp
+// replace github.com/zwcway/fasthttp-upnp => ../upnp
