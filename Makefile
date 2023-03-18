@@ -1,5 +1,11 @@
 BIN_FILE=castserver
 PWD=$(realpath .)
+NPM=npm
+
+ifeq ($(OS), Windows_NT)
+	NPM=npm.cmd
+	BIN_FILE=castserver.exe
+endif
 
 all: check front castserver
 
@@ -17,4 +23,4 @@ check:
 	@go vet .
 
 front:
-	cd ${PWD}/web/front && npm i && npm run build
+	cd ${PWD}/web/front &&  ${NPM} i &&  ${NPM} run build
