@@ -13,3 +13,6 @@ $ make
 
 ## 运行
 castserver --help
+
+## web 后台
+http://localhost:4415

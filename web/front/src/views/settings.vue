@@ -261,7 +261,7 @@ export default {
 
   .anchors {
     position: fixed;
-    top: var(--size-navbar) + 50px;
+    top: 50px;
     right: 1rem;
   }
 

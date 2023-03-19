@@ -10,7 +10,7 @@ require (
 	github.com/muesli/go-app-paths v0.2.2
 	github.com/pkg/errors v0.9.1
 	github.com/valyala/fasthttp v1.44.0
-	github.com/zwcway/fasthttp-upnp v0.0.0-20230221114732-3c4f7a475c0b
+	github.com/zwcway/fasthttp-upnp v0.0.0-20230313141436-0841cf50a200
 	go.uber.org/zap v1.24.0
 	golang.org/x/exp v0.0.0-20230303215020-44a13b063f3e
 	golang.org/x/text v0.8.0
