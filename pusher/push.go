@@ -1,9 +1,7 @@
 package pusher
 
 import (
-	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/speaker"
-	"github.com/zwcway/castserver-go/common/stream"
 
 	"go.uber.org/zap"
 )
@@ -28,6 +26,9 @@ func pushRoutine(queue chan speaker.QueueData) {
 			return
 		case d = <-queue:
 		}
+		if d.Speaker.IsDeleted() {
+			continue
+		}
 
 		d.Speaker.Statistic.Queue -= uint32(len(d.Data))
 
@@ -37,62 +38,4 @@ func pushRoutine(queue chan speaker.QueueData) {
 			continue
 		}
 	}
-}
-
-func PushLine(line *speaker.Line) {
-	pl := line.Input.PipeLine
-	if pl == nil {
-		return
-	}
-	buf := pl.Buffer()
-	if buf == nil {
-		return
-	}
-	PushLineBuffer(line, buf)
-}
-
-func PushLineBuffer(line *speaker.Line, buf *stream.Samples) {
-
-	for i, ch := range buf.Format.Channels() {
-
-		for _, ch = range line.ChannelRoute(ch) {
-
-		}
-
-		PushToLineChannel(line, ch, buf.ChannelBytes(i))
-	}
-}
-
-func PushToLineChannel(line *speaker.Line, ch audio.Channel, data []byte) {
-	buf := ServerPush{
-		Ver:     1,
-		Seq:     1,
-		Time:    1,
-		Samples: data,
-	}
-	p, err := buf.Pack()
-	if err != nil {
-		return
-	}
-
-	data = p.Bytes()
-
-	for _, sp := range line.SpeakersByChannel(ch) {
-		PushSpeaker(sp, data)
-	}
-}
-
-func PushSpeaker(sp *speaker.Speaker, data []byte) {
-	queue := sp.Queue
-	if queue == nil {
-		// log.Error("speaker not connected", zap.String("speaker", sp.String()))
-		return
-	}
-	if len(queue) == cap(queue) {
-		log.Error("send queue full", zap.Uint32("speaker", uint32(sp.Id)), zap.Int("size", len(queue)))
-		return
-	}
-	sp.Statistic.Queue += uint32(len(data))
-
-	queue <- speaker.QueueData{Speaker: sp, Data: data}
 }

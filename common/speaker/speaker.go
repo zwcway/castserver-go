@@ -8,34 +8,42 @@ import (
 	"time"
 
 	"github.com/zwcway/castserver-go/common/audio"
+	"github.com/zwcway/castserver-go/common/element"
+	"github.com/zwcway/castserver-go/common/pipeline"
 	"github.com/zwcway/castserver-go/common/stream"
-	"github.com/zwcway/castserver-go/decoder/element"
 )
 
 var speakerList []*Speaker
 
 var lock sync.Mutex
 
-type Speaker struct {
-	Id        ID
-	MAC       net.HardwareAddr
-	IP        netip.Addr
-	Name      string
-	Line      *Line
-	Mode      Model
-	Dport     uint16 // pcm data port
-	Supported bool   // 是否兼容
+type SpeakerConfig struct {
+	MAC   net.HardwareAddr
+	IP    netip.Addr
+	Mode  Model
+	Dport uint16 // pcm data port
 
 	RateMask    audio.AudioRateMask // 设备支持的采样率列表
 	BitsMask    audio.BitsMask      // 设备支持的位宽列表
-	Channel     audio.Channel       // 当前设置的声道
 	AbsoluteVol bool                // 支持绝对音量控制
 	PowerSave   bool                // 是否支持电源控制
-	PowerSate   PowerState          // 电源状态
+}
 
-	Rate audio.Rate // 当前指定的采样率
-	Bits audio.Bits // 当前指定的位宽
+type Speaker struct {
+	Id        ID
+	Name      string
+	Line      *Line
+	Supported bool // 是否兼容
 
+	Channel audio.Channel // 当前设置的声道
+	Rate    audio.Rate    // 当前指定的采样率
+	Bits    audio.Bits    // 当前指定的位宽
+
+	PowerSate PowerState // 电源状态
+
+	Config SpeakerConfig
+
+	PipeLine  stream.PipeLiner
 	Mixer     stream.MixerElement
 	Player    stream.RawPlayerElement
 	Volume    stream.VolumeElement // 音量
@@ -46,15 +54,16 @@ type Speaker struct {
 	Conn  *net.UDPConn
 	Queue chan QueueData
 
-	Timeout    int // 超时计数
-	ConnTime   time.Time
-	State      State
-	Statistic  Statistic
-	LevelMeter float32
+	Timeout   int // 超时计数
+	ConnTime  time.Time
+	State     State
+	Statistic Statistic
+
+	isDeleted bool
 }
 
 func (sp *Speaker) String() string {
-	return sp.MAC.String()
+	return fmt.Sprintf("%s(%s)", sp.Config.IP.String(), sp.Config.MAC.String())
 }
 
 func (sp *Speaker) IsOnline() bool {
@@ -68,7 +77,7 @@ func (sp *Speaker) IsSupported() bool {
 }
 
 func (sp *Speaker) CheckOnline() {
-	if sp.Dport > 0 {
+	if sp.Config.Dport > 0 {
 		sp.SetOnline()
 	} else {
 		sp.SetOffline()
@@ -85,9 +94,9 @@ func (sp *Speaker) SetOnline() {
 
 func (sp *Speaker) UDPAddr() *net.UDPAddr {
 	return &net.UDPAddr{
-		IP:   sp.IP.AsSlice(),
-		Zone: sp.IP.Zone(),
-		Port: int(sp.Dport),
+		IP:   sp.Config.IP.AsSlice(),
+		Zone: sp.Config.IP.Zone(),
+		Port: int(sp.Config.Dport),
 	}
 }
 
@@ -136,6 +145,10 @@ func (sp *Speaker) Format() audio.Format {
 	}
 }
 
+func (l *Speaker) IsDeleted() bool {
+	return l.isDeleted
+}
+
 func initSpeaker() error {
 	maxSize := 0
 
@@ -177,6 +190,13 @@ func NewSpeaker(id ID, line LineID, channel audio.Channel) (*Speaker, error) {
 	sp.Spectrum = element.NewSpectrum()
 	sp.Equalizer = element.NewEqualizer(nil)
 	sp.Resample = element.NewResample(sp.Format())
+	sp.PipeLine = pipeline.NewPipeLine(sp.Format(),
+		sp.Mixer,
+		sp.Equalizer,
+		sp.Spectrum,
+		sp.Volume,
+		sp.Resample,
+	)
 
 	speakerList = append(speakerList, &sp)
 
@@ -203,6 +223,8 @@ func DelSpeaker(id ID) error {
 
 	sp.Line.RemoveSpeaker(sp)
 	sp.Line = nil
+
+	sp.PipeLine.Close()
 
 	return nil
 }

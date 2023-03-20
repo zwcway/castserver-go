@@ -34,6 +34,8 @@ var (
 	MulticastPort    uint16     // 多播端口
 	ServerNetMTU     uint32
 
+	SpeakerDir string = "speakers/"
+
 	ReadBufferSize  int
 	ReadQueueSize   int
 	SendRoutinesMax int
@@ -42,7 +44,7 @@ var (
 	SupportAudioBits  []audio.Bits
 	SupportAudioRates []audio.Rate
 
-	AudioBuferSize int
+	AudioBuferSize int = 0 // 0 表示动态自动判断
 
 	SpeakerOfflineTimeout       int
 	SpeakerOfflineCheckInterval int

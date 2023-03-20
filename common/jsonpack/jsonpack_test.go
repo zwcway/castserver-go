@@ -278,7 +278,7 @@ func TestUnmarshal(t *testing.T) {
 	})
 	t.Run("struct can empty", func(t *testing.T) {
 		type jsonp struct {
-			Key string `jp:",omit"`
+			Key string `jp:",omitempty"`
 		}
 		var val jsonp
 		want := jsonp{}
@@ -323,9 +323,9 @@ func TestUnmarshal(t *testing.T) {
 	})
 	t.Run("struct", func(t *testing.T) {
 		type reqSubscribe struct {
-			evt int
-			act bool
-			sub int
+			Evt int  `jp:"evt"`
+			Act bool `jp:"act"`
+			Sub int  `jp:"sub,omitempty"`
 		}
 		var val reqSubscribe
 		want := reqSubscribe{2, true, 0}

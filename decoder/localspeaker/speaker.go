@@ -7,14 +7,12 @@ import (
 	oto "github.com/hajimehoshi/oto/v2"
 	"github.com/pkg/errors"
 	"github.com/zwcway/castserver-go/common/audio"
+	"github.com/zwcway/castserver-go/common/element"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/common/stream"
 	"github.com/zwcway/castserver-go/config"
-	"github.com/zwcway/castserver-go/decoder/element"
 	"github.com/zwcway/castserver-go/utils"
 )
-
-type PlayCallBackHandler func(*speaker.Line, *stream.Samples)
 
 var (
 	mu           sync.Mutex
@@ -22,8 +20,7 @@ var (
 	player       oto.Player
 	sampleReader *reader
 
-	playCallback PlayCallBackHandler
-	slient       bool = false
+	slient bool = false
 
 	sampleSize int = 2048
 	mixer      stream.MixerElement
@@ -83,13 +80,13 @@ func AddLine(line *speaker.Line) {
 			return
 		}
 	}
-	pl := line.Input.PipeLine
+	format := line.Input.PipeLine.Format()
 
-	mixer.Add(pl)
+	mixer.Add(line.Input.PipeLine)
 	lines = append(lines, line)
 
 	// TODO 每个 Line 很有可能格式不一致
-	sampleReader.samples = stream.NewSamples(sampleSize, pl.Format())
+	sampleReader.samples = stream.NewSamples(sampleSize, format)
 }
 
 func RemoveLine(line *speaker.Line) {
@@ -103,10 +100,6 @@ func RemoveLine(line *speaker.Line) {
 			return
 		}
 	}
-}
-
-func SetCallback(c PlayCallBackHandler) {
-	playCallback = c
 }
 
 func IsOpened() bool {
@@ -146,83 +139,4 @@ func Slient(s bool) {
 
 func Cost() time.Duration {
 	return cost
-}
-
-type reader struct {
-	samples  *stream.Samples
-	resample stream.ResampleElement
-	bufPos   int
-	bufSize  int
-}
-
-func (r *reader) Read(p []byte) (n int, err error) {
-	var (
-		samples = r.samples
-		i       int
-		t       = time.Now()
-	)
-	defer func() {
-		cost = time.Since(t)
-	}()
-
-	if samples == nil || mixer.Len() == 0 {
-		goto __slient__
-	}
-
-	for n < len(p) {
-		if r.bufPos >= r.bufSize {
-			samples.BeZero()
-
-			mixer.Stream(samples)
-			r.resample.Stream(samples)
-
-			if samples.LastNbSamples == 0 {
-				// err = samples.LastErr
-				goto __slient__
-			}
-
-			for i = 0; i < len(lines); i++ {
-				if lines[i].IsDeleted() {
-					RemoveLine(lines[i])
-					i--
-					continue
-				}
-				if playCallback != nil {
-					playCallback(lines[i], samples)
-				}
-			}
-
-			r.bufSize = samples.LastSamplesSize()
-			r.bufPos = 0
-
-			if slient {
-				goto __slient__
-			}
-		}
-
-		for i = 0; i < r.bufSize && n < len(p); i += 2 {
-			p[n+0] = samples.RawData[0][r.bufPos]
-			p[n+1] = samples.RawData[0][r.bufPos+1]
-			p[n+2] = samples.RawData[1][r.bufPos]
-			p[n+3] = samples.RawData[1][r.bufPos+1]
-			n += 4
-			r.bufPos += 2
-		}
-	}
-
-	// err = samples.LastErr
-
-	return
-
-__slient__:
-	zeroBuf(p)
-	n = len(p)
-	return
-
-}
-
-func zeroBuf(p []byte) {
-	for i := 0; i < len(p); i++ {
-		p[i] = 0
-	}
 }

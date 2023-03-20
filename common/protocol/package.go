@@ -17,7 +17,7 @@ func (p *Package) Read(s int) (ret []byte, err error) {
 }
 
 func (p *Package) ReadUint8() (v uint8, err error) {
-	if len(p.d) < p.pos+0 {
+	if len(p.d) < p.pos+1 {
 		err = NewOverError()
 		return
 	}
@@ -29,7 +29,7 @@ func (p *Package) ReadUint8() (v uint8, err error) {
 }
 
 func (p *Package) ReadUint16() (v uint16, err error) {
-	if len(p.d) <= p.pos+1 {
+	if len(p.d) <= p.pos+2 {
 		err = NewOverError()
 		return
 	}
@@ -41,7 +41,7 @@ func (p *Package) ReadUint16() (v uint16, err error) {
 }
 
 func (p *Package) ReadUint24() (v uint32, err error) {
-	if len(p.d) < p.pos+2 {
+	if len(p.d) < p.pos+3 {
 		err = NewOverError()
 		return
 	}
@@ -53,7 +53,7 @@ func (p *Package) ReadUint24() (v uint32, err error) {
 }
 
 func (p *Package) ReadUint32() (v uint32, err error) {
-	if len(p.d) < p.pos+3 {
+	if len(p.d) < p.pos+4 {
 		err = NewOverError()
 		return
 	}
@@ -70,11 +70,12 @@ func (p *Package) Write(v []byte) error {
 	for i, d := range v {
 		p.d[p.pos+i] = d
 	}
+	p.pos += len(v)
 	return nil
 }
 
 func (p *Package) WriteUint8(v uint8) error {
-	if len(p.d) < p.pos+0 {
+	if len(p.d) < p.pos+1 {
 		return NewOverError()
 	}
 
@@ -85,7 +86,7 @@ func (p *Package) WriteUint8(v uint8) error {
 }
 
 func (p *Package) WriteUint16(v uint16) error {
-	if len(p.d) < p.pos+1 {
+	if len(p.d) < p.pos+2 {
 		return NewOverError()
 	}
 
@@ -97,7 +98,7 @@ func (p *Package) WriteUint16(v uint16) error {
 }
 
 func (p *Package) WriteUint24(v uint32) error {
-	if len(p.d) < p.pos+2 {
+	if len(p.d) < p.pos+3 {
 		return NewOverError()
 	}
 
@@ -110,7 +111,7 @@ func (p *Package) WriteUint24(v uint32) error {
 }
 
 func (p *Package) WriteUint32(v uint32) error {
-	if len(p.d) < p.pos+3 {
+	if len(p.d) < p.pos+4 {
 		return NewOverError()
 	}
 

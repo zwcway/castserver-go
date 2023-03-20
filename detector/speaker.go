@@ -14,11 +14,11 @@ import (
 func initSpeaker(sp *speaker.Speaker, res *SpeakerResponse) {
 	sp.Id = res.ID
 	sp.Name = res.MAC.String()
-	sp.RateMask = res.RateMask
-	sp.BitsMask = res.BitsMask
-	sp.Dport = res.DataPort
-	sp.MAC = res.MAC
-	sp.IP = res.Addr
+	sp.Config.RateMask = res.RateMask
+	sp.Config.BitsMask = res.BitsMask
+	sp.Config.Dport = res.DataPort
+	sp.Config.MAC = res.MAC
+	sp.Config.IP = res.Addr
 	sp.Rate = control.DefaultRate()
 	sp.Bits = control.DefaultBits()
 	sp.ConnTime = utils.ZeroTime
@@ -52,7 +52,7 @@ func updateSpeaker(sp *speaker.Speaker, support bool, res *SpeakerResponse, isFi
 			return &UnsupportError{sp}
 		}
 
-		SendServerInfo(sp)
+		ResponseServerInfo(sp)
 	}
 
 	control.ControlSample(sp)

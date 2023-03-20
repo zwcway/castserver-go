@@ -2,6 +2,7 @@ package detector
 
 import (
 	"net"
+	"net/netip"
 	"time"
 
 	"github.com/zwcway/castserver-go/common/protocol"
@@ -11,6 +12,7 @@ import (
 	"github.com/zwcway/castserver-go/pusher"
 	"github.com/zwcway/castserver-go/utils"
 	"github.com/zwcway/castserver-go/web/websockets"
+	"golang.org/x/net/ipv4"
 
 	"go.uber.org/zap"
 )
@@ -26,7 +28,7 @@ var (
 	recvMessage chan *recvData
 )
 
-func SendServerInfo(sp *speaker.Speaker) {
+func ResponseServerInfo(sp *speaker.Speaker) {
 	if sp == nil {
 		return
 	}
@@ -43,6 +45,30 @@ func SendServerInfo(sp *speaker.Speaker) {
 	}
 
 	n, err := conn.WriteToUDP(p.Bytes(), sp.UDPAddr())
+	if err != nil {
+		log.Error("send server info failed", zap.Error(err))
+		return
+	}
+	if n != p.DataSize() {
+		log.Error("send server info error", zap.Int("sended", n), zap.Int("size", p.DataSize()))
+	}
+}
+
+func MulicastServerInfo(st ServerType) {
+	sr := &ServerResponse{
+		Ver:  1,
+		Type: st,
+		Addr: config.ServerListen.AddrPort.Addr(),
+		Port: config.ServerListen.AddrPort.Port(),
+	}
+	p, err := sr.Pack()
+	if err != nil {
+		log.Error("send server info package invalid", zap.Error(err))
+		return
+	}
+
+	addrPort := netip.AddrPortFrom(config.MulticastAddress, config.MulticastPort)
+	n, err := conn.WriteToUDPAddrPort(p.Bytes(), addrPort)
 	if err != nil {
 		log.Error("send server info failed", zap.Error(err))
 		return
@@ -134,10 +160,17 @@ func listenUDP(ctx utils.Context) error {
 	if err != nil {
 		return err
 	}
+	pc := ipv4.NewPacketConn(conn)
+
+	if err := pc.SetMulticastLoopback(true); err != nil {
+		log.Error("SetMulticastLoopback error:%v\n", zap.Error(err))
+	}
 
 	log.Info("start listen on " + addrPort.String())
 
 	conn.SetReadBuffer(config.ReadBufferSize)
+
+	MulicastServerInfo(ST_Start)
 
 	go readUDPRoutine(config.ReadBufferSize)
 
@@ -198,5 +231,7 @@ func (detectModule) Init(ctx utils.Context) error {
 }
 
 func (detectModule) DeInit() {
+	MulicastServerInfo(ST_Exit)
+
 	conn.Close()
 }

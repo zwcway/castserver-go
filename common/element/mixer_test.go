@@ -37,7 +37,6 @@ func TestMixer(t *testing.T) {
 	})
 	t.Run("mix size 6 for 8", func(t *testing.T) {
 		mixer := NewMixer(&mixer1{}, &mixer1{}).(*Mixer)
-		mixer.bufSize = 6
 		samples := stream.NewSamples(8, format)
 		mixer.Stream(samples)
 		if !slices.Equal(samples.Data[0], result) {
@@ -46,7 +45,6 @@ func TestMixer(t *testing.T) {
 	})
 	t.Run("mix size 5 for 8", func(t *testing.T) {
 		mixer := NewMixer(&mixer1{}, &mixer1{}).(*Mixer)
-		mixer.bufSize = 5
 		samples := stream.NewSamples(8, format)
 		mixer.Stream(samples)
 		if !slices.Equal(samples.Data[0], result) {

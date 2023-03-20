@@ -13,8 +13,8 @@ import (
 	"github.com/valyala/fasthttp"
 	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/speaker"
+	"github.com/zwcway/castserver-go/decoder"
 	"github.com/zwcway/castserver-go/decoder/localspeaker"
-	"github.com/zwcway/castserver-go/decoder/pipeline"
 	"github.com/zwcway/castserver-go/detector"
 	"github.com/zwcway/castserver-go/pusher"
 	"github.com/zwcway/castserver-go/web/websockets"
@@ -148,7 +148,7 @@ func apiSendServerInfo(c *websockets.WSConnection, req Requester, log *zap.Logge
 	if sp == nil {
 		return nil, nil
 	}
-	detector.SendServerInfo(sp)
+	detector.ResponseServerInfo(sp)
 
 	return nil, nil
 }
@@ -227,7 +227,7 @@ func apiPlayFile(c *websockets.WSConnection, req Requester, log *zap.Logger) (re
 		err = errors.New("no line")
 		return
 	}
-	audio := pipeline.FileStreamer(line.UUID)
+	audio := decoder.FileStreamer(line.UUID)
 	err = audio.OpenFile(file.File)
 	if err != nil {
 		return
@@ -252,7 +252,7 @@ func apiPlayPause(c *websockets.WSConnection, req Requester, log *zap.Logger) (r
 		err = errors.New("no line")
 		return
 	}
-	audio := pipeline.FileStreamer(line.UUID)
+	audio := decoder.FileStreamer(line.UUID)
 	audio.Pause(p.Pause)
 	return true, nil
 }

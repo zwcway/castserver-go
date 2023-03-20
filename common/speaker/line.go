@@ -6,8 +6,9 @@ import (
 	"time"
 
 	"github.com/zwcway/castserver-go/common/audio"
+	"github.com/zwcway/castserver-go/common/element"
+	"github.com/zwcway/castserver-go/common/pipeline"
 	"github.com/zwcway/castserver-go/common/stream"
-	"github.com/zwcway/castserver-go/decoder/element"
 	"github.com/zwcway/castserver-go/utils"
 )
 
@@ -265,12 +266,20 @@ func NewLine(name string) *Line {
 
 	line.Output = audio.DefaultFormat
 
+	line.Player = element.NewPlayer()
 	line.Volume = element.NewVolume(0.1)
-	line.Mixer = element.NewEmptyMixer()
+	line.Mixer = element.NewMixer(line.Player)
 	line.Spectrum = element.NewSpectrum()
 	line.Equalizer = element.NewEqualizer(nil)
-	line.Player = element.NewPlayer()
 	line.Resample = element.NewResample(line.Output)
+
+	line.Input.PipeLine = pipeline.NewPipeLine(line.Output,
+		line.Mixer,
+		line.Equalizer,
+		line.Spectrum,
+		line.Volume,
+		//line.Pusher, Resample 放到 pusher 中处理，否则声道路由功能不方便实现
+	)
 
 	lineList = append(lineList, &line)
 

@@ -3,7 +3,6 @@ package pusher
 import (
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/decoder/localspeaker"
-	"github.com/zwcway/castserver-go/decoder/pipeline"
 	"go.uber.org/zap"
 )
 
@@ -25,7 +24,7 @@ func initTrigger() {
 		lastTrigger = trigger_timer
 	} else {
 		localspeaker.Play()
-		localspeaker.SetCallback(PushLineBuffer)
+		// localspeaker.SetCallback(PushLineBuffer)
 		lastTrigger = trigger_local
 	}
 
@@ -42,7 +41,8 @@ func TriggerReceiverIn(b bool) {
 
 func TriggerAddLine(line *speaker.Line) {
 	line.Pusher = NewElement(line)
-	pipeline.NewPipeLine(line)
+	line.Input.PipeLine.Append(line.Pusher)
+
 	localspeaker.AddLine(line)
 	TimerAddLine(line)
 }
@@ -50,5 +50,4 @@ func TriggerAddLine(line *speaker.Line) {
 func TriggerRemoveLine(line *speaker.Line) {
 	localspeaker.RemoveLine(line)
 	TimerRemoveLine(line)
-	line.Input.PipeLine.Close()
 }

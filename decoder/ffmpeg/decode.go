@@ -222,7 +222,7 @@ func (c *AVFormatContext) Stream(samples *stream.Samples) {
 	samples.SetFormat(c.outputFmt)
 
 	if c.pause || c.finished {
-		samples.BeZero()
+		// samples.BeZero()
 		return
 	}
 

@@ -48,7 +48,7 @@ type MixerElement interface {
 	Has(Streamer) bool
 	Add(...Streamer)
 	PreAdd(...Streamer)
-	AddFileStreamer(FileStreamer)
+	SetFileStreamer(FileStreamer)
 	FileStreamer() FileStreamer
 	Clear()
 }

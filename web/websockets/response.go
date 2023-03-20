@@ -39,7 +39,7 @@ type ResponseSpeakerList struct {
 
 func NewResponseSpeakerList(sp *speaker.Speaker) *ResponseSpeakerList {
 	power := int(sp.PowerSate)
-	if !sp.PowerSave {
+	if !sp.Config.PowerSave {
 		power = -1
 	}
 	ct := 0
@@ -49,17 +49,17 @@ func NewResponseSpeakerList(sp *speaker.Speaker) *ResponseSpeakerList {
 	return &ResponseSpeakerList{
 		ID:          int32(sp.Id),
 		Name:        sp.Name,
-		IP:          sp.IP.String(),
-		MAC:         sp.MAC.String(),
+		IP:          sp.Config.IP.String(),
+		MAC:         sp.Config.MAC.String(),
 		Channel:     uint8(sp.Channel),
 		Line:        NewResponseLineList(sp.Line),
-		BitList:     sp.BitsMask.Slice(),
-		RateList:    sp.RateMask.Slice(),
+		BitList:     sp.Config.BitsMask.Slice(),
+		RateList:    sp.Config.RateMask.Slice(),
 		Rate:        sp.Rate.ToInt(),
 		Bits:        sp.Bits.String(),
 		Volume:      int(sp.Volume.Volume()),
 		Mute:        sp.Volume.Mute(),
-		AbsoluteVol: sp.AbsoluteVol,
+		AbsoluteVol: sp.Config.AbsoluteVol,
 		PowerState:  power,
 		ConnectTime: ct,
 	}

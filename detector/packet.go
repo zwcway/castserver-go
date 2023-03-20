@@ -49,7 +49,7 @@ func (r *SpeakerResponse) Unpack(p *protocol.Package) (err error) {
 		err = newUnpackError("protocol type", p.LastBytes(1), err)
 		return
 	}
-	if protocol.PT_SpeakerInfo == protocol.Type(i8) {
+	if protocol.PT_SpeakerInfo != protocol.Type(i8) {
 		err = newUnpackError("protocol type error", p.LastBytes(1), nil)
 		return
 	}
@@ -129,11 +129,11 @@ func (r *SpeakerResponse) Unpack(p *protocol.Package) (err error) {
 		return
 	}
 
-	i16, err = p.ReadUint16()
-	if err != nil {
-		err = newUnpackError("cast port", p.LastBytes(2), err)
-		return
-	}
+	// i16, err = p.ReadUint16()
+	// if err != nil {
+	// 	err = newUnpackError("cast port", p.LastBytes(2), err)
+	// 	return
+	// }
 
 	return
 }
@@ -162,7 +162,7 @@ func (sr *ServerResponse) Pack() (p *protocol.Package, err error) {
 
 	is6 := sr.Addr.Is6()
 
-	i8 := sr.Ver<<4 | (uint8(sr.Type) & 0x0E) | bool2byte(is6)
+	i8 := sr.Ver<<4 | ((uint8(sr.Type) << 1) & 0x0E) | bool2byte(is6)
 	err = p.WriteUint8(i8)
 	if err != nil {
 		return

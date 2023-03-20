@@ -3,8 +3,8 @@ package api
 import (
 	"fmt"
 
+	"github.com/zwcway/castserver-go/common/pipeline"
 	"github.com/zwcway/castserver-go/common/speaker"
-	"github.com/zwcway/castserver-go/decoder/pipeline"
 	"github.com/zwcway/castserver-go/web/websockets"
 	"go.uber.org/zap"
 )

@@ -74,6 +74,5 @@ func linePushTimerRoutine(line *speaker.Line) {
 		}
 
 		line.Input.PipeLine.Stream(nil)
-		PushLine(line)
 	}
 }

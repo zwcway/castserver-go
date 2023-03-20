@@ -85,21 +85,33 @@ func (s *Samples) ChannelsCountBySlice(src []audio.Channel) (c int) {
 	return
 }
 
-func (s *Samples) MixChannel(p []float64, src []audio.Channel) int {
-	if s.Format.SampleBits != audio.Bits_DEFAULT {
+func (s *Samples) MixChannel(p *Samples, src []audio.Channel) int {
+	if s.Format.SampleBits != audio.Bits_DEFAULT || p == nil || p.Format.SampleBits != audio.Bits_DEFAULT {
 		return 0
 	}
-	i := 0
-	size := s.LastSamplesSize()
+	var (
+		i    = 0
+		j    = 0
+		size = s.LastSamplesSize()
+		srcS []float64
+		dstS []float64
+	)
 
 	for _, ch := range src {
 		i = s.channelIndex[ch]
 		if i < 0 {
 			continue
 		}
-		srcS := s.Data[i][:size]
+		j = p.channelIndex[ch]
+		if j < 0 {
+			continue
+		}
+
+		srcS = s.Data[i]
+		dstS = p.Data[j]
+
 		for i = 0; i < size; i++ {
-			p[i] += srcS[i]
+			dstS[i] += srcS[i]
 		}
 	}
 
@@ -122,6 +134,34 @@ func (s *Samples) PackedBytes() []byte {
 		}
 	}
 	return p
+}
+
+func (s *Samples) ChannelSamples(ch audio.Channel) *Samples {
+	si := s.channelIndex[ch]
+	if si < 0 {
+		return nil
+	}
+
+	format := s.Format
+	format.Layout = audio.NewChannelLayout(ch)
+
+	ns := &Samples{
+		Buffer:    s.Buffer,
+		Data:      make([][]float64, 1),
+		RawData:   make([][]byte, 1),
+		NbSamples: s.NbSamples,
+	}
+	ns.SetFormat(format)
+
+	// 将任意的声道都映射至第一个
+	for i := 0; i < int(audio.Channel_MAX); i++ {
+		s.channelIndex[i] = 0
+	}
+
+	ns.Data[0] = s.Data[si]
+	ns.RawData[0] = s.RawData[si]
+
+	return ns
 }
 
 // 复制GO内存至C内存
@@ -203,15 +243,24 @@ func (s *Samples) CopyFromCBytes(src unsafe.Pointer, srcOneSize, srcTwoSize, dst
 func NewSamples(samples int, format audio.Format) (s *Samples) {
 	// 内部处理格式为
 	format.SampleBits = audio.Bits_DEFAULT
-	format.Layout = audio.ChannalLayoutMAX
+	// format.Layout = audio.ChannalLayoutMAX
 
 	if !format.IsValid() {
 		return nil
 	}
+	if samples == 0 {
+		// 取 10ms
+		samples = format.SampleRate.ToInt() * 10 / 1000
+	}
 
 	p := make([]byte, samples*format.Size())
 
+	return ReuseSamples(p, format)
+}
+
+func ReuseSamples(p []byte, format audio.Format) (s *Samples) {
 	chs := format.Layout.Count
+	samples := len(p) / format.Size()
 
 	s = &Samples{
 		Buffer:    p,

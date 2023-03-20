@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/valyala/fasthttp"
+	"github.com/zwcway/castserver-go/decoder"
 	"github.com/zwcway/castserver-go/decoder/localspeaker"
-	"github.com/zwcway/castserver-go/decoder/pipeline"
 	"github.com/zwcway/castserver-go/utils"
 	"github.com/zwcway/fasthttp-upnp/avtransport1"
 	"github.com/zwcway/fasthttp-upnp/soap"
@@ -23,7 +23,7 @@ func setAVTransportURIHandler(input any, output any, ctx *fasthttp.RequestCtx, u
 	playUri = in.CurrentURI
 	metaData = in.CurrentURIMetaData
 
-	audioFS := pipeline.FileStreamer(uuid)
+	audioFS := decoder.FileStreamer(uuid)
 
 	var err error
 	if err = audioFS.OpenFile(playUri); err != nil {
@@ -39,7 +39,7 @@ func setAVTransportURIHandler(input any, output any, ctx *fasthttp.RequestCtx, u
 func avtGetPositionInfo(input any, output any, ctx *fasthttp.RequestCtx, uuid string) error {
 	out := output.(*avtransport1.ArgOutGetPositionInfo)
 
-	audioFS := pipeline.FileStreamer(uuid)
+	audioFS := decoder.FileStreamer(uuid)
 
 	dur := utils.FormatDuration(audioFS.Duration())
 	out.TrackDuration = dur
@@ -60,7 +60,7 @@ func avtPlay(input any, output any, ctx *fasthttp.RequestCtx, uuid string) error
 	if playUri == "" {
 		return nil
 	}
-	audioFS := pipeline.FileStreamer(uuid)
+	audioFS := decoder.FileStreamer(uuid)
 
 	if audioFS.CurrentFile() == "" { // 重新播放
 		var err error
@@ -79,7 +79,7 @@ func avtPause(input any, output any, ctx *fasthttp.RequestCtx, uuid string) erro
 	if playUri == "" {
 		return nil
 	}
-	pipeline.FileStreamer(uuid).Pause(true)
+	decoder.FileStreamer(uuid).Pause(true)
 
 	return nil
 }
@@ -88,7 +88,7 @@ func avtStop(input any, output any, ctx *fasthttp.RequestCtx, uuid string) error
 	if playUri == "" {
 		return nil
 	}
-	pipeline.FileStreamer(uuid).Close()
+	decoder.FileStreamer(uuid).Close()
 	return nil
 }
 
@@ -104,7 +104,7 @@ func avtSeek(input any, output any, ctx *fasthttp.RequestCtx, uuid string) error
 		if err != nil {
 			return &soap.Error{Code: fasthttp.StatusBadRequest, Desc: err.Error()}
 		}
-		err = pipeline.FileStreamer(uuid).Seek(d)
+		err = decoder.FileStreamer(uuid).Seek(d)
 		if err != nil {
 			return &soap.Error{Code: fasthttp.StatusBadRequest, Desc: err.Error()}
 		}

@@ -32,13 +32,13 @@ func ControlSample(sp *speaker.Speaker) {
 
 	p, err := s.Pack()
 	if err != nil {
-		log.Error("encode sample package error", zap.Uint32("speaker", uint32(sp.Id)), zap.Error(err))
+		log.Error("encode sample package error", zap.String("speaker", sp.String()), zap.Error(err))
 		return
 	}
 
 	err = sp.WriteUDP(p.Bytes())
 	if err != nil {
-		log.Error("write speaker error", zap.Uint32("speaker", uint32(sp.Id)), zap.Error(err))
+		log.Error("ControlSample error", zap.String("speaker", sp.String()), zap.Error(err))
 		return
 	}
 }

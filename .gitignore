@@ -1,7 +1,6 @@
 .idea
 .vscode
 *.exe
-test/
 vendor
 pkg
 scripts

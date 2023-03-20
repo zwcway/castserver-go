@@ -26,7 +26,7 @@ func (s *Volume) Pack() (p *protocol.Package, err error) {
 }
 
 func ControlSpeakerVolume(sp *speaker.Speaker, vol float64, mute bool) {
-	if !sp.AbsoluteVol {
+	if !sp.Config.AbsoluteVol {
 		// 不支持绝对音量控制
 		sp.Volume.SetVolume(vol)
 		sp.Volume.SetMute(mute)
