@@ -23,8 +23,8 @@ type SpeakerResponse struct {
 
 	DataPort uint16 // 用于接收 pcm 数据的端口，同样也是用于接收 控制帧 的端口,尽可能节省设备端资源
 
-	AbsolueVol bool // 是否支持音量控制
-	PowerSave  bool // 是否支持开关机/低电量
+	AbsoluteVol bool // 是否支持音量控制
+	PowerSave   bool // 是否支持开关机/低电量
 }
 
 func byte2bool(b byte) bool {
@@ -129,11 +129,13 @@ func (r *SpeakerResponse) Unpack(p *protocol.Package) (err error) {
 		return
 	}
 
-	// i16, err = p.ReadUint16()
-	// if err != nil {
-	// 	err = newUnpackError("cast port", p.LastBytes(2), err)
-	// 	return
-	// }
+	i32, err = p.ReadUint32()
+	if err != nil {
+		err = newUnpackError("extern error", p.LastBytes(2), err)
+		return
+	}
+	r.AbsoluteVol = ((i32 >> 0) & 0x01) == 1
+	r.PowerSave = ((i32 >> 1) & 0x01) == 1
 
 	return
 }

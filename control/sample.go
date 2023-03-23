@@ -52,7 +52,7 @@ func ControlBits(sp *speaker.Speaker, bits audio.Bits) {
 	sp.Bits = bits
 	ControlSample(sp)
 }
-func ControlChannek(sp *speaker.Speaker, ch audio.Channel) {
+func ControlChannel(sp *speaker.Speaker, ch audio.Channel) {
 	if sp.Channel == ch {
 		return
 	}

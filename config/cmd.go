@@ -110,40 +110,58 @@ func FromOptions(log *zap.Logger, opts map[string]string) error {
 	}
 
 	if v, ok = opts["i"]; ok {
-		var (
-			iface Interface
-		)
-		if utils.IsUint(v) {
-			i, _ := strconv.ParseInt(v, 0, 32)
-			iface.Iface = utils.InterfaceByIndex(int(i))
-		} else {
-			iface.Iface = utils.InterfaceByName(v)
-		}
+		iface, addr := cmdInterface(v)
 
-		if iface.Iface == nil {
-			fmt.Printf("interface '%s' is invalid\n", v)
-			printInterfaces()
-			return fmt.Errorf("")
-		}
-
-		ip := utils.InterfaceAddr(iface.Iface, false)
-
-		if addr := utils.IpNetToAddr(ip); addr != nil {
+		if addr != nil {
 			iface.AddrPort = netip.AddrPortFrom(*addr, ServerListen.AddrPort.Port())
-			ServerListen = iface
+			ServerListen = *iface
 			iface.AddrPort = netip.AddrPortFrom(*addr, ReceiveListen.AddrPort.Port())
-			ReceiveListen = iface
+			ReceiveListen = *iface
 			iface.AddrPort = netip.AddrPortFrom(*addr, HTTPListen.AddrPort.Port())
-			HTTPListen = iface
+			HTTPListen = *iface
 			iface.AddrPort = netip.AddrPortFrom(*addr, DLNAListen.AddrPort.Port())
-			DLNAListen = iface
+			DLNAListen = *iface
 		} else {
-			ServerListen = iface
-			ReceiveListen = iface
-			HTTPListen = iface
-			DLNAListen = iface
+			ServerListen = *iface
+			ReceiveListen = *iface
+			HTTPListen = *iface
+			DLNAListen = *iface
 		}
 	}
 
+	if v, ok = opts["detect-interface"]; ok {
+		iface, addr := cmdInterface(v)
+		if iface == nil {
+			return fmt.Errorf("")
+		}
+
+		if addr != nil {
+			iface.AddrPort = netip.AddrPortFrom(*addr, ServerListen.AddrPort.Port())
+		}
+		ServerListen = *iface
+	}
+
 	return nil
+}
+
+func cmdInterface(v string) (iface *Interface, addr *netip.Addr) {
+	iface = &Interface{}
+
+	if utils.IsUint(v) {
+		i, _ := strconv.ParseInt(v, 0, 32)
+		iface.Iface = utils.InterfaceByIndex(int(i))
+	} else {
+		iface.Iface = utils.InterfaceByName(v)
+	}
+
+	if iface.Iface == nil {
+		fmt.Printf("interface '%s' is invalid\n", v)
+		printInterfaces()
+		return nil, nil
+	}
+
+	ip := utils.InterfaceAddr(iface.Iface, false)
+	addr = utils.IpNetToAddr(ip)
+
+	return
 }

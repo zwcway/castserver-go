@@ -1,12 +1,12 @@
 <template>
   <div class="line-page" :class="{ 'select-channel': specifyChannel >= 0 }">
-    <div class="player" v-if="isPlayer">
+    <div class="player" v-if="isPlayer" @touchstart.stop @mousedown.stop>
       <span>{{ currentDuration }}</span>
       <VueSlider v-model="line.source.cur" :min="0" :max="line.source.dur" tooltipPlacement="bottom"
         :tooltipFormatter="playerSliderFormater" @drag-start="onPlayerSeekStart" @drag-end="onPlayerSeekStop" />
       <span>{{ totalDuration }}</span>
     </div>
-    <div class="volume">
+    <div class="volume" @touchstart.stop @mousedown.stop>
       <div>
         <div class="line-name">
           <span v-if="!isLineNameEdit">{{ line.name }}</span>
@@ -218,9 +218,9 @@ export default {
       });
     },
     specifyChannel(newVal) {
-      // 选择声道的时候禁止滚动
       this.$root.$emit('scrollTo', 0);
 
+      // 选择声道的时候禁止滚动
       this.scrolling = newVal < 0;
     },
   },
@@ -272,6 +272,7 @@ export default {
     }
   },
   activated() {
+    this.$root.$emit('scrollTo', 0);
     // keep-alived 开启后生效
     socket.onConnected().then(() => this.init());
   },
@@ -352,9 +353,9 @@ export default {
       if (this.settings.showSpectrum) {
         ApiLine.listenLineSpectrum(this.line.id, this.onSpectrumChange);
       } else {
-        this.onSpectrumChange({ l: [this.line.id, 0], s: [] })
+        // this.onSpectrumChange({ l: [this.line.id, 0], s: [] })
         cancelAnimationFrame(this.specturmCtx.spRequestId)
-        this.specturmCtx.level.clear();
+        // this.specturmCtx.level.clear();
       }
 
       ApiLine.listenLineInput(this.line.id, s => {
@@ -708,6 +709,7 @@ export default {
       const ctx = this.specturmCtx.ctx;
       const SP = this.specturmCtx.SP;
       const spdata = this.specturmCtx.spdata;
+      const hd = this.specturmCtx.hd;
       let slow = this.specturmCtx.slow;
       let title = this.specturmCtx.title;
 
@@ -717,12 +719,18 @@ export default {
       let space = w > 1 ? w * 0.1 : 0;
       let left = 0;
       let spd = 0;
+      let sum = 0;
       w -= space;
       for (var i = 0; i < spc; i++) {
         left = i * (w + space);
         spd = spdata[i]
+        // spd *= 0.5 * (1 - Math.cos(2*Math.PI*i/spc-1))
         if (spd >= SP.height) {
           spd = SP.height - 1;
+        }
+        sum += spd;
+        if (hd && spd < 1) {
+          spd = 1
         }
 
         ctx.beginPath();
@@ -754,6 +762,7 @@ export default {
         ctx.lineTo(left, SP.height - title[i] + 1);
         ctx.stroke();
       }
+      this.specturmCtx.hd = sum > 0
 
       if (this.specturmCtx.speakerIndex > this.specturmCtx.level.length) {
         this.specturmCtx.speakerIndex = 0;
@@ -986,38 +995,7 @@ export default {
     z-index: 6;
   }
 
-  @media only screen and (max-width: 479px) {
-
-    // .container {
-    //   width: 320px;
-    //   height: 240px;
-
-    //   .room {}
-
-    //   .channels {
-    //     .svg-icon {
-    //       width: 3rem;
-    //     }
-
-    //     #front-bass .svg-icon {
-    //       width: 2em;
-    //     }
-
-    //     #side-left .svg-icon,
-    //     #side-right .svg-icon {
-    //       width: 2em;
-    //     }
-
-    //     #front-center {
-    //       left: calc(50% - 1rem);
-
-    //       .svg-icon {
-    //         width: 2em;
-    //       }
-    //     }
-    //   }
-    // }
-
+  @include for_breakpoint(mobile) {
     .infomation {
       margin-left: 1rem;
       margin-right: 1rem;
@@ -1029,28 +1007,22 @@ export default {
     }
   }
 
-  @media only screen and (min-width: 480px) and (max-width: 819px) {
-    // .container {
-    // width: 480px;
-    // height: 320px;
+  @include for_breakpoint(small) {
+    .infomation {
+      margin-left: 0;
+      margin-right: 0;
+      padding: 0;
+    }
+  }
 
-    // .channels {
-    //   .speaker {
-
-    //     &#front-bass .svg-icon {
-    //       width: 2em;
-    //     }
-    //   }
-    // }
-    // }
-
+  @include for_breakpoint(tablet) {
     .infomation {
       margin-left: 3rem;
       margin-right: 3rem;
     }
   }
 
-  @media only screen and (min-width: 820px) {
+  @include for_breakpoint(desktop) {
     // .container {
     //   width: 640px;
     //   height: 320px;

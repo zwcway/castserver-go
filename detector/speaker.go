@@ -19,6 +19,8 @@ func initSpeaker(sp *speaker.Speaker, res *SpeakerResponse) {
 	sp.Config.Dport = res.DataPort
 	sp.Config.MAC = res.MAC
 	sp.Config.IP = res.Addr
+	sp.Config.AbsoluteVol = res.AbsoluteVol
+	sp.Config.PowerSave = res.PowerSave
 	sp.Rate = control.DefaultRate()
 	sp.Bits = control.DefaultBits()
 	sp.ConnTime = utils.ZeroTime
@@ -45,7 +47,7 @@ func updateSpeaker(sp *speaker.Speaker, support bool, res *SpeakerResponse, isFi
 	}
 
 	sp.CheckOnline()
-	go pusher.Connect(sp)
+	pusher.Connect(sp)
 
 	if isFirstConn {
 		if !support {
@@ -59,7 +61,7 @@ func updateSpeaker(sp *speaker.Speaker, support bool, res *SpeakerResponse, isFi
 	return nil
 }
 
-func CheckSpeaker(res *SpeakerResponse) error {
+func CheckSpeaker(res *SpeakerResponse) (err error) {
 	support := isSupport(res)
 
 	sp := speaker.FindSpeakerByID(res.ID)
@@ -84,7 +86,7 @@ func CheckSpeaker(res *SpeakerResponse) error {
 		return err
 	}
 
-	sp, err := speaker.NewSpeaker(res.ID, speaker.DefaultLineID, control.DefaultChannel())
+	sp, err = speaker.NewSpeaker(res.ID, speaker.DefaultLineID, control.DefaultChannel())
 	if err != nil {
 		log.Error("add speaker error", zap.Int("id", int(res.ID)))
 		return err

@@ -21,6 +21,7 @@ require (
 	github.com/asaskevich/govalidator v0.0.0-20200907205600-7a23bdc65eef // indirect
 	github.com/go-openapi/errors v0.20.2 // indirect
 	github.com/go-openapi/strfmt v0.21.3 // indirect
+	github.com/jackpal/gateway v1.0.7 // indirect
 	github.com/klauspost/compress v1.15.9 // indirect
 	github.com/mattn/go-runewidth v0.0.7 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect

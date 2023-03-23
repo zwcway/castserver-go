@@ -27,41 +27,68 @@ func (f Interface) String() string {
 var (
 	ConfigFile string = "castserver.conf"
 
-	RuntimeThreads int
+	RuntimeThreads int = 100
 
-	ServerListen     Interface  // 监听的地址
-	MulticastAddress netip.Addr // 多播的地址
-	MulticastPort    uint16     // 多播端口
-	ServerNetMTU     uint32
+	// 多播的地址
+	MulticastAddress netip.Addr = netip.MustParseAddr("239.44.77.16")
+	MulticastPort    uint16     = 4414 // 多播端口
+
+	ServerNetMTU uint32 = 1500
+	// 监听的地址
+	ServerListen Interface = Interface{
+		AddrPort: netip.AddrPortFrom(netip.MustParseAddr("0.0.0.0"), MulticastPort),
+	}
 
 	SpeakerDir string = "speakers/"
 
-	ReadBufferSize  int
-	ReadQueueSize   int
-	SendRoutinesMax int
-	SendQueueSize   int
+	ReadBufferSize  int = 1024
+	ReadQueueSize   int = 512
+	SendRoutinesMax int = 2
+	SendQueueSize   int = 16
 
-	SupportAudioBits  []audio.Bits
-	SupportAudioRates []audio.Rate
+	SupportAudioBits []audio.Bits = []audio.Bits{
+		audio.Bits_U8,
+		audio.Bits_U16LE,
+		audio.Bits_U24LE,
+		audio.Bits_U32LE,
+		audio.Bits_S32LE,
+		audio.Bits_32LEF,
+	}
+	SupportAudioRates []audio.Rate = []audio.Rate{
+		audio.AudioRate_44100,
+		audio.AudioRate_48000,
+		audio.AudioRate_96000,
+		audio.AudioRate_192000,
+	}
 
-	AudioBuferSize int = 0 // 0 表示动态自动判断
+	// 0 表示动态自动判断
+	AudioBuferSize int = 0
 
-	SpeakerOfflineTimeout       int
-	SpeakerOfflineCheckInterval int
+	SpeakerOfflineTimeout       int = 5
+	SpeakerOfflineCheckInterval int = 5
 
-	HTTPListen Interface
-	HTTPNetMTU uint32
-	HTTPRoot   string
+	// tcp
+	HTTPListen Interface = Interface{
+		AddrPort: netip.MustParseAddrPort("0.0.0.0:4415"),
+	}
+	HTTPRoot    string = "web/public"
+	WSClientMAX int    = 5
 
-	ReceiveListen  Interface
-	ReceiveTempDir string
-	EnableDLNA     bool
-	EnableAirPlay  bool
+	// udp
+	ReceiveListen Interface = Interface{
+		AddrPort: netip.MustParseAddrPort("0.0.0.0:4416"),
+	}
+	ReceiveTempDir string = ""
+	EnableDLNA     bool   = true
+	EnableAirPlay  bool   = false
 
-	DLNAListen         Interface
-	DLNANotifyInterval uint8
-	DLNAAllowIps       []*net.IPNet
-	DLNADenyIps        []*net.IPNet
+	// tcp
+	DLNAListen Interface = Interface{
+		AddrPort: netip.MustParseAddrPort("0.0.0.0:4416"),
+	}
+	DLNANotifyInterval uint8        = 30
+	DLNAAllowIps       []*net.IPNet = []*net.IPNet{}
+	DLNADenyIps        []*net.IPNet = []*net.IPNet{}
 )
 
 func MTU() int {

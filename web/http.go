@@ -24,6 +24,12 @@ import (
 //go:embed public/*
 var httpfs embed.FS
 
+var (
+	goWsIPID   = []byte("***Go-WS-IP***")
+	goWsPortID = []byte("***Go-WS-Port***")
+	listenAddr netip.AddrPort
+)
+
 func startStaticServer(listen *config.Interface, root string) error {
 	root, err := filepath.Abs(root + "/")
 	if err != nil {
@@ -31,58 +37,6 @@ func startStaticServer(listen *config.Interface, root string) error {
 	}
 	if _, err := os.Stat(root); os.IsNotExist(err) {
 		return err
-	}
-
-	goWsIPID := []byte("***Go-WS-IP***")
-	goWsPortID := []byte("***Go-WS-Port***")
-	var listenAddr netip.AddrPort
-
-	requestHandle := func(ctx *fasthttp.RequestCtx) {
-		uri := string(ctx.Path())
-
-		log.Info("request", zap.String("path", uri), zap.String("src", ctx.RemoteAddr().String()))
-
-		if api.ApiDispatchDevel(ctx) {
-			return
-		}
-		switch uri {
-		case "/api":
-			websockets.WSHandler(ctx)
-		case "/status":
-			statusHandler(ctx)
-		default:
-			if uri == "/" {
-				uri += "index.html"
-			}
-			if strings.Contains(uri, "/.") {
-				ctx.SetStatusCode(fasthttp.StatusNotFound)
-				return
-			}
-
-			uri = "public" + uri
-
-			if strings.HasPrefix(uri, "public/js/index.") {
-				js, err := httpfs.ReadFile(uri)
-				if err != nil {
-					ctx.SetStatusCode(fasthttp.StatusNotFound)
-					return
-				}
-				js = bytes.Replace(js, goWsIPID, []byte(listenAddr.Addr().String()), 1)
-				js = bytes.Replace(js, goWsPortID, []byte(fmt.Sprint(listenAddr.Port())), 1)
-				ctx.Write(js)
-				return
-			}
-
-			fp, err := httpfs.Open(uri)
-			if err != nil {
-				ctx.SetStatusCode(fasthttp.StatusNotFound)
-				return
-			}
-			defer fp.Close()
-
-			ctx.SetContentType(mime.TypeByExtension(path.Ext(uri)))
-			io.Copy(ctx, fp)
-		}
 	}
 
 	fasthttp.SetBodySizePoolLimit(1024, 512000)
@@ -106,4 +60,52 @@ func startStaticServer(listen *config.Interface, root string) error {
 	go s.Serve(ln)
 
 	return nil
+}
+
+func requestHandle(ctx *fasthttp.RequestCtx) {
+	uri := string(ctx.Path())
+
+	log.Info("request", zap.String("path", uri), zap.String("src", ctx.RemoteAddr().String()))
+
+	if api.ApiDispatchDevel(ctx) {
+		return
+	}
+	switch uri {
+	case "/api":
+		websockets.WSHandler(ctx)
+	case "/status":
+		statusHandler(ctx)
+	default:
+		if uri == "/" {
+			uri += "index.html"
+		}
+		if strings.Contains(uri, "/.") {
+			ctx.SetStatusCode(fasthttp.StatusNotFound)
+			return
+		}
+
+		uri = "public" + uri
+
+		if strings.HasPrefix(uri, "public/js/index.") {
+			js, err := httpfs.ReadFile(uri)
+			if err != nil {
+				ctx.SetStatusCode(fasthttp.StatusNotFound)
+				return
+			}
+			js = bytes.Replace(js, goWsIPID, []byte(listenAddr.Addr().String()), 1)
+			js = bytes.Replace(js, goWsPortID, []byte(fmt.Sprint(listenAddr.Port())), 1)
+			ctx.Write(js)
+			return
+		}
+
+		fp, err := httpfs.Open(uri)
+		if err != nil {
+			ctx.SetStatusCode(fasthttp.StatusNotFound)
+			return
+		}
+		defer fp.Close()
+
+		ctx.SetContentType(mime.TypeByExtension(path.Ext(uri)))
+		io.Copy(ctx, fp)
+	}
 }

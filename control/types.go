@@ -25,7 +25,7 @@ type Control struct {
 func (f *Control) Pack() (p *protocol.Package, err error) {
 	p = protocol.NewPackage(16)
 	p.WriteUint8(uint8(protocol.PT_Control))
-	p.WriteUint8(uint8(protocol.VERSION))
+	p.WriteUint8(uint8((protocol.VERSION&0x0F)<<4) | uint8(f.cmd&0x0F))
 	p.WriteUint32(uint32(f.spid))
 	return
 }

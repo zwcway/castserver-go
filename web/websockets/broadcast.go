@@ -105,12 +105,6 @@ func Broadcast(evt uint8, sub uint8, arg int, msg []byte) error {
 	return nil
 }
 
-var eventHandlers = map[uint8]EventHandler{}
-
-func SetEventHandler(hs map[uint8]EventHandler) {
-	eventHandlers = hs
-}
-
 func Subscribe(c *WSConnection, evt []uint8, sub uint8, arg int) {
 	ses, ok := WSHub.broadcast[c]
 	if !ok { // 设备已断开
@@ -142,11 +136,18 @@ func Subscribe(c *WSConnection, evt []uint8, sub uint8, arg int) {
 	}
 
 	// 事件为空，表示接收该cmd下的所有事件
+	hasSpectrumEvent := false
 	for _, e := range addEvts {
 		WSHub.broadcast[c] = append(WSHub.broadcast[c], broadcastEvent{e, sub, arg})
-		if h, ok := eventHandlers[e]; ok {
-			h.On(e, arg, ctx, log)
+
+		if isSpectrumEvent(e) {
+			appendSpectrum(e, arg)
+			hasSpectrumEvent = true
 		}
+	}
+
+	if hasSpectrumEvent {
+		startSpectumRoutine()
 	}
 }
 
@@ -158,30 +159,38 @@ func Unsubscribe(c *WSConnection, evt []uint8, sub uint8, arg int) {
 
 	ne := []broadcastEvent{}
 
+	hasSpumEvent := false
+
 	for _, se := range ses {
 		if !findEvent(evt, se.evt) || se.sub != sub {
 			ne = append(ne, se)
 			continue
 		}
 
-		if h, ok := eventHandlers[se.evt]; ok {
-			h.Off(se.evt, arg)
+		if isSpectrumEvent(se.evt) {
+			removeSpectrum(se.evt, se.arg)
+			hasSpumEvent = true
 		}
 	}
 
 	WSHub.broadcast[c] = ne
+
+	if hasSpumEvent {
+		if !hasSpectrumEvent(WSHub.broadcast) {
+			stopSpectumRoutine()
+		}
+	}
 }
 
 func UnsubscribeAll(c *WSConnection) {
+	if !hasSpectrumEvent(WSHub.broadcast) {
+		stopSpectumRoutine()
+	}
+
 	ses, ok := WSHub.broadcast[c]
 	if !ok {
 		return
 	}
 
-	for _, ee := range ses {
-		if h, ok := eventHandlers[ee.evt]; ok {
-			h.Off(ee.evt, ee.arg)
-		}
-	}
-
+	WSHub.broadcast[c] = ses[:0]
 }

@@ -18,35 +18,53 @@ const (
 )
 
 type Source struct {
-	From SourceType
-	audio.Format
+	From   SourceType
+	Format audio.Format
 
-	PipeLine     PipeLiner
-	FileStreamer FileStreamer
+	PipeLine PipeLiner
+
+	Mixer MixerElement
+
+	fs FileStreamer
+	rs ReceiverStreamer
 
 	Cover  image.Image
 	Title  string
 	Artist string
 }
 
-func (s *Source) FromFileStreamer(f FileStreamer) {
-	s.FileStreamer = f
-	s.From = ST_File
+func (s *Source) ApplySource(f SourceStreamer) {
+	s.Mixer.Add(f)
+
+	if fs, ok := f.(FileStreamer); ok {
+		s.From = ST_File
+		s.fs = fs
+	} else if rs, ok := f.(ReceiverStreamer); ok {
+		s.From = ST_Receiver
+		s.rs = rs
+	}
+
 	s.Format = f.AudioFormat()
 }
 
+func (s *Source) FileStreamer() FileStreamer {
+	return s.fs
+}
+
+func (s *Source) ReceiverStreamer() ReceiverStreamer {
+	return s.rs
+}
+
 func (s *Source) Duration() time.Duration {
-	if s.FileStreamer == nil {
+	if s.fs == nil {
 		return 0
 	}
-
-	return s.FileStreamer.Duration()
+	return s.fs.Duration()
 }
 
 func (s *Source) TotalDuration() time.Duration {
-	if s.FileStreamer == nil {
+	if s.fs == nil {
 		return 0
 	}
-
-	return s.FileStreamer.TotalDuration()
+	return s.fs.TotalDuration()
 }

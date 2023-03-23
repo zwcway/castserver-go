@@ -3,7 +3,6 @@ package localspeaker
 import (
 	"bytes"
 	"testing"
-	"unsafe"
 
 	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/element"
@@ -40,7 +39,7 @@ func Test_reader_Read(t *testing.T) {
 		mixer.Clear()
 		mixer.Add(player)
 
-		player.Add(*(*[]float64)(unsafe.Pointer(&data)))
+		player.Add(f, data)
 
 		p := make([]byte, 40)
 

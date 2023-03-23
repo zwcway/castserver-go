@@ -25,6 +25,10 @@ import Toast from '@/components/Toast.vue';
 import { socket } from '@/common/request';
 import { changeAppearance } from '@/common/theme';
 
+document.addEventListener('gesturestart', (event) => {
+  // 禁止 ios safari 缩放
+  event.preventDefault();
+});
 export default {
   name: 'App',
   components: {

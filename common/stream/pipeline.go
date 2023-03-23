@@ -48,9 +48,9 @@ type MixerElement interface {
 	Has(Streamer) bool
 	Add(...Streamer)
 	PreAdd(...Streamer)
-	SetFileStreamer(FileStreamer)
-	FileStreamer() FileStreamer
 	Clear()
+
+	Buffer() *Samples
 }
 
 type ChannelMixerElement interface {
@@ -64,7 +64,7 @@ type ChannelMixerElement interface {
 type RawPlayerElement interface {
 	Element
 
-	Add([]float64)
+	Add(audio.Format, []byte)
 	Len() int
 	IsIdle() bool
 }
@@ -72,8 +72,8 @@ type RawPlayerElement interface {
 type ResampleElement interface {
 	SwitchElement
 
-	SetFormat(audio.Format)
-	Format() audio.Format
+	SetFormat(audio.Format) // 设置转码目标格式
+	Format() audio.Format   // 获取转码目标格式
 }
 
 type SpectrumElement interface {
@@ -101,8 +101,6 @@ type EqualizerElement interface {
 	Delay() time.Duration
 }
 
-type FileStreamerOpenFileHandler func(stream FileStreamer, inFormat, outFormat audio.Format)
-
 type PipeLiner interface {
 	StreamCloser
 
@@ -113,8 +111,6 @@ type PipeLiner interface {
 	Prepend(s Element)
 	Append(s ...Element)
 	Clear()
-
-	Format() audio.Format // 获取输入格式
 
 	LastCost() time.Duration
 	LastMaxCost() time.Duration

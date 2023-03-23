@@ -1,5 +1,5 @@
 <template>
-  <div class="volume-controller">
+  <div class="volume-controller"  @touchstart.stop @mousedown.stop>
     <div class="mute" :class="{ 'is-muted': isMute }" @click.stop.prevent="onVolumeMute()">
       <svg-icon :icon-class="isMute ? 'volume-mute' : 'volume'" :size="24"></svg-icon>
     </div>
@@ -53,7 +53,7 @@ export default {
   },
   methods: {
     volumeLevelProcess(dotsPos) {
-      return [[0, 0, { backgroundColor: 'pink' }]];
+      return [[0, 0, {}]];
     },
     onVolumeMute() {
       this.isMute = !this.isMute;

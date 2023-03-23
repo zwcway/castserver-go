@@ -3,26 +3,42 @@
     <a-button class="debug-btn" type="primary" icon="tool" @click="show = !show"></a-button>
     <a-modal :visible="show" :mask="false" width="fit-content" :footer="null" :header="null"
       wrap-class-name="debug-page debug-wrap" dialog-class="debug-dialog" @cancel="show = false">
-      <a-select size="small" v-model="appearance" @select="appearance = $event" dropdownClassName="debug-item">
-        <a-select-option value="auto">自动&nbsp;&nbsp;&nbsp;&nbsp;</a-select-option>
-        <a-select-option value="light">🌞 浅色</a-select-option>
-        <a-select-option value="dark">🌚 暗黑</a-select-option>
-      </a-select>
-      <a-button size="small" type="" @click="onSpeakerDetect">发现设备</a-button>
+      <p>
+        <label for="">mock
+          <a-switch size="small" v-model="mock" checked-children="开" un-checked-children="关" />
+        </label>
+      </p>
+      <p>
+        <a-select size="small" v-model="appearance" dropdownClassName="debug-item">
+          <a-select-option value="auto">自动&nbsp;&nbsp;&nbsp;&nbsp;</a-select-option>
+          <a-select-option value="light">🌞 浅色</a-select-option>
+          <a-select-option value="dark">🌚 暗黑</a-select-option>
+        </a-select>
+      </p>
+      <p>
+        <a-button size="small" type="" @click="onSpeakerDetect">发现设备</a-button>
+      </p>
 
-      <div v-if="speakerId >= 0">
+      <p v-if="speakerId >= 0">
         <a-button size="small" @click="speakerSendServerInfo">发送服务器信息</a-button>
         <a-button size="small" @click="speakerReconnect">重新连接</a-button>
-      </div>
-      <div v-if="lineId >= 0" style="margin: 1rem 0;width: 20rem;">
-        <a-input-search size="small" v-model="audioFile" placeholder="音频文件全路径" @search="playFile">
-          <a-button size="small" slot="enterButton">播放文件</a-button>
-        </a-input-search>
-        <label for="">{{ playing ? '正在播放' : '已暂停' }}<a-switch size="small" v-model="playing" /></label>
-        <label for="">{{ localSpeaker ? '声卡已打开' : '声卡已关闭' }}<a-switch size="small" v-model="localSpeaker" /></label>
-        <div>
-          <label for="">{{ spectrumLog ? '频谱图对数' : '频谱图线性' }}<a-switch size="small" v-model="spectrumLog" /></label>
-        </div>
+      </p>
+      <div v-if="lineId >= 0">
+        <p>
+          <a-input-search size="small" v-model="audioFile" placeholder="音频文件全路径" @search="playFile">
+            <a-button size="small" slot="enterButton">播放文件</a-button>
+          </a-input-search>
+        </p>
+        <p>
+          <label for="">播放状态<a-switch size="small" v-model="playing" checked-children="正在播放"
+              un-checked-children="已暂停" /></label>
+          <label for="">声卡<a-switch size="small" v-model="localSpeaker" checked-children="开"
+              un-checked-children="关" /></label>
+        </p>
+        <p>
+          <label for="">频谱图<a-switch size="small" v-model="spectrumLog" checked-children="对数"
+              un-checked-children="线性" /></label>
+        </p>
       </div>
     </a-modal>
   </div>
@@ -55,12 +71,18 @@ export default {
         return this.settings.appearance;
       },
       set(value) {
-        this.$store.commit('updateSettings', {
-          key: 'appearance',
-          value: value,
-        });
+        this.$store.commit('updateSettings', { key: 'appearance', value });
         changeAppearance(value);
       },
+    },
+    mock: {
+      get() {
+        return this.settings.enableMock;
+      },
+      set(value) {
+        this.$store.commit('updateSettings', { key: 'enableMock', value });
+        window.location.reload()
+      }
     },
   },
   watch: {
@@ -86,18 +108,18 @@ export default {
       this.loadStatus()
     },
     playing(newVal) {
-      socket.send('pause', { Line: this.lineId, Pause: !newVal });
+      this.send('pause', { Line: this.lineId, Pause: !newVal });
     },
     localSpeaker(newVal) {
-      socket.send('localSpeaker', newVal);
+      this.send('localSpeaker', newVal);
     },
     spectrumLog(newVal) {
-      socket.send('setLine', { id: this.lineId, sl: newVal });
+      this.send('setLine', { id: this.lineId, sl: newVal });
     }
   },
   methods: {
     isDebug() {
-      return this.settings.enableDebugTool;
+      return this.settings.enableDebugTool || process.env.NODE_ENV !== 'production';
     },
     loadStatus() {
       if (this.lineId < 0) return;
@@ -108,8 +130,13 @@ export default {
         this.spectrumLog = s.sl
       })
     },
+    send() {
+      socket.send.call(socket, ...arguments).then(() => {
+        this.loadStatus()
+      })
+    },
     onSpeakerDetect() {
-      socket.send('addSpeaker', {
+      this.send('addSpeaker', {
         Ver: 1,
         ID: mock.Random.integer(1, 99999999),
         IP: mock.Random.ip(),
@@ -123,10 +150,10 @@ export default {
       });
     },
     speakerSendServerInfo() {
-      socket.send('sendServerInfo', this.speakerId);
+      this.send('sendServerInfo', this.speakerId);
     },
     speakerReconnect() {
-      socket.send('spReconnect', this.speakerId);
+      this.send('spReconnect', this.speakerId);
     },
     playFile() {
       if (this.audioFile.length < 4) {
@@ -136,7 +163,7 @@ export default {
       if (file[0] === '"') {
         file = file.substring(1, file.length - 1)
       }
-      socket.send('playFile', { Line: this.lineId, File: file });
+      this.send('playFile', { Line: this.lineId, File: file });
     },
   },
 };
@@ -172,6 +199,11 @@ export default {
     bottom: 0;
     padding: 0;
     margin: 1rem;
+
+    label {
+      margin: 0 0.5rem;
+      display: inline-block;
+    }
 
     .ant-modal-close {
       .ant-modal-close-x {

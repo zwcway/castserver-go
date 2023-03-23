@@ -61,7 +61,7 @@ _default_:
 	return
 }
 
-func parseBits(log *zap.Logger, cfg reflect.Value, k *ini.Key, def *ini.Key, ck *CfgKey) {
+func parseBits(log *zap.Logger, cfg reflect.Value, k *ini.Key, ck *CfgKey) {
 	parse := func(b string) bool {
 		r := strings.FieldsFunc(b, func(r rune) bool {
 			return r == ' ' || r == '|' || r == '/'
@@ -88,10 +88,9 @@ func parseBits(log *zap.Logger, cfg reflect.Value, k *ini.Key, def *ini.Key, ck 
 			return
 		}
 	}
-	parse(def.String())
 }
 
-func parseRates(log *zap.Logger, cfg reflect.Value, k *ini.Key, def *ini.Key, ck *CfgKey) {
+func parseRates(log *zap.Logger, cfg reflect.Value, k *ini.Key, ck *CfgKey) {
 	parse := func(b string) bool {
 		r := strings.FieldsFunc(b, func(r rune) bool {
 			return r == ' ' || r == '|' || r == '/'
@@ -123,23 +122,21 @@ func parseRates(log *zap.Logger, cfg reflect.Value, k *ini.Key, def *ini.Key, ck
 			return
 		}
 	}
-	parse(def.String())
 }
 
-func parsePath(log *zap.Logger, cfg reflect.Value, k *ini.Key, def *ini.Key, ck *CfgKey) {
-	path := def.String()
+func parsePath(log *zap.Logger, cfg reflect.Value, k *ini.Key, ck *CfgKey) {
+	path := ""
 	if k != nil {
 		path = k.String()
 	}
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		log.Error("path not exists", zap.String("path", path), zap.String("key", ck.Key))
-		cfg.SetString(def.String())
 	} else {
 		cfg.SetString(path)
 	}
 }
-func parseTempDir(log *zap.Logger, cfg reflect.Value, k *ini.Key, def *ini.Key, ck *CfgKey) {
-	path := def.String()
+func parseTempDir(log *zap.Logger, cfg reflect.Value, k *ini.Key, ck *CfgKey) {
+	path := ""
 	if k != nil {
 		path = k.String()
 	}
@@ -178,9 +175,8 @@ func Clear(cfg reflect.Value) {
 type CfgKey struct {
 	Cfg  any
 	Key  string
-	Def  string
 	Desc string
-	cb   func(log *zap.Logger, cfg reflect.Value, k *ini.Key, def *ini.Key, ck *CfgKey)
+	cb   func(log *zap.Logger, cfg reflect.Value, k *ini.Key, ck *CfgKey)
 }
 type CfgSection struct {
 	Name string
@@ -224,9 +220,7 @@ func FromContent(log *zap.Logger, data []byte) error {
 }
 
 func setKey(log *zap.Logger, section *ini.Section, ck *CfgKey) {
-
 	key, _ := section.GetKey(ck.Key)
-	defKey, _ := section.NewKey(ck.Key+"-default", ck.Def)
 
 	isNil := ck.Cfg == nil
 
@@ -240,10 +234,10 @@ func setKey(log *zap.Logger, section *ini.Section, ck *CfgKey) {
 		cfgrv = cfgrv.Elem()
 	}
 
-	Clear(cfgrv)
+	// Clear(cfgrv)
 
 	if ck.cb != nil {
-		ck.cb(log, cfgrv, key, defKey, ck)
+		ck.cb(log, cfgrv, key, ck)
 		return
 	}
 
@@ -253,89 +247,69 @@ func setKey(log *zap.Logger, section *ini.Section, ck *CfgKey) {
 
 	switch cfgrv.Kind() {
 	case reflect.String:
-		setReflectString(log, key, defKey, cfgrv, ck)
+		setReflectString(log, key, cfgrv, ck)
 	case reflect.Int32, reflect.Int, reflect.Int16, reflect.Int8, reflect.Int64:
-		setReflectInt(log, key, defKey, cfgrv, ck)
+		setReflectInt(log, key, cfgrv, ck)
 	case reflect.Uint, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint8:
-		setReflectUInt(log, key, defKey, cfgrv, ck)
+		setReflectUInt(log, key, cfgrv, ck)
 	case reflect.Bool:
-		setReflectBool(log, key, defKey, cfgrv, ck)
+		setReflectBool(log, key, cfgrv, ck)
 	case reflect.Struct:
-		setReflectStruct(log, key, defKey, cfgrv, ck)
+		setReflectStruct(log, key, cfgrv, ck)
 	case reflect.Slice:
-		setReflectSlice(log, key, defKey, cfgrv, ck)
+		setReflectSlice(log, key, cfgrv, ck)
 	}
 }
 
-func setReflectString(log *zap.Logger, key *ini.Key, defKey *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
-	if key == nil {
-		cfgrv.SetString(ck.Def)
-	} else {
+func setReflectString(log *zap.Logger, key *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
+	if key != nil {
 		i := key.String()
 		if key == nil || len(key.String()) == 0 {
 			log.Error("value empty", zap.String("key", ck.Key), zap.String("val", key.String()))
-			i = ck.Def
+			return
 		}
 		cfgrv.SetString(i)
 	}
 }
 
-func setReflectInt(log *zap.Logger, key *ini.Key, defKey *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
-	i, err := defKey.Int()
-	if err != nil {
-		panic(nil)
-	}
-
+func setReflectInt(log *zap.Logger, key *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
 	if key != nil {
 		if len(key.String()) == 0 {
 			log.Error("value empty", zap.String("key", ck.Key), zap.String("val", key.String()))
 		} else if ki, err := key.Int(); err != nil {
 			log.Error("value invalid", zap.String("key", ck.Key), zap.String("val", key.String()))
-			i = ki
+			cfgrv.SetInt(int64(ki))
 		}
 	}
-	cfgrv.SetInt(int64(i))
-
 }
-func setReflectUInt(log *zap.Logger, key *ini.Key, defKey *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
-	i, err := defKey.Uint()
-	if err != nil {
-		panic(nil)
-	}
+
+func setReflectUInt(log *zap.Logger, key *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
 	if key != nil {
 		if len(key.String()) == 0 {
 			log.Error("value empty", zap.String("key", ck.Key), zap.String("val", key.String()))
 		} else if ki, err := key.Uint(); err != nil {
 			log.Error("value invalid", zap.String("key", ck.Key), zap.String("val", key.String()))
-			i = ki
+			cfgrv.SetUint(uint64(ki))
 		}
 	}
-
-	cfgrv.SetUint(uint64(i))
-
 }
-func setReflectBool(log *zap.Logger, key *ini.Key, defKey *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
-	i, err := defKey.Bool()
-	if err != nil {
-		panic(nil)
-	}
+
+func setReflectBool(log *zap.Logger, key *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
 	if key != nil {
 		if len(key.String()) == 0 {
 			log.Error("value empty", zap.String("key", ck.Key), zap.String("val", key.String()))
 		} else if ki, err := key.Bool(); err != nil {
 			log.Error("value invalid", zap.String("key", ck.Key), zap.String("val", key.String()))
-			i = ki
+			cfgrv.SetBool(ki)
 		}
 	}
-	cfgrv.SetBool(i)
 }
-func setReflectStruct(log *zap.Logger, key *ini.Key, defKey *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
+
+func setReflectStruct(log *zap.Logger, key *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
 	var keyV string
 	isEmpty := key != nil && len(key.String()) == 0
 
-	if key == nil {
-		keyV = defKey.String()
-	} else {
+	if key != nil {
 		keyV = key.String()
 	}
 	if isEmpty {
@@ -349,7 +323,8 @@ func setReflectStruct(log *zap.Logger, key *ini.Key, defKey *ini.Key, cfgrv refl
 	as := cfgrv.Type().AssignableTo
 
 	if as(reflect.TypeOf((*Interface)(nil)).Elem()) {
-		port, _ := defKey.Int()
+		ls := cfgrv.Interface().(Interface)
+		port := ls.AddrPort.Port()
 		val := ""
 		if key != nil {
 			val = key.String()
@@ -368,7 +343,7 @@ func setReflectStruct(log *zap.Logger, key *ini.Key, defKey *ini.Key, cfgrv refl
 	}
 }
 
-func setReflectSlice(log *zap.Logger, key *ini.Key, defKey *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
+func setReflectSlice(log *zap.Logger, key *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
 	isEmpty := key != nil && len(key.String()) == 0
 
 	if isEmpty {
@@ -378,16 +353,14 @@ func setReflectSlice(log *zap.Logger, key *ini.Key, defKey *ini.Key, cfgrv refle
 	as := elemRT.AssignableTo
 
 	if as(reflect.PointerTo(reflect.TypeOf((*net.IPNet)(nil)).Elem())) {
-		setReflectSliceIPNet(log, key, defKey, cfgrv, ck)
+		setReflectSliceIPNet(log, key, cfgrv, ck)
 	}
 }
 
-func setReflectSliceIPNet(log *zap.Logger, key *ini.Key, defKey *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
+func setReflectSliceIPNet(log *zap.Logger, key *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
 	var keyV string
 	elemRT := cfgrv.Type().Elem()
-	if key == nil {
-		keyV = defKey.String()
-	} else {
+	if key != nil {
 		keyV = key.String()
 	}
 	if len(keyV) == 0 {

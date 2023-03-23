@@ -2,7 +2,9 @@ package element
 
 import (
 	"github.com/pkg/errors"
+	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/stream"
+	"github.com/zwcway/castserver-go/config"
 	"github.com/zwcway/castserver-go/utils"
 	"golang.org/x/exp/slices"
 )
@@ -10,8 +12,6 @@ import (
 // 音频混合器
 type Mixer struct {
 	streamers []stream.Streamer
-
-	fileStreamer stream.FileStreamer
 
 	buffer *stream.Samples
 	bufPos int
@@ -43,14 +43,6 @@ func (m *Mixer) PreAdd(ss ...stream.Streamer) {
 	utils.SlicePrepend(&m.streamers, ss...)
 }
 
-func (m *Mixer) SetFileStreamer(s stream.FileStreamer) {
-	if m.fileStreamer != nil {
-		return
-	}
-	m.fileStreamer = s
-	m.Add(s)
-}
-
 func (m *Mixer) Del(s stream.Streamer) {
 	utils.SliceQuickRemoveItem(&m.streamers, s)
 }
@@ -60,12 +52,12 @@ func (m *Mixer) Has(s stream.Streamer) bool {
 	return idx >= 0
 }
 
-func (m *Mixer) FileStreamer() stream.FileStreamer {
-	return m.fileStreamer
-}
-
 func (m *Mixer) Clear() {
 	m.streamers = m.streamers[:0]
+}
+
+func (m *Mixer) Buffer() *stream.Samples {
+	return m.buffer
 }
 
 func (m *Mixer) Stream(samples *stream.Samples) {
@@ -73,21 +65,14 @@ func (m *Mixer) Stream(samples *stream.Samples) {
 		return
 	}
 
-	if m.buffer == nil || m.buffer.NbSamples < samples.NbSamples {
-		m.buffer = stream.NewSamples(samples.NbSamples, samples.Format)
-	}
+	m.buffer.ResizeSamples(samples.NbSamples, samples.Format)
 
 	nbSamples := 0
 
 	for nbSamples < samples.NbSamples {
 		if m.bufPos > 0 && m.bufPos < m.buffer.LastNbSamples {
 			// 残留数据
-			i := 0
-			for ch := 0; ch < m.buffer.Format.Layout.Count && ch < samples.Format.Layout.Count; ch++ {
-				for i = 0; m.bufPos+i < m.buffer.LastNbSamples && nbSamples+i < samples.NbSamples; i++ {
-					samples.Data[ch][i] += m.buffer.Data[ch][m.bufPos+i]
-				}
-			}
+			i := m.buffer.MixChannel(samples, m.buffer.Format.Channels(), nbSamples, m.bufPos)
 			nbSamples += i
 			m.bufPos += i
 			continue
@@ -96,17 +81,15 @@ func (m *Mixer) Stream(samples *stream.Samples) {
 		mixed := 0
 		for si := 0; si < len(m.streamers); si++ {
 			stream := m.streamers[si]
-			// TODO 整合调用 Samples.MixChannel
 
-			m.buffer.BeZero()
-			// 混合音频流
+			m.buffer.Reset()
+
 			stream.Stream(m.buffer)
-			i := 0
-			for ch := 0; ch < m.buffer.Format.Layout.Count && ch < samples.Format.Layout.Count; ch++ {
-				for i = 0; i < m.buffer.LastNbSamples && i+nbSamples < samples.NbSamples; i++ {
-					samples.Data[ch][nbSamples+i] += m.buffer.Data[ch][i]
-				}
-			}
+
+			samples.ResizeSamples(m.buffer.LastNbSamples, m.buffer.Format)
+
+			i := m.buffer.MixChannel(samples, m.buffer.Format.Channels(), nbSamples, 0)
+
 			if mixed < i {
 				mixed = i
 			}
@@ -126,14 +109,10 @@ func (m *Mixer) Stream(samples *stream.Samples) {
 		}
 	}
 
-	if m.buffer.HasData {
-		samples.HasData = true
+	if nbSamples > samples.LastNbSamples && nbSamples <= samples.NbSamples {
+		samples.ResizeSamples(nbSamples, m.buffer.Format)
 	}
 
-	samples.SetFormat(m.buffer.Format)
-	if nbSamples > samples.LastNbSamples {
-		samples.LastNbSamples = nbSamples
-	}
 }
 
 func (m *Mixer) Sample(*float64, int, int) {}
@@ -158,6 +137,7 @@ func NewMixer(streamers ...stream.Streamer) stream.MixerElement {
 func NewEmptyMixer() stream.MixerElement {
 	m := &Mixer{
 		streamers: make([]stream.Streamer, 0),
+		buffer:    stream.NewSamples(config.AudioBuferSize, audio.DefaultFormat),
 	}
 	return m
 }

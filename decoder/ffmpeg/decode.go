@@ -16,16 +16,14 @@ import (
 	"github.com/zwcway/castserver-go/decoder/ffmpeg/avutil"
 )
 
-func New(ofh stream.FileStreamerOpenFileHandler, outFormat audio.Format) stream.FileStreamer {
-
+func New(outFormat audio.Format) stream.FileStreamer {
 	return &AVFormatContext{
-		openedHandler: ofh,
-		outputFmt:     outFormat,
+		outputFmt: outFormat,
 	}
 }
 
 type AVFormatContext struct {
-	openedHandler stream.FileStreamerOpenFileHandler
+	openedHandler []stream.FormatChangedHandler
 	format        audio.Format
 	fileName      string
 	pause         bool
@@ -84,16 +82,20 @@ func (c *AVFormatContext) OpenFile(fileName string) (err error) {
 	c.outputFmt.InitFrom(c.format)
 	// c.outputFmt.SampleBits = audio.Bits_DEFAULT
 
-	err = c.SetOutAudioFormat(c.outputFmt)
+	for _, fch := range c.openedHandler {
+		fch(c, c.format, c.outputFmt)
+	}
+
+	err = c.SetOutFormat(c.outputFmt)
 	if err != nil {
 		return err
 	}
 
-	if c.openedHandler != nil {
-		c.openedHandler(c, c.format, c.outputFmt)
-	}
-
 	return nil
+}
+
+func (c *AVFormatContext) SetFormatChangedHandler(fch stream.FormatChangedHandler) {
+	c.openedHandler = append(c.openedHandler, fch)
 }
 
 func (c *AVFormatContext) Name() string {
@@ -108,13 +110,20 @@ func (c *AVFormatContext) AudioFormat() audio.Format {
 	return c.format
 }
 
-func (c *AVFormatContext) OutAudioFormat() audio.Format {
+func (c *AVFormatContext) OutFormat() audio.Format {
 	return c.outputFmt
 }
 
-func (c *AVFormatContext) SetOutAudioFormat(f audio.Format) error {
+func (c *AVFormatContext) SetOutFormat(f audio.Format) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+
+	// 不改变声道数量
+	f.Layout = c.format.Layout
+
+	if !f.IsValid() {
+		return nil
+	}
 
 	c.outputFmt = f
 
@@ -124,14 +133,6 @@ func (c *AVFormatContext) SetOutAudioFormat(f audio.Format) error {
 	}
 
 	return nil
-}
-
-func (c *AVFormatContext) SetFormat(format audio.Format) {
-	if !format.SampleRate.IsValid() || !format.SampleBits.IsValid() || format.Layout.Count == 0 {
-		return
-	}
-	c.outputFmt = format
-	c.initOutputFormat()
 }
 
 func (c *AVFormatContext) initOutputFormat() error {
@@ -164,6 +165,10 @@ func (c *AVFormatContext) TotalDuration() time.Duration {
 	return time.Duration(c.ctx.formatCtx.duration) * time.Microsecond
 }
 
+func (c *AVFormatContext) IsPlaying() bool {
+	return !c.pause && !c.finished
+}
+
 func (c *AVFormatContext) Len() int {
 	if c.ctx == nil || c.ctx.stream == nil {
 		return 0
@@ -180,7 +185,7 @@ func (c *AVFormatContext) Position() int {
 	return int(c.ctx.avFrame.pkt_pos)
 }
 
-func (c *AVFormatContext) Pause(p bool) {
+func (c *AVFormatContext) SetPause(p bool) {
 	c.pause = p
 }
 
@@ -219,14 +224,12 @@ func (c *AVFormatContext) Stream(samples *stream.Samples) {
 		return
 	}
 
-	samples.SetFormat(c.outputFmt)
+	samples.ResizeSamples(samples.NbSamples, c.outputFmt)
 
 	if c.pause || c.finished {
 		// samples.BeZero()
 		return
 	}
-
-	samples.HasData = true
 
 	c.lock.Lock()
 	defer c.lock.Unlock()

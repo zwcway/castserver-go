@@ -1,20 +1,19 @@
 package element
 
 import (
-	"fmt"
-
 	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/stream"
 	"github.com/zwcway/castserver-go/utils"
 )
 
 type playerStreamer struct {
-	pos int
-	pcm []float64
+	pos     int
+	samples *stream.Samples
 }
 
 type Player struct {
-	pcm []playerStreamer
+	resample stream.ResampleElement
+	pcm      []playerStreamer
 }
 
 func (v *Player) Name() string {
@@ -26,42 +25,39 @@ func (v *Player) Type() stream.ElementType {
 }
 
 func (v *Player) Stream(samples *stream.Samples) {
-	if len(v.pcm) == 0 {
+	if len(v.pcm) == 0 || v.resample == nil {
 		return
 	}
 	format := samples.Format
-
-	if format.SampleRate != audio.AudioRate_44100 || format.SampleBits != audio.Bits_DEFAULT {
-		fmt.Println(format.String())
-		// TODO 转码 pcm 后播放
-		return
-	}
-
 	mixed := 0
 	i := 0
+
 	for s := 0; s < len(v.pcm); s++ {
 		pcm := &v.pcm[s]
 
-		// 不使用 LastSize 强制混合
-		for i = 0; i < samples.NbSamples; i++ {
-			if pcm.pos >= len(pcm.pcm) {
-				// 播放完毕，移除
-				if utils.SliceQuickRemove(&v.pcm, s) {
-					s--
-				}
-				break
-			}
-
-			for ch := 0; ch < samples.Format.Layout.Count; ch++ {
-				samples.Data[ch][i] += pcm.pcm[pcm.pos]
-			}
-			pcm.pos++
+		if !pcm.samples.Format.EqualSample(&format) {
+			// 不改变播放源的声道布局
+			format.Layout = pcm.samples.Format.Layout
+			v.resample.SetFormat(format)
+			// 转码程序会操作所有样本数据
+			// 转码过后 pcm.samples.Format 会被赋值为 format
+			// 因此只会被执行一次
+			v.resample.Stream(pcm.samples)
 		}
+		i = pcm.samples.MixChannel(samples, pcm.samples.Format.Channels(), 0, pcm.pos)
+		pcm.pos += i
 		if mixed < i {
 			mixed = i
 		}
+
+		if i == 0 || pcm.pos >= pcm.samples.NbSamples {
+			// 混合失败 或者 播放完毕，移除
+			if utils.SliceQuickRemove(&v.pcm, s) {
+				s--
+			}
+		}
 	}
-	if mixed > samples.LastNbSamples {
+	if mixed > samples.LastNbSamples && mixed <= samples.NbSamples {
 		samples.LastNbSamples = mixed
 	}
 }
@@ -72,22 +68,34 @@ func (p *Player) IsIdle() bool {
 	return len(p.pcm) == 0
 }
 
-func (p *Player) Len() int {
+func (p *Player) Len() (c int) {
 	return len(p.pcm)
 }
 
-func (p *Player) Add(pcm []float64) {
+func (p *Player) Add(f audio.Format, pcm []byte) {
 	if pcm == nil {
 		return
 	}
-	p.pcm = append(p.pcm, playerStreamer{pcm: pcm})
+	samples := stream.NewSamplesCopy(pcm, f)
+	//
+	p.pcm = append(p.pcm, playerStreamer{
+		samples: samples,
+	})
 }
 
-func (p *Player) Close() error {
+func (p *Player) Close() (err error) {
+	p.resample.Off()
+	err = p.resample.Close()
 	p.pcm = p.pcm[:0]
-	return nil
+	return
 }
 
 func NewPlayer() stream.RawPlayerElement {
-	return &Player{pcm: make([]playerStreamer, 0)}
+	resample := NewResample(audio.DefaultFormat)
+	resample.On()
+
+	return &Player{
+		resample: resample,
+		pcm:      make([]playerStreamer, 0),
+	}
 }

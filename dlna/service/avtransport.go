@@ -70,7 +70,7 @@ func avtPlay(input any, output any, ctx *fasthttp.RequestCtx, uuid string) error
 		}
 		localspeaker.Init()
 	}
-	audioFS.Pause(false)
+	audioFS.SetPause(false)
 
 	return nil
 }
@@ -79,7 +79,7 @@ func avtPause(input any, output any, ctx *fasthttp.RequestCtx, uuid string) erro
 	if playUri == "" {
 		return nil
 	}
-	decoder.FileStreamer(uuid).Pause(true)
+	decoder.FileStreamer(uuid).SetPause(true)
 
 	return nil
 }

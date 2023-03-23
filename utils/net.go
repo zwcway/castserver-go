@@ -4,6 +4,8 @@ import (
 	"net"
 	"net/netip"
 	"strings"
+
+	"github.com/jackpal/gateway"
 )
 
 func IsConnectCloseError(err error) bool {
@@ -96,7 +98,17 @@ func InterfaceAddr(iface *net.Interface, ipv6 bool) *net.IPNet {
 	return nil
 }
 
+// 默认可连外网的ip
 func DefaultAddr() *netip.Addr {
+	ip, err := gateway.DiscoverInterface()
+	if err == nil {
+		addr, err := netip.ParseAddr(ip.String())
+		if err != nil {
+			return nil
+		}
+		return &addr
+	}
+
 	ifis, err := net.Interfaces()
 	if err != nil {
 		return nil

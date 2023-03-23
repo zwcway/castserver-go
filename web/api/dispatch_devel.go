@@ -106,16 +106,16 @@ func apiSpeakerCreate(c *websockets.WSConnection, req Requester, log *zap.Logger
 		return nil, err
 	}
 	res := &detector.SpeakerResponse{
-		Ver:        uint8(p.Ver),
-		ID:         speaker.ID(p.ID),
-		Connected:  false,
-		Addr:       netip.MustParseAddr(p.IP),
-		MAC:        mac,
-		RateMask:   rm,
-		BitsMask:   bm,
-		DataPort:   p.DataPort,
-		AbsolueVol: p.AVol,
-		PowerSave:  true,
+		Ver:         uint8(p.Ver),
+		ID:          speaker.ID(p.ID),
+		Connected:   false,
+		Addr:        netip.MustParseAddr(p.IP),
+		MAC:         mac,
+		RateMask:    rm,
+		BitsMask:    bm,
+		DataPort:    p.DataPort,
+		AbsoluteVol: p.AVol,
+		PowerSave:   true,
 	}
 	detector.CheckSpeaker(res)
 
@@ -233,7 +233,7 @@ func apiPlayFile(c *websockets.WSConnection, req Requester, log *zap.Logger) (re
 		return
 	}
 
-	audio.Pause(false)
+	audio.SetPause(false)
 	ret = true
 	return
 }
@@ -253,7 +253,7 @@ func apiPlayPause(c *websockets.WSConnection, req Requester, log *zap.Logger) (r
 		return
 	}
 	audio := decoder.FileStreamer(line.UUID)
-	audio.Pause(p.Pause)
+	audio.SetPause(p.Pause)
 	return true, nil
 }
 
@@ -282,7 +282,7 @@ func apiDebugStatus(c *websockets.WSConnection, req Requester, log *zap.Logger) 
 			err = errors.New("no line")
 			return
 		}
-		fs := line.Mixer.FileStreamer()
+		fs := line.Input.FileStreamer()
 		if fs != nil {
 			resp.FilePlaying = !fs.IsPaused()
 			resp.FileName = fs.CurrentFile()

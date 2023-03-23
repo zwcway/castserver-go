@@ -22,6 +22,7 @@ type Spectrum struct {
 	suml       float64   // 音阶绝对值求和
 	levelMeter float64   // 音阶
 	logAxis    bool
+	hasData    bool
 }
 
 func (r *Spectrum) Name() string {
@@ -46,9 +47,13 @@ func (r *Spectrum) zeroData() {
 
 func (r *Spectrum) Stream(samples *stream.Samples) {
 	if !r.power || samples == nil || samples.LastNbSamples == 0 {
-		r.zeroData()
+		if r.hasData {
+			r.zeroData()
+		}
+		r.hasData = false
 		return
 	}
+
 	var (
 		sam  float64
 		frac float64 // 多声道音阶求平均
@@ -58,6 +63,7 @@ func (r *Spectrum) Stream(samples *stream.Samples) {
 		c     int = 20 / (samples.Format.SampleRate.ToInt() / samples.LastNbSamples)
 		i, ch int
 	)
+	r.hasData = true
 	if c < 1 {
 		c = 1
 	}
@@ -80,7 +86,7 @@ func (r *Spectrum) Stream(samples *stream.Samples) {
 
 		r.s[r.pos] = sums / float64(samples.Format.Layout.Count)
 		// 加汉宁窗
-		// r.s[r.pos] *= 0.5 * (1 - math.Cos(2*dsp.Pi*float64(r.pos)/float64(r.n-1)))
+		r.s[r.pos] *= (1 - math.Cos(2*dsp.Pi*float64(r.pos)/float64(r.n-1)))
 		r.pos++
 
 		r.suml += frac * frac

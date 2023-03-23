@@ -1,7 +1,6 @@
 package api
 
 import (
-	"github.com/zwcway/castserver-go/web/event"
 	"github.com/zwcway/castserver-go/web/websockets"
 	"go.uber.org/zap"
 )
@@ -26,8 +25,6 @@ func apiSubscribe(c *websockets.WSConnection, req Requester, log *zap.Logger) (a
 	if err != nil {
 		return nil, err
 	}
-
-	websockets.SetEventHandler(event.EventHandlerMap)
 
 	if params.Action {
 		websockets.Subscribe(c, params.Event, params.SubEvt, params.Arg)

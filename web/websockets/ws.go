@@ -6,6 +6,7 @@ import (
 
 	"github.com/fasthttp/websocket"
 	"github.com/valyala/fasthttp"
+	"github.com/zwcway/castserver-go/config"
 	"github.com/zwcway/castserver-go/utils"
 	"go.uber.org/zap"
 )
@@ -30,12 +31,14 @@ type writeQueueData struct {
 	data []byte
 }
 
+type broadcastMap map[*WSConnection][]broadcastEvent
+
 type Hub struct {
 	// 已连接的客户端列表
-	Clients map[*WSConnection]bool
+	Clients map[*WSConnection]struct{}
 
 	// 已订阅接收广播的客户端列表
-	broadcast  map[*WSConnection][]broadcastEvent
+	broadcast  broadcastMap
 	writeQueue chan writeQueueData
 	started    bool
 }
@@ -71,9 +74,9 @@ func (c *WSConnection) readFromClient() {
 			c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 			continue
 		}
-		if t != websocket.TextMessage {
-			log.Debug("receive", zap.String("ip", c.Conn.RemoteAddr().String()), zap.ByteString("data", message))
-		}
+		// if t != websocket.TextMessage {
+		// 	log.Debug("receive", zap.String("ip", c.Conn.RemoteAddr().String()), zap.ByteString("data", message))
+		// }
 		if ApiDispatch != nil {
 			ApiDispatch(t, message, c)
 		}
@@ -115,27 +118,37 @@ var upgrader = websocket.FastHTTPUpgrader{
 }
 
 var WSHub = &Hub{
-	broadcast:  make(map[*WSConnection][]broadcastEvent),
-	Clients:    make(map[*WSConnection]bool),
+	broadcast:  make(broadcastMap),
+	Clients:    make(map[*WSConnection]struct{}),
 	writeQueue: make(chan writeQueueData, 16),
 }
 
-func WSHandler(ctx *fasthttp.RequestCtx) {
-	err := upgrader.Upgrade(ctx, func(ws *websocket.Conn) {
-		wsServer := &WSConnection{hub: WSHub, Conn: ws}
-
-		log.Debug("client connected", zap.String("ip", ws.RemoteAddr().String()))
-
-		// 保存客户端列表
-		WSHub.Clients[wsServer] = true
-		WSHub.broadcast[wsServer] = make([]broadcastEvent, 0)
-
-		if !WSHub.started {
-			go writeToClient()
+func newConnection(ws *websocket.Conn) {
+	if len(WSHub.Clients) > config.WSClientMAX {
+		// 超过5个，随机断开一个
+		for c := range WSHub.Clients {
+			c.Conn.Close()
+			break
 		}
+	}
 
-		wsServer.readFromClient()
-	})
+	wsServer := &WSConnection{hub: WSHub, Conn: ws}
+
+	log.Debug("client connected", zap.String("ip", ws.RemoteAddr().String()))
+
+	// 保存客户端列表
+	WSHub.Clients[wsServer] = struct{}{}
+	WSHub.broadcast[wsServer] = make([]broadcastEvent, 0)
+
+	if !WSHub.started {
+		go writeToClient()
+	}
+
+	wsServer.readFromClient()
+}
+
+func WSHandler(ctx *fasthttp.RequestCtx) {
+	err := upgrader.Upgrade(ctx, newConnection)
 
 	if err != nil {
 		log.Error("ws handler error", zap.Error(err))

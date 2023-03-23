@@ -80,13 +80,15 @@ func AddLine(line *speaker.Line) {
 			return
 		}
 	}
-	format := line.Input.PipeLine.Format()
+	format := audio.DefaultFormat
 
 	mixer.Add(line.Input.PipeLine)
 	lines = append(lines, line)
 
 	// TODO 每个 Line 很有可能格式不一致
-	sampleReader.samples = stream.NewSamples(sampleSize, format)
+	if sampleReader.samples == nil || sampleReader.samples.Format.Size() < format.Size() {
+		sampleReader.samples = stream.NewSamples(sampleSize, format)
+	}
 }
 
 func RemoveLine(line *speaker.Line) {

@@ -24,24 +24,22 @@ import (
 )
 
 var (
-	options       map[string]string
-	version       bool
-	help          bool
-	daemon        bool
-	is6           bool
-	logLevel      string
-	multicastIP   string
-	multicastPort int64
-	configFile    string
-	netInterface  string
+	options         map[string]string
+	version         bool
+	help            bool
+	daemon          bool
+	is6             bool
+	logFile         string
+	configFile      string
+	netInterface    string
+	detectInterface string
 )
 
 func init() {
-	flag.StringVar(&multicastIP, "multicast-ip", "", "listen ip")
-	flag.Int64Var(&multicastPort, "multicast-port", 0, "listen port")
 	flag.StringVar(&configFile, "c", "", "specify configuration file")
 	flag.StringVar(&netInterface, "i", "", "listen interface")
-	flag.StringVar(&logLevel, "l", "", "log level")
+	flag.StringVar(&detectInterface, "detect-interface", "", "detect listen interface")
+	flag.StringVar(&logFile, "l", "", "log file")
 	flag.BoolVar(&version, "v", false, "show current version of clash")
 	flag.BoolVar(&daemon, "D", false, "running in background")
 	flag.BoolVar(&help, "h", false, "show this message")
@@ -61,7 +59,7 @@ func exit(code int, usage bool, format string, val ...any) {
 	os.Exit(code)
 }
 
-func initLogger() *zap.Logger {
+func initLogger() (log *zap.Logger, close func()) {
 	highPriority := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
 		return lvl >= zapcore.ErrorLevel
 	})
@@ -74,22 +72,55 @@ func initLogger() *zap.Logger {
 	consoleDebugging := zapcore.Lock(os.Stdout)
 	consoleErrors := zapcore.Lock(os.Stderr)
 
-	FileEncoder := zapcore.NewConsoleEncoder(zap.NewProductionEncoderConfig())
+	FileEncoder := zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig())
 	consoleEncoder := zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
 
-	core := zapcore.NewTee(
-		zapcore.NewCore(FileEncoder, topicErrors, highPriority),
-		zapcore.NewCore(FileEncoder, topicDebugging, lowPriority),
-		zapcore.NewCore(consoleEncoder, consoleErrors, highPriority),
-		zapcore.NewCore(consoleEncoder, consoleDebugging, lowPriority),
-	)
-	log := zap.New(core)
+	cores := []zapcore.Core{}
 
-	return log
+	if len(logFile) > 0 {
+		// TODO 接收信号重新打开日志文件
+		var (
+			sink zapcore.WriteSyncer
+			err  error
+		)
+		sink, close, err = zap.Open(logFile)
+		if err != nil {
+			close()
+			exit(1, true, "open log file error %v", err)
+		}
+		cores = append(
+			cores,
+			zapcore.NewCore(FileEncoder, sink, highPriority),
+			zapcore.NewCore(FileEncoder, sink, lowPriority),
+		)
+	} else {
+		cores = append(cores,
+			zapcore.NewCore(FileEncoder, topicErrors, highPriority),
+			zapcore.NewCore(FileEncoder, topicDebugging, lowPriority),
+		)
+	}
+
+	if !daemon {
+		cores = append(cores,
+			zapcore.NewCore(consoleEncoder, consoleErrors, highPriority),
+			zapcore.NewCore(consoleEncoder, consoleDebugging, lowPriority),
+		)
+	}
+
+	log = zap.New(zapcore.NewTee(cores...))
+
+	return
 }
 
 func main() {
-	log := initLogger()
+	if version {
+		exit(0, false, "Version: %s", config.VERSION)
+	}
+	if help {
+		exit(0, true, "")
+	}
+
+	log, logClose := initLogger()
 
 	// 用于通知主程序退出
 	signalChannel := make(chan os.Signal, 2)
@@ -111,7 +142,8 @@ func main() {
 		control.Module,
 		pusher.Module,
 		receiver.Module,
-		web.Module}
+		web.Module,
+	}
 
 	for _, f := range mods {
 		err = f.Init(rootCtx)
@@ -126,7 +158,8 @@ func main() {
 		syscall.SIGKILL,
 		syscall.SIGTERM,
 		syscall.SIGQUIT,
-		syscall.SIGABRT)
+		syscall.SIGABRT,
+	)
 
 	<-signalChannel
 	ctxCancel()
@@ -136,6 +169,10 @@ func main() {
 
 	for _, f := range mods {
 		f.DeInit()
+	}
+
+	if logClose != nil {
+		logClose()
 	}
 
 	os.Exit(0)

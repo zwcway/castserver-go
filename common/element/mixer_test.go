@@ -17,6 +17,11 @@ func (m *mixer1) Stream(samples *stream.Samples) {
 		samples.Data[0][i] = float64(m.i)
 		m.i++
 	}
+	samples.SetFormat(audio.Format{
+		SampleRate: audio.AudioRate_44100,
+		Layout:     audio.ChannelLayout10,
+		SampleBits: audio.Bits_DEFAULT,
+	})
 	samples.LastNbSamples = samples.NbSamples
 }
 
@@ -24,7 +29,7 @@ func TestMixer(t *testing.T) {
 	format := audio.Format{
 		SampleRate: audio.AudioRate_44100,
 		Layout:     audio.ChannelLayout10,
-		SampleBits: audio.Bits_U8,
+		SampleBits: audio.Bits_DEFAULT,
 	}
 	result := []float64{0, 2, 4, 6, 8, 10, 12, 14}
 	t.Run("mix size 512 for 8", func(t *testing.T) {

@@ -43,8 +43,9 @@ func ResponseServerInfo(sp *speaker.Speaker) {
 		log.Error("send server info package invalid", zap.Error(err))
 		return
 	}
+	addrPort := netip.AddrPortFrom(sp.Config.IP, config.MulticastPort)
 
-	n, err := conn.WriteToUDP(p.Bytes(), sp.UDPAddr())
+	n, err := conn.WriteToUDPAddrPort(p.Bytes(), addrPort)
 	if err != nil {
 		log.Error("send server info failed", zap.Error(err))
 		return
@@ -107,7 +108,6 @@ func readUDP(p *recvData) {
 		log.Error("invalid speaker", zap.String("from", p.src.String()))
 	}
 
-	return
 }
 
 func readChanRoutine(ctx utils.Context) {
@@ -166,7 +166,7 @@ func listenUDP(ctx utils.Context) error {
 		log.Error("SetMulticastLoopback error:%v\n", zap.Error(err))
 	}
 
-	log.Info("start listen on " + addrPort.String())
+	log.Info("start listen on " + config.ServerListen.AddrPort.String())
 
 	conn.SetReadBuffer(config.ReadBufferSize)
 

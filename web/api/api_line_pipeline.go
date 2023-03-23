@@ -42,7 +42,7 @@ func apiLinePipeLineInfo(c *websockets.WSConnection, req Requester, log *zap.Log
 	for _, s := range pl.Streamers() {
 		resp.Spends = append(resp.Spends, responseLinePipeLineSpend{
 			Name: s.Name(),
-			Cost: s.Cost(),
+			Cost: int(s.Cost().Milliseconds()),
 		})
 	}
 

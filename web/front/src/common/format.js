@@ -54,7 +54,7 @@ export function isIPv4(ip) {
         return -1;
       return i;
     }).filter(i => {
-      return i > 0;
+      return i >= 0;
     })
   if (ips.length !== 4) {
     return false;
@@ -154,7 +154,7 @@ export function formatRate(rate) {
     rate = parseInt(rate);
   }
 
-  return rate / 1000 + 'Hz';
+  return rate / 1000 + 'kHz';
 }
 
 export function formatBits(bit) {

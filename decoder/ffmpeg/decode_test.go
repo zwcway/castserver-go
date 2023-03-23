@@ -16,7 +16,7 @@ func TestAVFormatContext_Stream(t *testing.T) {
 			SampleBits: audio.Bits_DEFAULT,
 			Layout:     audio.ChannelLayoutMono,
 		}
-		fs := New(nil, f)
+		fs := New(f)
 		defer fs.Close()
 
 		err := fs.OpenFile("./test/test_44100_fltp_stereo.mp3")
@@ -25,7 +25,7 @@ func TestAVFormatContext_Stream(t *testing.T) {
 			return
 		}
 		samples := stream.NewSamples(10, f)
-		fs.Pause(false)
+		fs.SetPause(false)
 		fs.Stream(samples)
 
 		if samples.LastNbSamples != 10 {

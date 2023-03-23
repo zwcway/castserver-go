@@ -13,7 +13,10 @@ type Volume struct {
 	Mute   bool
 }
 
-func (s *Volume) Pack() (p *protocol.Package, err error) {
+func (s *Volume) Pack(id speaker.ID) (p *protocol.Package, err error) {
+	s.f.cmd = Command_VOLUME
+	s.f.spid = id
+
 	p, _ = s.f.Pack()
 	p.WriteUint8(uint8(s.Volume))
 	if s.Mute {
@@ -37,7 +40,7 @@ func ControlSpeakerVolume(sp *speaker.Speaker, vol float64, mute bool) {
 		Mute:   mute,
 	}
 
-	p, err := s.Pack()
+	p, err := s.Pack(sp.Id)
 	if err != nil {
 		log.Error("encode volume package error", zap.Uint32("speaker", uint32(sp.Id)), zap.Error(err))
 		return

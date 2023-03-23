@@ -1,11 +1,5 @@
 package websockets
 
-import (
-	"context"
-
-	"go.uber.org/zap"
-)
-
 const (
 	Command_MIN uint8 = iota
 	Command_SERVER
@@ -63,6 +57,10 @@ var CommandEventMap = map[uint8][]uint8{
 	Command_SERVER: {},
 }
 
+func isSpectrumEvent(e uint8) bool {
+	return e == Event_Line_Spectrum || e == Event_Line_LevelMeter || e == Event_SP_Spectrum || e == Event_SP_LevelMeter
+}
+
 func FindEvent(cmd, e uint8) bool {
 	es, ok := CommandEventMap[cmd]
 	if !ok {
@@ -96,8 +94,13 @@ func findBEvent(es []broadcastEvent, evt uint8, sub uint8, arg int) bool {
 	return false
 }
 
-// 事件开关回调
-type EventHandler struct {
-	On  func(evt uint8, arg int, ctx context.Context, log *zap.Logger)
-	Off func(evt uint8, arg int)
+func hasSpectrumEvent(list broadcastMap) bool {
+	for _, evts := range list {
+		for _, e := range evts {
+			if isSpectrumEvent(e.evt) {
+				return true
+			}
+		}
+	}
+	return false
 }

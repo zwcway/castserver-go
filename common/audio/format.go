@@ -13,7 +13,12 @@ func (s Format) String() string {
 }
 
 func (s *Format) Equal(r *Format) bool {
-	return s.Layout.Count == r.Layout.Count && s.SampleRate == r.SampleRate && s.SampleBits == r.SampleBits
+	return s.Layout.Mask == r.Layout.Mask && s.SampleRate == r.SampleRate && s.SampleBits == r.SampleBits
+}
+
+// 仅对比样本格式，忽略声道布局
+func (s *Format) EqualSample(r *Format) bool {
+	return s.SampleRate == r.SampleRate && s.SampleBits == r.SampleBits
 }
 
 func (s *Format) Channels() []Channel {

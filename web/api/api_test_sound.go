@@ -31,7 +31,7 @@ func apiTestSound(c *websockets.WSConnection, req Requester, log *zap.Logger) (r
 		}
 
 		ch := audio.Channel(*p.Channel)
-		var chsound []float64
+		var chsound []byte
 
 		switch ch {
 		case audio.Channel_FRONT_LEFT:
@@ -55,14 +55,17 @@ func apiTestSound(c *websockets.WSConnection, req Requester, log *zap.Logger) (r
 		default:
 			return true, nil
 		}
-
-		nl.Player.Add(chsound)
+		format := sounds.Format()
+		format.Layout = audio.NewChannelLayout(ch)
+		nl.Player.Add(format, chsound)
 	}
 
 	if p.Speaker != nil {
 		sp := speaker.FindSpeakerByID(speaker.ID(*p.Speaker))
 		if sp != nil {
-			sp.Player.Add(sounds.Here())
+			format := sounds.Format()
+			format.Layout = audio.NewChannelLayout(sp.Channel)
+			sp.Player.Add(format, sounds.Here())
 		}
 	}
 

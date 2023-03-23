@@ -1,12 +1,12 @@
 <template>
   <div class="speaker" :class="{ 'not-connect': !spInfo.cTime }">
-    <div class="speaker-icon">
-      <svg-icon icon-class="speaker" :size="0" />
-      <i v-if="!spInfo.cTime" class="codicon codicon-close"></i>
-    </div>
     <div class="speaker-content">
       <div class="speaker-info">
-        <p class="title">
+        <div class="title">
+          <div class="speaker-icon">
+            <svg-icon icon-class="speaker" :size="0" />
+            <i v-if="!spInfo.cTime" class="codicon codicon-close"></i>
+          </div>
           <router-link class="speaker-name" :to="`/speaker/${spInfo.id}`">
             {{ spInfo.name }}
           </router-link>
@@ -14,7 +14,7 @@
             @click.stop="$router.push(`/line/${spInfo.line.id}`)">
             {{ spInfo.line.name }}
           </a-button>
-        </p>
+        </div>
         <p class="subtitle">
           <span v-if="!spInfo.cTime" class="connect-info">未连接</span>
           <span>{{ spInfo.ip }}</span>
@@ -50,7 +50,7 @@ export default {
       show: false,
       spInfo: {},
       volumeLevelProcess(dotsPos) {
-        return [[0, 0, { backgroundColor: 'pink' }]];
+        return [[0, 0, {}]];
       },
     };
   },
@@ -122,17 +122,22 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+@import "@/assets/css/function.scss";
+
 .speaker {
   border: 0;
 
   .speaker-icon {
-    width: 4rem;
+    width: 2rem;
+    height: 2rem;
     align-items: center;
+    position: relative;
+    margin-right: 1rem;
 
     .svg-icon {
       flex: unset;
-      width: 3rem;
-      height: 3rem;
+      width: 100%;
+      height: 100%;
     }
   }
 
@@ -149,9 +154,12 @@ export default {
 
       .title {
         margin: 0;
-        font-size: 1.5rem;
+        font-size: 1rem;
         display: flex;
         flex-wrap: nowrap;
+        align-items: center;
+        height: 2rem;
+        line-height: 2rem;
       }
 
       .subtitle {
@@ -204,9 +212,9 @@ export default {
       .codicon {
         color: red;
         position: absolute;
-        top: 0.5rem;
-        left: -0.5rem;
-        font-size: 5rem;
+        top: 0rem;
+        left: 0rem;
+        font-size: 2rem;
       }
     }
 
@@ -218,5 +226,17 @@ export default {
       background-color: #efefef;
     }
   }
+
+  @include for_breakpoint(mobile) {
+
+    .not-connect {
+      .speaker-icon {
+        .codicon {
+          font-size: 2rem;
+        }
+      }
+    }
+  }
+
 }
 </style>

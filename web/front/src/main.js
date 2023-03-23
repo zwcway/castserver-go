@@ -55,7 +55,7 @@ Vue.config.productionTip = false;
 Vue.use(Antd);
 Vue.use(Vue2TouchEvents, {
   disableClick: false,
-  touchClass: 'touching',
+  touchClass: '',
   tapTolerance: 10,
   touchHoldTolerance: 400,
   swipeTolerance: 30,

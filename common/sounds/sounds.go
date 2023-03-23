@@ -2,7 +2,8 @@ package sounds
 
 import (
 	_ "embed"
-	"math"
+
+	"github.com/zwcway/castserver-go/common/audio"
 )
 
 /*
@@ -33,47 +34,47 @@ var soundsLowBass []byte
 //go:embed iamhere.pcm
 var soundsHere []byte
 
-func FrontLeft() []float64 {
+func FrontLeft() []byte {
 	return appends(soundsFront, soundsLeft)
 }
 
-func FrontRight() []float64 {
+func FrontRight() []byte {
 	return appends(soundsFront, soundsRight)
 }
 
-func FrontCenter() []float64 {
+func FrontCenter() []byte {
 	return appends(soundsFront, soundsCenter)
 }
 
-func LowBass() []float64 {
-	return resample(soundsLowBass)
+func LowBass() []byte {
+	return soundsLowBass
 }
 
-func BackLeft() []float64 {
+func BackLeft() []byte {
 	return appends(soundsBack, soundsSurround, soundsLeft)
 }
 
-func BackRight() []float64 {
+func BackRight() []byte {
 	return appends(soundsBack, soundsSurround, soundsRight)
 }
 
-func BackCenter() []float64 {
+func BackCenter() []byte {
 	return appends(soundsBack, soundsCenter)
 }
 
-func SideLeft() []float64 {
+func SideLeft() []byte {
 	return appends(soundsSurround, soundsLeft)
 }
 
-func SideRight() []float64 {
+func SideRight() []byte {
 	return appends(soundsSurround, soundsRight)
 }
 
-func Here() []float64 {
-	return resample(soundsHere)
+func Here() []byte {
+	return soundsHere
 }
 
-func appends(a ...[]byte) []float64 {
+func appends(a ...[]byte) []byte {
 	l := 0
 	for _, s := range a {
 		l += len(s)
@@ -89,18 +90,13 @@ func appends(a ...[]byte) []float64 {
 		}
 	}
 
-	return resample(ret)
+	return ret
 }
 
-func resample(s []byte) []float64 {
-	sounds := make([]float64, len(s)/2)
-
-	j := 0
-	for i := 0; i < len(s); i += 2 {
-		varInt16 := int16(s[i]) | (int16(s[i+1]) << 8)
-
-		sounds[j] = float64(varInt16) / (math.Exp2(15) - 1)
-		j++
+func Format() audio.Format {
+	return audio.Format{
+		SampleRate: audio.AudioRate_44100,
+		Layout:     audio.ChannelLayout10,
+		SampleBits: audio.Bits_S16LE,
 	}
-	return sounds
 }

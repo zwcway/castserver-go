@@ -27,7 +27,7 @@ func apiLinePlayerSeek(c *websockets.WSConnection, req Requester, log *zap.Logge
 		return nil, fmt.Errorf("line not exists")
 	}
 
-	audio := nl.Mixer.FileStreamer()
+	audio := nl.Input.FileStreamer()
 	if audio == nil {
 		return nil, errors.New("no audio")
 	}

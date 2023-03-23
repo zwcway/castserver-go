@@ -55,6 +55,7 @@
   --color-border: #cfcfcf;
   --color-border-hover: var(--color-primary);
   --color-danger: hsl(348, 86%, 61%);
+  --color-level-meter: rgb(255, 192, 203);
   --size-navbar: 90px;
   --size-navbar-item: 98px ;
   --html-overflow-y: none;
@@ -71,6 +72,7 @@
   --color-primary-bg-for-transparent: rgba(255, 255, 255, 0.12);
   --color-secondary-bg-for-transparent: rgba(255, 255, 255, 0.08);
   --color-border: #525252;
+  --color-level-meter: rgb(145, 103, 110);
 }
 
 #app,

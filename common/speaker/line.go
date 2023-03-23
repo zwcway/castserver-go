@@ -96,6 +96,13 @@ func (l *Line) RemoveSpeaker(sp *Speaker) {
 	l.RemoveSpeakerById(sp.Id)
 }
 
+func (l *Line) SetOutput(f audio.Format) {
+	// 不改变输出位宽，内部处理必须保证为 float64
+	f.SampleBits = audio.Bits_DEFAULT
+	l.Output = f
+	l.refresh()
+}
+
 func (l *Line) refresh() {
 	channels := []audio.Channel{}
 	for i := 0; i < len(l.speakers); i++ {
@@ -117,6 +124,19 @@ func (l *Line) Elements() []stream.Element {
 
 func (l *Line) IsDeleted() bool {
 	return l.isDeleted
+}
+
+func (l *Line) ApplyInput(ss stream.SourceStreamer) {
+	l.Input.ApplySource(ss)
+	ss.SetFormatChangedHandler(l.onInputChanged)
+}
+
+func (l *Line) onInputChanged(ss stream.SourceStreamer, inFormat, outFormat audio.Format) {
+	l.SetOutput(inFormat)
+	l.Input.Format = inFormat
+	if fs, ok := ss.(stream.FileStreamer); ok {
+		fs.SetOutFormat(l.Output)
+	}
 }
 
 func LineList() []*Line {
@@ -264,18 +284,20 @@ func NewLine(name string) *Line {
 	line.Name = name
 	line.UUID = generateUUID(name)
 
-	line.Output = audio.DefaultFormat
+	line.SetOutput(audio.DefaultFormat)
 
 	line.Player = element.NewPlayer()
 	line.Volume = element.NewVolume(0.1)
-	line.Mixer = element.NewMixer(line.Player)
+	line.Mixer = element.NewEmptyMixer()
 	line.Spectrum = element.NewSpectrum()
 	line.Equalizer = element.NewEqualizer(nil)
 	line.Resample = element.NewResample(line.Output)
 
+	line.Input.Mixer = line.Mixer
 	line.Input.PipeLine = pipeline.NewPipeLine(line.Output,
 		line.Mixer,
 		line.Equalizer,
+		line.Player,
 		line.Spectrum,
 		line.Volume,
 		//line.Pusher, Resample 放到 pusher 中处理，否则声道路由功能不方便实现

@@ -15,7 +15,7 @@
           <div class="control">
             <div class="input-ip-group">
               <a-input v-model="serverHost" id="server-host" class="input"
-                :class="{ 'is-danger': !wsConnected || hostError, }" placeholder="服务器地址" @change="" />
+                :class="{ 'is-danger': !wsConnected || hostError, }" placeholder="服务器地址" @change="" @pressEnter="connectServer" />
               <a-input-number v-model="serverPort" class="input" :min="1" :max="65535"
                 :class="{ 'is-danger': !wsConnected || portError, }" placeholder="端口" type="number"
                 @change="serverPort = $event" />
@@ -118,7 +118,7 @@ export default {
   },
   watch: {
     wsConnected(newVal, oldVal) {
-      if (newVal && !this.isConnectErr) {
+      if (newVal && this.$route.params.forceTo) {
         this.$router.go(-1);
       }
     },
@@ -162,9 +162,7 @@ export default {
       set(value) {
         this.hostError = !isIP46(value);
         this.$store.commit('updateSettings', { key: 'serverHost', value });
-        if (!this.hostError && !this.portError) {
-          socket.connect();
-        }
+        this.connectServer()
       },
     },
     serverPort: {
@@ -174,9 +172,7 @@ export default {
       set(value) {
         this.portError = !isPort(value);
         this.$store.commit('updateSettings', { key: 'serverPort', value });
-        if (!this.hostError && !this.portError) {
-          socket.connect();
-        }
+        this.connectServer()
       },
     },
     enableCustomTitlebar: {
@@ -249,6 +245,11 @@ export default {
     isHighlight(name) {
       return this.$route.params.forceTo === name;
     },
+    connectServer() {
+      if (!this.hostError && !this.portError) {
+        socket.connect();
+      }
+    }
   },
 };
 </script>

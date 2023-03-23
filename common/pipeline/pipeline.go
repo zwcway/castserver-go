@@ -17,8 +17,8 @@ func (s *PipeLineStreamer) Name() string {
 	return s.stream.Name()
 }
 
-func (s *PipeLineStreamer) Cost() int {
-	return int(s.cost.Milliseconds())
+func (s *PipeLineStreamer) Cost() time.Duration {
+	return s.cost
 }
 
 type PipeLine struct {
