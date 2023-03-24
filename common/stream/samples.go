@@ -8,6 +8,8 @@ import (
 	"github.com/zwcway/castserver-go/utils"
 )
 
+type channelIndexMax [audio.Channel_MAX]int
+
 // 对应ffmpeg中的planar类型
 type Samples struct {
 	NbSamples     int          // 每声道样本数量，恒等于 Data 的 第二维 数组大小
@@ -20,7 +22,7 @@ type Samples struct {
 	LastNbSamples int          // 最近一次处理后剩余的每声道样本数量
 
 	autoSize     bool
-	channelIndex [32]int
+	channelIndex channelIndexMax
 }
 
 // Buffer 总大小
@@ -115,25 +117,87 @@ func (s *Samples) ChannelsCountBySlice(src []audio.Channel) (c int) {
 	return
 }
 
-func (s *Samples) MixChannel(dst *Samples, src []audio.Channel, dstOffset int, srcOffset int) int {
-	if s.Format.SampleBits != audio.Bits_DEFAULT || dst == nil || dst.Format.SampleBits != audio.Bits_DEFAULT {
+func layoutMap(ch audio.Channel, dst *Samples, src *Samples) (s, d *channelIndexMax) {
+	s = &src.channelIndex
+	d = &dst.channelIndex
+
+	if src.Format.Layout.Count == 1 && dst.Format.Layout.Count > 1 {
+		ns := src.channelIndex
+		ns[audio.Channel_FRONT_LEFT] = 0
+		ns[audio.Channel_FRONT_RIGHT] = 0
+		s = &ns
+	}
+	if src.Format.Layout.Count > 1 && dst.Format.Layout.Count == 1 {
+		ns := dst.channelIndex
+		ns[audio.Channel_FRONT_LEFT] = 0
+		ns[audio.Channel_FRONT_RIGHT] = 0
+		d = &ns
+	}
+	return
+}
+
+func (src *Samples) MixChannelMap(dst *Samples, dstOffset, srcOffset int) (mixed int) {
+	if src.Format.Layout.Count == 1 && dst.Format.Layout.Count > 1 {
+		left := dst.channelIndex[audio.Channel_FRONT_LEFT]
+		if left >= 0 {
+			mixed = src.mixChannel(dst, left, 0, dstOffset, srcOffset)
+		}
+		right := dst.channelIndex[audio.Channel_FRONT_RIGHT]
+		if right >= 0 {
+			mixed = src.mixChannel(dst, right, 0, dstOffset, srcOffset)
+		}
+		return
+	}
+	if src.Format.Layout.Count > 1 && dst.Format.Layout.Count == 1 {
+		left := src.channelIndex[audio.Channel_FRONT_LEFT]
+		if left >= 0 {
+			mixed = src.mixChannel(dst, 0, left, dstOffset, srcOffset)
+		}
+		right := src.channelIndex[audio.Channel_FRONT_RIGHT]
+		if right >= 0 {
+			mixed = src.mixChannel(dst, 0, right, dstOffset, srcOffset)
+		}
+		return
+	}
+
+	return src.MixChannels(dst, src.Format.Channels(), dstOffset, srcOffset)
+}
+
+func (src *Samples) mixChannel(dst *Samples, dstCh, srcCh int, dstOffset, srcOffset int) int {
+	var (
+		i = dstOffset
+		j = srcOffset
+	)
+
+	for i < dst.NbSamples && j < src.LastNbSamples {
+		dst.Data[dstCh][i] += src.Data[srcCh][j]
+		i++
+		j++
+	}
+
+	return j - srcOffset
+}
+
+func (src *Samples) Mix(dst *Samples, dstOffset int, srcOffset int) int {
+	return src.MixChannels(dst, src.Format.Channels(), dstOffset, srcOffset)
+}
+
+func (src *Samples) MixChannels(dst *Samples, srcChs []audio.Channel, dstOffset int, srcOffset int) int {
+	if src.Format.SampleBits != audio.Bits_DEFAULT || dst == nil || dst.Format.SampleBits != audio.Bits_DEFAULT {
 		return 0
 	}
 	var (
-		i       = 0
-		j       = 0
-		srcSize = s.LastNbSamples
-		dstSize = dst.NbSamples
-		mixed   = 0
-		srcS    []float64
-		dstS    []float64
+		i     = 0
+		j     = 0
+		mixed = 0
 	)
 
-	for _, ch := range src {
+	for _, ch := range srcChs {
 		if !ch.IsValid() {
 			continue
 		}
-		i = s.channelIndex[ch]
+
+		i = src.channelIndex[ch]
 		if i < 0 {
 			continue
 		}
@@ -142,18 +206,9 @@ func (s *Samples) MixChannel(dst *Samples, src []audio.Channel, dstOffset int, s
 			continue
 		}
 
-		srcS = s.Data[i]
-		dstS = dst.Data[j]
-
-		i = dstOffset
-		j = srcOffset
-		for j < srcSize && i < dstSize {
-			dstS[i] += srcS[j]
-			i++
-			j++
-		}
-		if mixed < (i - dstOffset) {
-			mixed = i - dstOffset
+		i = src.mixChannel(dst, j, i, dstOffset, srcOffset)
+		if mixed < i {
+			mixed = i
 		}
 	}
 

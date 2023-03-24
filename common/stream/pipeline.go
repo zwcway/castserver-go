@@ -65,6 +65,7 @@ type RawPlayerElement interface {
 	Element
 
 	Add(audio.Format, []byte)
+	AddToChannel(audio.Channel, audio.Format, []byte)
 	Len() int
 	IsIdle() bool
 }

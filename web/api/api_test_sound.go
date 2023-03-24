@@ -57,7 +57,7 @@ func apiTestSound(c *websockets.WSConnection, req Requester, log *zap.Logger) (r
 		}
 		format := sounds.Format()
 		format.Layout = audio.NewChannelLayout(ch)
-		nl.Player.Add(format, chsound)
+		nl.Player.AddToChannel(ch, format, chsound)
 	}
 
 	if p.Speaker != nil {

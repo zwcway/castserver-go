@@ -8,6 +8,7 @@ import (
 
 type playerStreamer struct {
 	pos     int
+	layout  audio.ChannelLayout
 	samples *stream.Samples
 }
 
@@ -37,14 +38,22 @@ func (v *Player) Stream(samples *stream.Samples) {
 
 		if !pcm.samples.Format.EqualSample(&format) {
 			// 不改变播放源的声道布局
-			format.Layout = pcm.samples.Format.Layout
+			if pcm.layout.IsValid() {
+				format.Layout = pcm.layout
+			} else {
+				format.Layout = pcm.samples.Format.Layout
+			}
 			v.resample.SetFormat(format)
 			// 转码程序会操作所有样本数据
 			// 转码过后 pcm.samples.Format 会被赋值为 format
 			// 因此只会被执行一次
 			v.resample.Stream(pcm.samples)
 		}
-		i = pcm.samples.MixChannel(samples, pcm.samples.Format.Channels(), 0, pcm.pos)
+		if pcm.layout.IsValid() {
+			i = pcm.samples.MixChannels(samples, pcm.layout.Channels(), 0, pcm.pos)
+		} else {
+			i = pcm.samples.MixChannelMap(samples, 0, pcm.pos)
+		}
 		pcm.pos += i
 		if mixed < i {
 			mixed = i
@@ -72,15 +81,20 @@ func (p *Player) Len() (c int) {
 	return len(p.pcm)
 }
 
-func (p *Player) Add(f audio.Format, pcm []byte) {
-	if pcm == nil {
+func (p *Player) AddToChannel(ch audio.Channel, f audio.Format, pcm []byte) {
+	if len(pcm) == 0 {
 		return
 	}
 	samples := stream.NewSamplesCopy(pcm, f)
 	//
 	p.pcm = append(p.pcm, playerStreamer{
+		layout:  audio.NewChannelLayout(ch),
 		samples: samples,
 	})
+}
+
+func (p *Player) Add(f audio.Format, pcm []byte) {
+	p.AddToChannel(audio.Channel_NONE, f, pcm)
 }
 
 func (p *Player) Close() (err error) {

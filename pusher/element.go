@@ -80,7 +80,7 @@ func (e *Element) Stream(samples *stream.Samples) {
 		}
 		e.chBuf[i].Reset()
 
-		c = samples.MixChannel(e.chBuf[i], from, 0, 0)
+		c = samples.MixChannels(e.chBuf[i], from, 0, 0)
 		if c == 0 {
 			continue
 		}

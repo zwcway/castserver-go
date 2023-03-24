@@ -105,11 +105,13 @@ func (m *ChannelMask) FromSlice(arr []uint8) error {
 }
 
 func (m *ChannelMask) Add(ch Channel) {
-	*m |= 1 << (ch - 1)
+	if ch.IsValid() {
+		*m |= 1 << (ch - 1)
+	}
 }
 
 func (m *ChannelMask) FromChannelSlice(arr []Channel) error {
-	if len(arr) > 32 {
+	if len(arr) > int(Channel_MAX) {
 		return errors.New("channels too large")
 	}
 	*m = 0
@@ -121,7 +123,7 @@ func (m *ChannelMask) FromChannelSlice(arr []Channel) error {
 
 func (m ChannelMask) Count() int {
 	c := 0
-	for i := 0; i < 32; i++ {
+	for i := 0; i < int(Channel_MAX); i++ {
 		if (m>>i)&0x01 > 0 {
 			c++
 		}

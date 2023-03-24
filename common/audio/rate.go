@@ -13,6 +13,7 @@ const (
 	AudioRate_48000
 	AudioRate_96000
 	AudioRate_192000
+	AudioRate_352800
 	AudioRate_384000
 	AudioRate_MAX
 )
@@ -33,6 +34,8 @@ func (a *Rate) FromInt(i int) {
 		*a = AudioRate_96000
 	case 192000:
 		*a = AudioRate_192000
+	case 352800:
+		*a = AudioRate_352800
 	case 384000:
 		*a = AudioRate_384000
 	default:
@@ -50,6 +53,8 @@ func (a Rate) ToInt() int {
 		return 96000
 	case AudioRate_192000:
 		return 192000
+	case AudioRate_352800:
+		return 352800
 	case AudioRate_384000:
 		return 384000
 	default:

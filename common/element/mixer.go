@@ -72,7 +72,7 @@ func (m *Mixer) Stream(samples *stream.Samples) {
 	for nbSamples < samples.NbSamples {
 		if m.bufPos > 0 && m.bufPos < m.buffer.LastNbSamples {
 			// 残留数据
-			i := m.buffer.MixChannel(samples, m.buffer.Format.Channels(), nbSamples, m.bufPos)
+			i := m.buffer.MixChannelMap(samples, nbSamples, m.bufPos)
 			nbSamples += i
 			m.bufPos += i
 			continue
@@ -88,7 +88,7 @@ func (m *Mixer) Stream(samples *stream.Samples) {
 
 			samples.ResizeSamples(m.buffer.LastNbSamples, m.buffer.Format)
 
-			i := m.buffer.MixChannel(samples, m.buffer.Format.Channels(), nbSamples, 0)
+			i := m.buffer.MixChannelMap(samples, nbSamples, 0)
 
 			if mixed < i {
 				mixed = i
