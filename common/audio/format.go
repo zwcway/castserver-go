@@ -17,8 +17,17 @@ func (s *Format) Equal(r *Format) bool {
 }
 
 // 仅对比样本格式，忽略声道布局
-func (s *Format) EqualSample(r *Format) bool {
+func (s *Format) SampleEqual(r *Format) bool {
 	return s.SampleRate == r.SampleRate && s.SampleBits == r.SampleBits
+}
+
+// 仅对比样本格式，忽略声道布局
+func (s *Format) SampleLessThan(r *Format) bool {
+	return s.SampleRate.ToInt() < r.SampleRate.ToInt() && s.SampleBits.ToInt() == r.SampleBits.ToInt()
+}
+
+func (s *Format) LessThan(r *Format) bool {
+	return s.Size() < r.Size()
 }
 
 func (s *Format) Channels() []Channel {
@@ -68,8 +77,17 @@ func (s *Format) InitFrom(r Format) {
 	}
 }
 
-var DefaultFormat = Format{
-	SampleRate: AudioRate_44100,
-	Layout:     ChannelLayout20,
-	SampleBits: Bits_DEFAULT,
+func DefaultFormat() Format {
+	return Format{
+		SampleRate: AudioRate_44100,
+		Layout:     ChannelLayout10,
+		SampleBits: Bits_DEFAULT,
+	}
+}
+
+// 内部处理格式，其他无所谓，位宽必须是float64
+func InternalFormat() Format {
+	return Format{
+		SampleBits: Bits_DEFAULT,
+	}
 }

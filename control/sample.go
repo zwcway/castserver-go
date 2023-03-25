@@ -4,7 +4,6 @@ import (
 	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/protocol"
 	"github.com/zwcway/castserver-go/common/speaker"
-	"github.com/zwcway/castserver-go/web/websockets"
 	"go.uber.org/zap"
 )
 
@@ -22,6 +21,7 @@ func (s *Sample) Pack() (p *protocol.Package, err error) {
 
 	return
 }
+
 func ControlSample(sp *speaker.Speaker) {
 	s := Sample{
 		f:       Control{Command_SAMPLE, sp.Id},
@@ -56,10 +56,7 @@ func ControlChannel(sp *speaker.Speaker, ch audio.Channel) {
 	if sp.Channel == ch {
 		return
 	}
-	och := sp.Channel
 
 	sp.ChangeChannel(ch)
 	ControlSample(sp)
-
-	websockets.BroadcastSpeakerChannelMovedEvent(sp, och, ch)
 }

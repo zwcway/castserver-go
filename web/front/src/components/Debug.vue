@@ -19,10 +19,10 @@
         <a-button size="small" type="" @click="onSpeakerDetect">发现设备</a-button>
       </p>
 
-      <p v-if="speakerId >= 0">
+      <div v-if="speakerId >= 0">
         <a-button size="small" @click="speakerSendServerInfo">发送服务器信息</a-button>
         <a-button size="small" @click="speakerReconnect">重新连接</a-button>
-      </p>
+      </div>
       <div v-if="lineId >= 0">
         <p>
           <a-input-search size="small" v-model="audioFile" placeholder="音频文件全路径" @search="playFile">
@@ -39,6 +39,25 @@
           <label for="">频谱图<a-switch size="small" v-model="spectrumLog" checked-children="对数"
               un-checked-children="线性" /></label>
         </p>
+      </div>
+      <div v-if="elements.length">
+        <h4>管道元</h4>
+        <a-table :data-source="elements" size="small">
+          <a-table-column key="name" title="名称">
+            <template slot-scope="text, record">
+              {{ record.name }}
+              <a-switch v-if="lineId >= 0" size="small" :checked="record.on" checked-children="开" un-checked-children="关"
+                @change="onLineElementPower(record, $event)" />
+              <a-switch v-else size="small" :checked="record.on" checked-children="开" un-checked-children="关"
+                @change="onSpeakerElementPower(record, $event)" />
+            </template>
+          </a-table-column>
+          <a-table-column key="cost" title="耗时">
+            <template slot-scope="text, record">
+              {{ record.cost }}us
+            </template>
+          </a-table-column>
+        </a-table>
       </div>
     </a-modal>
   </div>
@@ -58,9 +77,14 @@ export default {
       speakerId: -1,
       lineId: -1,
       audioFile: "",
-      playing: true,
+      playing: false,
       localSpeaker: false,
       spectrumLog: false,
+      elements: [],
+      elementColums: [
+        { title: '名称', dataIndex: 'name' },
+        { title: '耗时', dataIndex: 'cost' },
+      ]
     };
   },
   computed: {
@@ -128,6 +152,7 @@ export default {
         this.audioFile = s.furl
         this.localSpeaker = s.local
         this.spectrumLog = s.sl
+        this.elements = s.eles
       })
     },
     send() {
@@ -164,6 +189,12 @@ export default {
         file = file.substring(1, file.length - 1)
       }
       this.send('playFile', { Line: this.lineId, File: file });
+    },
+    onLineElementPower(ele, on) {
+      this.send('elementPower', { line: this.lineId, n: ele.name, on })
+    },
+    onSpeakerElementPower(ele, on) {
+      this.send('elementPower', { sp: this.speakerId, n: ele.name, on })
     },
   },
 };

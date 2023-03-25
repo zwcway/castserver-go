@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/zwcway/castserver-go/common/speaker"
-	"github.com/zwcway/castserver-go/receiver"
 	"github.com/zwcway/castserver-go/web/websockets"
 	"go.uber.org/zap"
 )
@@ -30,9 +29,6 @@ func apiLineDelete(c *websockets.WSConnection, req Requester, log *zap.Logger) (
 	if err != nil {
 		return nil, err
 	}
-
-	receiver.DelLine(nl)
-	websockets.BroadcastLineEvent(nl, websockets.Event_Line_Deleted)
 
 	return nl.Id, nil
 }

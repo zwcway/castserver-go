@@ -65,7 +65,9 @@ func (m *Mixer) Stream(samples *stream.Samples) {
 		return
 	}
 
-	m.buffer.ResizeSamples(samples.NbSamples, samples.Format)
+	// 保证 buffer 大于等于请求的大小
+	// 并且设置为请求的格式
+	m.buffer.ResizeSamplesOrNot(samples.NbSamples, samples.Format)
 
 	nbSamples := 0
 
@@ -82,11 +84,12 @@ func (m *Mixer) Stream(samples *stream.Samples) {
 		for si := 0; si < len(m.streamers); si++ {
 			stream := m.streamers[si]
 
-			m.buffer.Reset()
+			m.buffer.ResetData()
 
+			// 注意：内部有可能改变 buffer
 			stream.Stream(m.buffer)
 
-			samples.ResizeSamples(m.buffer.LastNbSamples, m.buffer.Format)
+			samples.ResizeSamplesOrNot(m.buffer.LastNbSamples, m.buffer.Format)
 
 			i := m.buffer.MixChannelMap(samples, nbSamples, 0)
 
@@ -110,7 +113,8 @@ func (m *Mixer) Stream(samples *stream.Samples) {
 	}
 
 	if nbSamples > samples.LastNbSamples && nbSamples <= samples.NbSamples {
-		samples.ResizeSamples(nbSamples, m.buffer.Format)
+		samples.ResizeSamplesOrNot(nbSamples, m.buffer.Format)
+		samples.LastNbSamples = nbSamples
 	}
 
 }
@@ -137,7 +141,7 @@ func NewMixer(streamers ...stream.Streamer) stream.MixerElement {
 func NewEmptyMixer() stream.MixerElement {
 	m := &Mixer{
 		streamers: make([]stream.Streamer, 0),
-		buffer:    stream.NewSamples(config.AudioBuferSize, audio.DefaultFormat),
+		buffer:    stream.NewSamples(config.AudioBuferSize, audio.DefaultFormat()),
 	}
 	return m
 }

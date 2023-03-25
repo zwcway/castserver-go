@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 
+	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/dsp"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/web/websockets"
@@ -23,6 +24,9 @@ func apiLineClearEqualizer(c *websockets.WSConnection, req Requester, log *zap.L
 
 	nl.Equalizer.SetEqualizer([]dsp.Equalizer{})
 	nl.Equalizer.Off()
+
+	bus.Trigger("line equalizer clean", nl)
+	bus.Trigger("line equalizer power", nl, false)
 
 	return true, nil
 }

@@ -43,11 +43,9 @@ func TriggerAddLine(line *speaker.Line) {
 	line.Pusher = NewElement(line)
 	line.Input.PipeLine.Append(line.Pusher)
 
-	localspeaker.AddLine(line)
 	TimerAddLine(line)
 }
 
 func TriggerRemoveLine(line *speaker.Line) {
-	localspeaker.RemoveLine(line)
 	TimerRemoveLine(line)
 }

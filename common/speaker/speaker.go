@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"sync"
 	"time"
 
 	"github.com/zwcway/castserver-go/common/audio"
+	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/element"
 	"github.com/zwcway/castserver-go/common/pipeline"
 	"github.com/zwcway/castserver-go/common/stream"
@@ -15,11 +15,10 @@ import (
 
 var speakerList []*Speaker
 
-var lock sync.Mutex
-
 type SpeakerConfig struct {
 	MAC   net.HardwareAddr
 	IP    netip.Addr
+	ipStr string
 	Mode  Model
 	Dport uint16 // pcm data port
 
@@ -27,6 +26,11 @@ type SpeakerConfig struct {
 	BitsMask    audio.BitsMask      // 设备支持的位宽列表
 	AbsoluteVol bool                // 支持绝对音量控制
 	PowerSave   bool                // 是否支持电源控制
+}
+
+func (sc *SpeakerConfig) SetIP(ip netip.Addr) {
+	sc.IP = ip
+	sc.ipStr = ip.String()
 }
 
 type Speaker struct {
@@ -121,20 +125,27 @@ func (sp *Speaker) WriteUDP(d []byte) error {
 }
 
 func (sp *Speaker) ChangeChannel(ch audio.Channel) {
+	och := sp.Channel
+
 	if ch.IsValid() {
 		sp.Channel = ch
 	} else {
 		sp.Channel = audio.Channel_NONE
 	}
 	sp.Line.refresh()
+
+	bus.Trigger("speaker channel moved", sp, och)
 }
 
 func (sp *Speaker) ChangeLine(newLine *Line) {
 	sp.Line.RemoveSpeaker(sp)
 
+	ol := sp.Line
 	sp.Line = newLine
 
 	newLine.AppendSpeaker(sp)
+
+	bus.Trigger("speaker line changed", sp, ol)
 }
 
 func (sp *Speaker) Format() audio.Format {
@@ -171,16 +182,17 @@ func All(cb func(*Speaker)) {
 	}
 }
 
-func NewSpeaker(id ID, line LineID, channel audio.Channel) (*Speaker, error) {
-	lock.Lock()
-	defer lock.Unlock()
+func NewSpeaker(ip string, line LineID, channel audio.Channel) (*Speaker, error) {
+	locker.Lock()
+	defer locker.Unlock()
 
-	if s := FindSpeakerByID(id); s != nil {
+	if s := FindSpeakerByIP(ip); s != nil {
 		return s, nil
 	}
 
 	var sp Speaker
-	sp.Id = id
+
+	sp.Id = getSpeakerID()
 	sp.Channel = channel
 	sp.State = State_OFFLINE
 
@@ -201,10 +213,11 @@ func NewSpeaker(id ID, line LineID, channel audio.Channel) (*Speaker, error) {
 	speakerList = append(speakerList, &sp)
 
 	if l := FindLineByID(line); l != nil {
-		sp.Mixer.Add(l.Input.PipeLine)
 		sp.Line = l
 		l.AppendSpeaker(&sp)
 	}
+
+	bus.Trigger("speaker created", &sp)
 
 	return &sp, nil
 }
@@ -215,8 +228,8 @@ func DelSpeaker(id ID) error {
 		return &UnknownSpeakerError{id}
 	}
 
-	lock.Lock()
-	defer lock.Unlock()
+	locker.Lock()
+	defer locker.Unlock()
 
 	// 删除原始数据
 	removeSpeaker(id)
@@ -225,6 +238,8 @@ func DelSpeaker(id ID) error {
 	sp.Line = nil
 
 	sp.PipeLine.Close()
+
+	bus.Trigger("speaker deleted", sp)
 
 	return nil
 }
@@ -242,8 +257,34 @@ func removeSpeaker(id ID) {
 }
 
 func FindSpeakerByID(id ID) *Speaker {
+	for _, sp := range speakerList {
+		if sp.Id == id {
+			return sp
+		}
+	}
+
+	return nil
+}
+
+func getSpeakerID() (m ID) {
+	m = maxSpeakerID
+
+	for FindSpeakerByID(m) != nil {
+		m++
+		if m > ID_MAX {
+			m = 1
+		}
+	}
+	if m > maxSpeakerID && m < ID_MAX {
+		maxSpeakerID = m + 1
+	}
+
+	return m
+}
+
+func FindSpeakerByIP(ip string) *Speaker {
 	for i := 0; i < len(speakerList); i++ {
-		if speakerList[i].Id == id {
+		if speakerList[i].Config.ipStr == ip {
 			return speakerList[i]
 		}
 	}

@@ -21,6 +21,10 @@ func (s *PipeLineStreamer) Cost() time.Duration {
 	return s.cost
 }
 
+func (s *PipeLineStreamer) Element() stream.Element {
+	return s.stream
+}
+
 type PipeLine struct {
 	buffer       *stream.Samples
 	format       audio.Format

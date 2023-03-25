@@ -134,7 +134,7 @@ func main() {
 	}
 
 	debug.SetMaxThreads(config.RuntimeThreads)
-	common.Init()
+	common.Init(rootCtx)
 
 	mods := []Module{
 		mutexer.Module,

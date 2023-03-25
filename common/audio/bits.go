@@ -14,15 +14,16 @@ const (
 	Bits_S16LE // int16
 	Bits_S24LE // int24
 	Bits_S32LE // int32
+
 	Bits_U8    // uint8
 	Bits_U16LE // uint16
 	Bits_U24LE // uint24
 	Bits_U32LE // uint32
-	Bits_32LEF // float32
-	Bits_64LEF // float64
 
 	Bits_16LEF // float16
 	Bits_24LEF // float24
+	Bits_32LEF // float32
+	Bits_64LEF // float64
 
 	Bits_MAX
 )
@@ -44,7 +45,7 @@ func (a *Bits) FromInt(i int) {
 	case 24:
 		*a = Bits_S24LE
 	case 32:
-		*a = Bits_32LEF
+		*a = Bits_S32LE
 	case 64:
 		*a = Bits_64LEF
 	default:

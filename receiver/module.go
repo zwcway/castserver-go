@@ -1,8 +1,8 @@
 package receiver
 
 import (
-	dlna "github.com/zwcway/castserver-go/dlna"
-	utils "github.com/zwcway/castserver-go/utils"
+	"github.com/zwcway/castserver-go/receiver/dlna"
+	"github.com/zwcway/castserver-go/utils"
 
 	"go.uber.org/zap"
 )

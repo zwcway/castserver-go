@@ -12,6 +12,7 @@ import (
 	"unsafe"
 
 	"github.com/zwcway/castserver-go/common/audio"
+	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/stream"
 	"github.com/zwcway/castserver-go/decoder/ffmpeg/avutil"
 )
@@ -23,11 +24,10 @@ func New(outFormat audio.Format) stream.FileStreamer {
 }
 
 type AVFormatContext struct {
-	openedHandler []stream.FormatChangedHandler
-	format        audio.Format
-	fileName      string
-	pause         bool
-	finished      bool
+	format   audio.Format
+	fileName string
+	pause    bool
+	finished bool
 
 	ctx           *C.GOAVDecoder
 	outputFmt     audio.Format
@@ -82,20 +82,14 @@ func (c *AVFormatContext) OpenFile(fileName string) (err error) {
 	c.outputFmt.InitFrom(c.format)
 	// c.outputFmt.SampleBits = audio.Bits_DEFAULT
 
-	for _, fch := range c.openedHandler {
-		fch(c, c.format, c.outputFmt)
-	}
-
 	err = c.SetOutFormat(c.outputFmt)
 	if err != nil {
 		return err
 	}
 
-	return nil
-}
+	bus.Trigger("audiofile opened", c, c.format, c.outputFmt, fileName)
 
-func (c *AVFormatContext) SetFormatChangedHandler(fch stream.FormatChangedHandler) {
-	c.openedHandler = append(c.openedHandler, fch)
+	return nil
 }
 
 func (c *AVFormatContext) Name() string {
@@ -224,7 +218,8 @@ func (c *AVFormatContext) Stream(samples *stream.Samples) {
 		return
 	}
 
-	samples.ResizeSamples(samples.NbSamples, c.outputFmt)
+	// 强制同步格式
+	samples.ResizeSamplesOrNot(samples.NbSamples, c.outputFmt)
 
 	if c.pause || c.finished {
 		// samples.BeZero()

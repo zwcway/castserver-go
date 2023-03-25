@@ -1,9 +1,16 @@
 package speaker
 
 type LineID uint8
+
+const LineID_MAX LineID = (1 << 8) - 1
+
 type ID uint32
 
+const ID_MAX ID = (1 << 32) - 1
+
 var DefaultLineID LineID = 0
+var maxLineID LineID = 0
+var maxSpeakerID ID = 1
 
 type Model uint8
 

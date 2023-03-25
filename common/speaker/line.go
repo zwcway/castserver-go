@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/zwcway/castserver-go/common/audio"
+	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/element"
 	"github.com/zwcway/castserver-go/common/pipeline"
 	"github.com/zwcway/castserver-go/common/stream"
@@ -51,7 +52,7 @@ func (l *Line) ChannelRoute(dst audio.Channel) []audio.Channel {
 			return cr.From
 		}
 	}
-	return nil
+	return []audio.Channel{dst}
 }
 
 func (l *Line) Speakers() []*Speaker {
@@ -76,20 +77,18 @@ func (l *Line) SpeakersByChannel(ch audio.Channel) []*Speaker {
 func (l *Line) AppendSpeaker(sp *Speaker) {
 	l.speakers = append(l.speakers, sp)
 	l.refresh()
+	bus.Trigger("line speaker appended", l, sp)
 }
 
 func (line *Line) RemoveSpeakerById(spid ID) {
-	l := len(line.speakers) - 1
-	for i := 0; i <= l; i++ {
-		if line.speakers[i].Id == spid {
-			if i != l {
-				line.speakers[i] = line.speakers[l]
-			}
-			line.speakers = line.speakers[:l]
+	for i, sp := range line.speakers {
+		if sp.Id == spid {
+			utils.SliceQuickRemove(&line.speakers, i)
+			bus.Trigger("line speaker removed", line, sp)
+			line.refresh()
+			break
 		}
 	}
-
-	line.refresh()
 }
 
 func (l *Line) RemoveSpeaker(sp *Speaker) {
@@ -97,10 +96,14 @@ func (l *Line) RemoveSpeaker(sp *Speaker) {
 }
 
 func (l *Line) SetOutput(f audio.Format) {
-	// 不改变输出位宽，内部处理必须保证为 float64
-	f.SampleBits = audio.Bits_DEFAULT
+	if l.Output.Equal(&f) {
+		return
+	}
+
 	l.Output = f
 	l.refresh()
+
+	bus.Trigger("line output changed", l, f)
 }
 
 func (l *Line) refresh() {
@@ -109,6 +112,8 @@ func (l *Line) refresh() {
 		channels = append(channels, (l.speakers[i].Channel))
 	}
 	l.Output.Layout = audio.NewChannelLayout(channels...)
+
+	bus.Trigger("line refresh", l)
 }
 
 func (l *Line) Elements() []stream.Element {
@@ -128,15 +133,28 @@ func (l *Line) IsDeleted() bool {
 
 func (l *Line) ApplyInput(ss stream.SourceStreamer) {
 	l.Input.ApplySource(ss)
-	ss.SetFormatChangedHandler(l.onInputChanged)
+	bus.Trigger("line input changed", l, ss)
+
+	bus.Register("audiofile opened", func(a ...any) error {
+		tfs := a[0].(stream.FileStreamer)
+		if tfs != ss {
+			return nil
+		}
+		inFormat := a[1].(audio.Format)
+		outFormat := a[2].(audio.Format)
+		l.onInputChanged(ss, inFormat, outFormat)
+		return nil
+	})
 }
 
 func (l *Line) onInputChanged(ss stream.SourceStreamer, inFormat, outFormat audio.Format) {
-	l.SetOutput(inFormat)
 	l.Input.Format = inFormat
 	if fs, ok := ss.(stream.FileStreamer); ok {
-		fs.SetOutFormat(l.Output)
+		format := audio.InternalFormat()
+		format.InitFrom(inFormat)
+		fs.SetOutFormat(format)
 	}
+	bus.Trigger("line audiofile opened", l, ss, inFormat, outFormat)
 }
 
 func LineList() []*Line {
@@ -144,13 +162,29 @@ func LineList() []*Line {
 }
 
 func FindLineByID(id LineID) *Line {
-	for i := 0; i < len(lineList); i++ {
-		if lineList[i].Id == id {
-			return lineList[i]
+	for _, l := range lineList {
+		if l.Id == id {
+			return l
 		}
 	}
 
 	return nil
+}
+
+func getLineID() (m LineID) {
+	m = maxLineID
+
+	for FindLineByID(m) != nil {
+		m++
+		if m > LineID_MAX {
+			m = DefaultLineID + 1
+		}
+	}
+	if m > maxLineID && m < LineID_MAX {
+		maxLineID = m + 1
+	}
+
+	return m
 }
 
 func FindLineByUUID(uuid string) *Line {
@@ -163,19 +197,9 @@ func FindLineByUUID(uuid string) *Line {
 	return nil
 }
 
-func EditLine(id LineID, name string) error {
-	line := FindLineByID(id)
-	if line == nil {
-		return &UnknownLineError{id}
-	}
-	line.Name = name
-
-	return nil
-}
-
 func DelLine(id LineID, move LineID) error {
-	lock.Lock()
-	defer lock.Unlock()
+	locker.Lock()
+	defer locker.Unlock()
 
 	if id == move {
 		return nil
@@ -204,6 +228,8 @@ func DelLine(id LineID, move LineID) error {
 	removeLine(id)
 
 	src.isDeleted = true
+
+	bus.Trigger("line deleted", src, dst)
 
 	return nil
 }
@@ -263,28 +289,21 @@ func initLine() error {
 }
 
 func NewLine(name string) *Line {
+	locker.Lock()
+	defer locker.Unlock()
+
 	var line Line
 
 	l := len(lineList)
-	if l >= 255 {
+	if l >= int(LineID_MAX) {
 		return nil
 	}
-	line.Id = DefaultLineID
 
-	if l > 0 {
-		for i := DefaultLineID; i < 255; i++ {
-			ll := FindLineByID(i)
-			if ll == nil {
-				line.Id = i
-				break
-			}
-		}
-	}
-
+	line.Id = getLineID()
 	line.Name = name
 	line.UUID = generateUUID(name)
 
-	line.SetOutput(audio.DefaultFormat)
+	line.SetOutput(audio.DefaultFormat())
 
 	line.Player = element.NewPlayer()
 	line.Volume = element.NewVolume(0.1)
@@ -304,6 +323,8 @@ func NewLine(name string) *Line {
 	)
 
 	lineList = append(lineList, &line)
+
+	bus.Trigger("line created", &line)
 
 	return &line
 }

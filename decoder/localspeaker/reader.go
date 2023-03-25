@@ -29,7 +29,7 @@ func (r *reader) Read(p []byte) (n int, err error) {
 
 	for n < len(p) {
 		if r.bufPos >= r.bufSize {
-			samples.Reset()
+			samples.ResetAll()
 
 			mixer.Stream(samples)
 
@@ -49,7 +49,7 @@ func (r *reader) Read(p []byte) (n int, err error) {
 
 		}
 
-		for ; r.bufPos < r.bufSize && n < len(p); r.bufPos += 2 {
+		for ; r.bufPos < r.bufSize-1 && n < len(p)-1; r.bufPos += 2 {
 			for ch = 0; ch < samples.Format.Layout.Count; ch++ {
 				p[n+0] = samples.RawData[ch][r.bufPos+0]
 				p[n+1] = samples.RawData[ch][r.bufPos+1]

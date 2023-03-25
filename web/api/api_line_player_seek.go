@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/web/websockets"
 	"go.uber.org/zap"
@@ -27,15 +28,18 @@ func apiLinePlayerSeek(c *websockets.WSConnection, req Requester, log *zap.Logge
 		return nil, fmt.Errorf("line not exists")
 	}
 
-	audio := nl.Input.FileStreamer()
-	if audio == nil {
+	fs := nl.Input.FileStreamer()
+	if fs == nil {
 		return nil, errors.New("no audio")
 	}
 
-	err = audio.Seek(time.Duration(p.Pos) * time.Second)
+	pos := time.Duration(p.Pos) * time.Second
+	err = fs.Seek(pos)
 	if err != nil {
 		return nil, err
 	}
+
+	bus.Trigger("line audiofile seek", nl, fs, pos)
 
 	return websockets.NewResponseLineSource(nl), nil
 }

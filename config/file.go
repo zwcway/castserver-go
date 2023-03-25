@@ -62,12 +62,12 @@ _default_:
 }
 
 func parseBits(log *zap.Logger, cfg reflect.Value, k *ini.Key, ck *CfgKey) {
-	parse := func(b string) bool {
+	parse := func(b string) []audio.Bits {
 		r := strings.FieldsFunc(b, func(r rune) bool {
 			return r == ' ' || r == '|' || r == '/'
 		})
 
-		SupportAudioBits = make([]audio.Bits, 0)
+		bits := make([]audio.Bits, 0)
 		for _, v := range r {
 			var a audio.Bits
 			a.FromName(v)
@@ -75,28 +75,31 @@ func parseBits(log *zap.Logger, cfg reflect.Value, k *ini.Key, ck *CfgKey) {
 				log.Error("bits is invalid", zap.String("bits", v), zap.String("key", ck.Key))
 				continue
 			}
-			if utils.SliceContains(SupportAudioBits, a) {
+			if utils.SliceContains(bits, a) {
 				continue
 			}
-			SupportAudioBits = append(SupportAudioBits, a)
+			bits = append(bits, a)
 		}
-		return len(SupportAudioBits) > 0
+		return bits
 	}
 	if k != nil {
 		b := k.String()
-		if len(b) > 0 && parse(b) {
+		if len(b) > 0 {
+			if bits := parse(b); len(bits) > 0 {
+				cfg.Set(reflect.ValueOf(bits))
+			}
 			return
 		}
 	}
 }
 
 func parseRates(log *zap.Logger, cfg reflect.Value, k *ini.Key, ck *CfgKey) {
-	parse := func(b string) bool {
+	parse := func(b string) []audio.Rate {
 		r := strings.FieldsFunc(b, func(r rune) bool {
 			return r == ' ' || r == '|' || r == '/'
 		})
 
-		SupportAudioRates = make([]audio.Rate, 0)
+		rates := make([]audio.Rate, 0)
 		for _, v := range r {
 			i, err := strconv.ParseInt(v, 0, 32)
 			if err != nil {
@@ -108,17 +111,20 @@ func parseRates(log *zap.Logger, cfg reflect.Value, k *ini.Key, ck *CfgKey) {
 				log.Error("rate is invalid", zap.String("rate", v), zap.String("key", ck.Key))
 				continue
 			}
-			if utils.SliceContains(SupportAudioRates, a) {
+			if utils.SliceContains(rates, a) {
 				continue
 			}
-			SupportAudioRates = append(SupportAudioRates, a)
+			rates = append(rates, a)
 		}
-		return len(SupportAudioRates) > 0
+		return rates
 	}
 	if k != nil {
 		b := k.String()
 
-		if len(b) > 0 && parse(b) {
+		if len(b) > 0 {
+			if rates := parse(b); len(rates) > 0 {
+				cfg.Set(reflect.ValueOf(rates))
+			}
 			return
 		}
 	}

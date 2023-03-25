@@ -52,10 +52,14 @@ function wsonerror(event) {
 }
 function wsonclose() {
   store.dispatch('wsDisconnected');
+  if (process.env.NODE_ENV !== 'production') {
+    return
+  }
   if (retried++ >= connectRetry) {
     console.log('websocket reconnect failed', retried);
     return;
   }
+  
   console.log('websocket closed. retrying', retried);
 
   if (retryConnectTimeout)

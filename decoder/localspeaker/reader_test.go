@@ -24,22 +24,30 @@ func Test_reader_Read(t *testing.T) {
 	}
 	player := element.NewPlayer()
 	mixer = element.NewEmptyMixer()
-	t.Run("44100/s16le/2 => 44100/s16le/2", func(t *testing.T) {
-		f := audio.Format{
-			SampleRate: audio.AudioRate_44100,
-			SampleBits: audio.Bits_S16LE,
-			Layout:     audio.ChannelLayout10,
-		}
+	t.Run("44100/s16le/2=>44100/s16le/2", func(t *testing.T) {
+
 		r := reader{
-			samples:  stream.NewSamples(512, f),
-			resample: element.NewResample(f),
+			samples: stream.NewSamples(512, audio.Format{
+				SampleRate: audio.AudioRate_44100,
+				SampleBits: audio.Bits_64LEF,
+				Layout:     audio.ChannelLayout10,
+			}),
+			resample: element.NewResample(audio.Format{
+				SampleRate: audio.AudioRate_44100,
+				SampleBits: audio.Bits_S16LE,
+				Layout:     audio.ChannelLayout10,
+			}),
 		}
 		r.resample.On()
 
 		mixer.Clear()
 		mixer.Add(player)
 
-		player.Add(f, data)
+		player.Add(audio.Format{
+			SampleRate: audio.AudioRate_44100,
+			SampleBits: audio.Bits_64LEF,
+			Layout:     audio.ChannelLayout10,
+		}, data)
 
 		p := make([]byte, 40)
 

@@ -13,7 +13,7 @@ type mixer1 struct {
 }
 
 func (m *mixer1) Stream(samples *stream.Samples) {
-	for i := 0; i < samples.NbSamples; i++ {
+	for i := 0; i < 8; i++ {
 		samples.Data[0][i] = float64(m.i)
 		m.i++
 	}
@@ -22,7 +22,7 @@ func (m *mixer1) Stream(samples *stream.Samples) {
 		Layout:     audio.ChannelLayout10,
 		SampleBits: audio.Bits_DEFAULT,
 	})
-	samples.LastNbSamples = samples.NbSamples
+	samples.LastNbSamples = 8
 }
 
 func TestMixer(t *testing.T) {
@@ -37,7 +37,7 @@ func TestMixer(t *testing.T) {
 		samples := stream.NewSamples(8, format)
 		mixer.Stream(samples)
 		if !slices.Equal(samples.Data[0], result) {
-			t.Error("mix same error")
+			t.Errorf("mix same error = \n%v\n, want \n%v\n", samples.Data[0], result)
 		}
 	})
 	t.Run("mix size 6 for 8", func(t *testing.T) {
@@ -45,7 +45,7 @@ func TestMixer(t *testing.T) {
 		samples := stream.NewSamples(8, format)
 		mixer.Stream(samples)
 		if !slices.Equal(samples.Data[0], result) {
-			t.Error("mix same error")
+			t.Errorf("mix same error = \n%v\n, want \n%v\n", samples.Data[0], result)
 		}
 	})
 	t.Run("mix size 5 for 8", func(t *testing.T) {
@@ -53,7 +53,7 @@ func TestMixer(t *testing.T) {
 		samples := stream.NewSamples(8, format)
 		mixer.Stream(samples)
 		if !slices.Equal(samples.Data[0], result) {
-			t.Error("mix same error")
+			t.Errorf("mix same error = \n%v\n, want \n%v\n", samples.Data[0], result)
 		}
 	})
 }

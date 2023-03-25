@@ -36,7 +36,7 @@ func (v *Player) Stream(samples *stream.Samples) {
 	for s := 0; s < len(v.pcm); s++ {
 		pcm := &v.pcm[s]
 
-		if !pcm.samples.Format.EqualSample(&format) {
+		if !pcm.samples.Format.SampleEqual(&format) {
 			// 不改变播放源的声道布局
 			if pcm.layout.IsValid() {
 				format.Layout = pcm.layout
@@ -105,7 +105,7 @@ func (p *Player) Close() (err error) {
 }
 
 func NewPlayer() stream.RawPlayerElement {
-	resample := NewResample(audio.DefaultFormat)
+	resample := NewResample(audio.DefaultFormat())
 	resample.On()
 
 	return &Player{

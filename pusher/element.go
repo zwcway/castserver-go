@@ -40,8 +40,13 @@ func (e *Element) Close() error {
 	return nil
 }
 
-func (e *Element) initBuf(samples int) {
-	e.buffer = stream.NewSamples(samples, e.line.Output)
+func (e *Element) initBuf(samples int, format audio.Format) {
+	format.Layout = *e.line.Layout()
+	if e.buffer == nil {
+		e.buffer = stream.NewSamples(samples, format)
+	} else {
+		e.buffer.ResizeSamplesOrNot(samples, format)
+	}
 
 	for i := range e.chBuf {
 		e.chBuf[i] = nil
@@ -52,11 +57,14 @@ func (e *Element) initBuf(samples int) {
 }
 
 func (e *Element) Stream(samples *stream.Samples) {
-	if !e.power {
+	if !e.power || !samples.Format.IsValid() {
 		return
 	}
-	if e.buffer.NbSamples < samples.NbSamples || !e.buffer.Format.Layout.Equal(e.line.Layout()) {
-		e.initBuf(samples.NbSamples)
+	if samples.LastNbSamples == 0 {
+		return
+	}
+	if e.buffer == nil || e.buffer.NbSamples < samples.NbSamples || !e.buffer.Format.Layout.Equal(e.line.Layout()) {
+		e.initBuf(samples.NbSamples, samples.Format)
 	}
 	var (
 		chList = e.line.Channels()
@@ -64,6 +72,7 @@ func (e *Element) Stream(samples *stream.Samples) {
 		c      int
 		ch     audio.Channel
 		from   []audio.Channel
+		buf    *stream.Samples
 	)
 
 	for i = 0; i < len(chList); i++ {
@@ -78,12 +87,14 @@ func (e *Element) Stream(samples *stream.Samples) {
 		if e.chBuf[i] == nil {
 			continue
 		}
-		e.chBuf[i].Reset()
+		buf = e.chBuf[i]
+		buf.ResetData()
 
-		c = samples.MixChannels(e.chBuf[i], from, 0, 0)
+		c = samples.MixChannels(buf, from, 0, 0)
 		if c == 0 {
 			continue
 		}
+		buf.LastNbSamples = c
 
 		chList[i] = ch
 	}
@@ -95,7 +106,8 @@ func (e *Element) Stream(samples *stream.Samples) {
 		if !ch.IsValid() {
 			continue
 		}
-		if e.chBuf[i] == nil {
+		buf = e.chBuf[i]
+		if buf == nil || buf.LastNbSamples == 0 {
 			continue
 		}
 		e.PushToLineChannel(ch, e.chBuf[i])
@@ -123,10 +135,12 @@ func (e *Element) PushSpeaker(sp *speaker.Speaker, samples *stream.Samples) {
 	sp.PipeLine.Stream(samples)
 
 	buf := ServerPush{
-		Ver:     1,
-		Seq:     1,
-		Time:    1,
-		Samples: samples.RawData[0],
+		Ver:      1,
+		Compress: 0,
+		Rate:     samples.Format.SampleRate,
+		Bits:     samples.Format.SampleBits,
+		Time:     1,
+		Samples:  samples.ChannelBytes(0),
 	}
 	p, err := buf.Pack()
 	if err != nil {

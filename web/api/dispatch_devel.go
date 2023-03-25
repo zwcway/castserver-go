@@ -12,7 +12,9 @@ import (
 
 	"github.com/valyala/fasthttp"
 	"github.com/zwcway/castserver-go/common/audio"
+	"github.com/zwcway/castserver-go/common/pipeline"
 	"github.com/zwcway/castserver-go/common/speaker"
+	"github.com/zwcway/castserver-go/common/stream"
 	"github.com/zwcway/castserver-go/decoder"
 	"github.com/zwcway/castserver-go/decoder/localspeaker"
 	"github.com/zwcway/castserver-go/detector"
@@ -74,6 +76,7 @@ func initDebug() {
 	apiRouterList["playFile"] = apiRouter{apiPlayFile}
 	apiRouterList["pause"] = apiRouter{apiPlayPause}
 	apiRouterList["debugStatus"] = apiRouter{apiDebugStatus}
+	apiRouterList["elementPower"] = apiRouter{apiElementPower}
 }
 
 type requestSpeakerCreate struct {
@@ -265,17 +268,25 @@ func apiDebugStatus(c *websockets.WSConnection, req Requester, log *zap.Logger) 
 	if err != nil {
 		return
 	}
+	type r struct {
+		Name  string `jp:"name"`
+		Power bool   `jp:"on"`
+		Cost  int    `jp:"cost"`
+	}
+
 	resp := struct {
 		LocalSpeaker bool   `jp:"local"`
 		LocalPlaying bool   `jp:"lplay"`
 		FilePlaying  bool   `jp:"fplay"`
 		FileName     string `jp:"furl"`
 		SpectrumLog  bool   `jp:"sl"`
+		Elements     []r    `jp:"eles"`
 	}{
 		LocalSpeaker: localspeaker.IsOpened(),
 		LocalPlaying: localspeaker.IsPlaying(),
 	}
 
+	var pl *pipeline.PipeLine
 	if p.Line != nil {
 		line := speaker.FindLineByID(speaker.LineID(*p.Line))
 		if line == nil {
@@ -288,7 +299,80 @@ func apiDebugStatus(c *websockets.WSConnection, req Requester, log *zap.Logger) 
 			resp.FileName = fs.CurrentFile()
 		}
 		resp.SpectrumLog = line.Spectrum.LogAxis()
+		if line.Input.PipeLine != nil {
+			pl, _ = line.Input.PipeLine.(*pipeline.PipeLine)
+		}
+	}
+
+	if pl != nil {
+		for _, s := range pl.Streamers() {
+			res := r{
+				Name: s.Name(),
+				Cost: int(s.Cost().Microseconds()),
+			}
+			ele := s.Element()
+			if ele, ok := ele.(stream.SwitchElement); ok {
+				res.Power = ele.IsOn()
+			}
+
+			resp.Elements = append(resp.Elements, res)
+		}
 	}
 
 	return resp, nil
+}
+
+func apiElementPower(c *websockets.WSConnection, req Requester, log *zap.Logger) (ret any, err error) {
+	var p struct {
+		Line    *int   `jp:"line,omitempty"`
+		Speaker *int   `jp:"sp,omitempty"`
+		Name    string `jp:"n"`
+		Power   *bool  `jp:"on"`
+	}
+	err = req.Unmarshal(&p)
+	if err != nil {
+		return
+	}
+	var pl stream.PipeLiner
+
+	if p.Line != nil {
+		line := speaker.FindLineByID(speaker.LineID(*p.Line))
+		if line == nil {
+			err = errors.New("no line")
+			return
+		}
+		pl = line.Input.PipeLine
+	}
+
+	if pl == nil {
+		err = errors.New("no pipeline")
+		return
+	}
+	pp, ok := pl.(*pipeline.PipeLine)
+	if !ok {
+		err = errors.New("unknown pipeline")
+		return
+	}
+	var ele stream.Element
+	for _, s := range pp.Streamers() {
+		if s.Name() == p.Name {
+			ele = s.Element()
+			break
+		}
+	}
+	if ele == nil {
+		err = errors.New("no element")
+		return
+	}
+	if p.Power != nil {
+		if ele, ok := ele.(stream.SwitchElement); ok {
+			if *p.Power {
+				ele.On()
+			} else {
+				ele.Off()
+			}
+		}
+	}
+
+	return true, nil
 }

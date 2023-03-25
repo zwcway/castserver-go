@@ -3,7 +3,6 @@ package control
 import (
 	"github.com/zwcway/castserver-go/common/protocol"
 	"github.com/zwcway/castserver-go/common/speaker"
-	"github.com/zwcway/castserver-go/web/websockets"
 	"go.uber.org/zap"
 )
 
@@ -58,8 +57,8 @@ func ControlLineVolume(line *speaker.Line, vol float64, mute bool) {
 	if p == nil || line.Volume == nil {
 		return
 	}
+
 	line.Volume.SetVolume(vol)
 	line.Volume.SetMute(mute)
 
-	websockets.BroadcastLineEvent(line, websockets.Event_Line_Edited)
 }

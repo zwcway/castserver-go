@@ -7,6 +7,7 @@ import (
 	oto "github.com/hajimehoshi/oto/v2"
 	"github.com/pkg/errors"
 	"github.com/zwcway/castserver-go/common/audio"
+	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/element"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/common/stream"
@@ -68,7 +69,20 @@ func Init() error {
 	}
 	player.(oto.BufferSizeSetter).SetBufferSize(bufSize)
 
+	registerEventBus()
+
 	return nil
+}
+
+func registerEventBus() {
+	bus.Register("line created", func(a ...any) error {
+		AddLine(a[0].(*speaker.Line))
+		return nil
+	})
+	bus.Register("line deleted", func(a ...any) error {
+		RemoveLine(a[0].(*speaker.Line))
+		return nil
+	})
 }
 
 func AddLine(line *speaker.Line) {
@@ -80,7 +94,7 @@ func AddLine(line *speaker.Line) {
 			return
 		}
 	}
-	format := audio.DefaultFormat
+	format := audio.DefaultFormat()
 
 	mixer.Add(line.Input.PipeLine)
 	lines = append(lines, line)
@@ -120,6 +134,8 @@ func Play() {
 		return
 	}
 	player.Play()
+
+	bus.Trigger("localspeaker playing")
 }
 
 func Close() error {

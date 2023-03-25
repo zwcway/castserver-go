@@ -24,7 +24,6 @@ type StreamSeekCloser interface {
 
 type SourceStreamer interface {
 	StreamSeekCloser
-	SetFormatChangedHandler(FormatChangedHandler)
 	AudioFormat() audio.Format // 当前音频文件格式
 	OutFormat() audio.Format   // 音频输出格式
 	IsPlaying() bool

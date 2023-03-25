@@ -5,13 +5,13 @@ import (
 	"net/netip"
 	"time"
 
+	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/protocol"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/config"
 	"github.com/zwcway/castserver-go/mutexer"
 	"github.com/zwcway/castserver-go/pusher"
 	"github.com/zwcway/castserver-go/utils"
-	"github.com/zwcway/castserver-go/web/websockets"
 	"golang.org/x/net/ipv4"
 
 	"go.uber.org/zap"
@@ -206,7 +206,7 @@ func onlineCheckRoutine(ctx utils.Context) {
 
 			sp.Timeout = 0
 
-			websockets.BroadcastSpeakerEvent(sp, websockets.Event_SP_Offline)
+			bus.Trigger("speaker offline", sp)
 		})
 	}
 }

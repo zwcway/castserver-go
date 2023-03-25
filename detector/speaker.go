@@ -1,24 +1,23 @@
 package detector
 
 import (
+	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/config"
 	"github.com/zwcway/castserver-go/control"
 	"github.com/zwcway/castserver-go/pusher"
 	"github.com/zwcway/castserver-go/utils"
-	"github.com/zwcway/castserver-go/web/websockets"
 
 	"go.uber.org/zap"
 )
 
 func initSpeaker(sp *speaker.Speaker, res *SpeakerResponse) {
-	sp.Id = res.ID
 	sp.Name = res.MAC.String()
 	sp.Config.RateMask = res.RateMask
 	sp.Config.BitsMask = res.BitsMask
 	sp.Config.Dport = res.DataPort
 	sp.Config.MAC = res.MAC
-	sp.Config.IP = res.Addr
+	sp.Config.SetIP(res.Addr)
 	sp.Config.AbsoluteVol = res.AbsoluteVol
 	sp.Config.PowerSave = res.PowerSave
 	sp.Rate = control.DefaultRate()
@@ -64,7 +63,7 @@ func updateSpeaker(sp *speaker.Speaker, support bool, res *SpeakerResponse, isFi
 func CheckSpeaker(res *SpeakerResponse) (err error) {
 	support := isSupport(res)
 
-	sp := speaker.FindSpeakerByID(res.ID)
+	sp := speaker.FindSpeakerByIP(res.Addr.String())
 
 	if sp != nil {
 		isFirstConn := !res.Connected
@@ -79,14 +78,13 @@ func CheckSpeaker(res *SpeakerResponse) (err error) {
 		err := updateSpeaker(sp, support, res, isFirstConn)
 
 		if !isOnline {
-			// 触发设备上线事件，通知管理后台
-			websockets.BroadcastSpeakerEvent(sp, websockets.Event_SP_Online)
+			bus.Trigger("speaker online", sp)
 		}
 
 		return err
 	}
 
-	sp, err = speaker.NewSpeaker(res.ID, speaker.DefaultLineID, control.DefaultChannel())
+	sp, err = speaker.NewSpeaker(res.Addr.String(), speaker.DefaultLineID, control.DefaultChannel())
 	if err != nil {
 		log.Error("add speaker error", zap.Int("id", int(res.ID)))
 		return err
@@ -95,8 +93,7 @@ func CheckSpeaker(res *SpeakerResponse) (err error) {
 	err = updateSpeaker(sp, support, res, true)
 	log.Info("found a new speaker " + sp.String())
 
-	// 触发设备发现事件，通知管理后台
-	websockets.BroadcastSpeakerEvent(sp, websockets.Event_SP_Detected)
+	bus.Trigger("speaker detected", sp)
 
 	if err != nil {
 		return err

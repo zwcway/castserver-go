@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 
+	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/control"
 	"github.com/zwcway/castserver-go/web/websockets"
@@ -20,8 +21,14 @@ func apiLineVolume(c *websockets.WSConnection, req Requester, log *zap.Logger) (
 	if nl == nil {
 		return nil, fmt.Errorf("add new line faild")
 	}
+	vol := float64(p.Volume) / 100
 
-	control.ControlLineVolume(nl, float64(p.Volume)/100, p.Mute)
+	ovol := nl.Volume.Volume()
+	omute := nl.Volume.Volume()
+
+	control.ControlLineVolume(nl, vol, p.Mute)
+
+	bus.Trigger("line volume changed", nl, ovol, omute)
 
 	return true, nil
 }

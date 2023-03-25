@@ -30,6 +30,8 @@ func pushRoutine(queue chan speaker.QueueData) {
 			continue
 		}
 
+		// TODO 按MTU拆包
+
 		d.Speaker.Statistic.Queue -= uint32(len(d.Data))
 
 		err := d.Speaker.WriteUDP(d.Data)

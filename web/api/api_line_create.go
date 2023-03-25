@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/zwcway/castserver-go/common/speaker"
-	"github.com/zwcway/castserver-go/receiver"
 	"github.com/zwcway/castserver-go/web/websockets"
 	"go.uber.org/zap"
 )
@@ -22,6 +21,9 @@ func apiLineCreate(c *websockets.WSConnection, req Requester, log *zap.Logger) (
 	if len(params.Name) == 0 || len(params.Name) > 10 {
 		return nil, fmt.Errorf("name invalid")
 	}
+	if speaker.CountLine() >= int(speaker.LineID_MAX) {
+		return nil, fmt.Errorf("more than 255")
+	}
 
 	nl := speaker.NewLine(params.Name)
 	if nl == nil {
@@ -29,9 +31,6 @@ func apiLineCreate(c *websockets.WSConnection, req Requester, log *zap.Logger) (
 	}
 
 	line := websockets.NewResponseLineInfo(nl)
-
-	receiver.AddLine(nl)
-	websockets.BroadcastLineEvent(nl, websockets.Event_Line_Created)
 
 	return line, nil
 }

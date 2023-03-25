@@ -11,10 +11,13 @@ const (
 	AudioRate_NONE Rate = iota
 	AudioRate_44100
 	AudioRate_48000
+	AudioRate_88200
 	AudioRate_96000
 	AudioRate_192000
 	AudioRate_352800
 	AudioRate_384000
+	AudioRate_2822400
+	AudioRate_5644800
 	AudioRate_MAX
 )
 
@@ -26,18 +29,24 @@ func NewAudioRate(i int) Rate {
 
 func (a *Rate) FromInt(i int) {
 	switch i {
-	case 44100:
+	case 44_100:
 		*a = AudioRate_44100
-	case 48000:
+	case 48_000:
 		*a = AudioRate_48000
-	case 96000:
+	case 88_200:
+		*a = AudioRate_88200
+	case 96_000:
 		*a = AudioRate_96000
-	case 192000:
+	case 192_000:
 		*a = AudioRate_192000
-	case 352800:
+	case 352_800:
 		*a = AudioRate_352800
-	case 384000:
+	case 384_000:
 		*a = AudioRate_384000
+	case 2_822_400:
+		*a = AudioRate_2822400
+	case 5_644_800:
+		*a = AudioRate_5644800
 	default:
 		*a = AudioRate_NONE
 	}
@@ -46,17 +55,23 @@ func (a *Rate) FromInt(i int) {
 func (a Rate) ToInt() int {
 	switch a {
 	case AudioRate_44100:
-		return 44100
+		return 44_100
 	case AudioRate_48000:
-		return 48000
+		return 48_000
+	case AudioRate_88200:
+		return 88_200
 	case AudioRate_96000:
-		return 96000
+		return 96_000
 	case AudioRate_192000:
-		return 192000
+		return 192_000
 	case AudioRate_352800:
-		return 352800
+		return 352_800
 	case AudioRate_384000:
-		return 384000
+		return 384_000
+	case AudioRate_2822400:
+		return 2_822_400
+	case AudioRate_5644800:
+		return 5_644_800
 	default:
 		return 0
 	}
