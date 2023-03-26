@@ -14,8 +14,8 @@ import (
 	"strings"
 
 	"github.com/valyala/fasthttp"
-	"github.com/zwcway/castserver-go/config"
-	"github.com/zwcway/castserver-go/utils"
+	"github.com/zwcway/castserver-go/common/config"
+	"github.com/zwcway/castserver-go/common/utils"
 	"github.com/zwcway/castserver-go/web/api"
 	"github.com/zwcway/castserver-go/web/websockets"
 	"go.uber.org/zap"

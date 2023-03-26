@@ -1,7 +1,7 @@
 package api
 
 import (
-	"github.com/zwcway/castserver-go/config"
+	"github.com/zwcway/castserver-go/common/config"
 	"github.com/zwcway/castserver-go/web/websockets"
 	"go.uber.org/zap"
 )
@@ -34,15 +34,15 @@ type responseStatusConfig struct {
 func apiStatusConfig(log *zap.Logger) (ret any, err error) {
 	resp := make([]responseStatusConfig, 0)
 
-	for _, cs := range config.ConfigStruct {
-		for _, ck := range cs.Keys {
-			val, t := config.ConfigString(&cs, &ck)
+	for i := 0; i < len(config.ConfigStruct); i++ {
+		for k := 0; k < len(config.ConfigStruct[i].Keys); k++ {
+			val, t := config.ConfigString(&config.ConfigStruct[i], &config.ConfigStruct[i].Keys[k])
 
 			resp = append(resp, responseStatusConfig{
-				Name:  cs.Name + "." + ck.Key,
+				Name:  config.ConfigStruct[i].Name + "." + config.ConfigStruct[i].Keys[k].Key,
 				Type:  t,
 				Value: val,
-				Desc:  ck.Desc,
+				Desc:  config.ConfigStruct[i].Keys[k].Desc,
 			})
 		}
 	}

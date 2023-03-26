@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-type FilterType uint8
+type FilterType = uint8
 
 const (
 	LowPassFilter   FilterType = 1 + iota // 低通滤波器
@@ -16,10 +16,10 @@ const (
 )
 
 type Equalizer struct {
-	Type      FilterType
-	Frequency int
-	Gain      float64 // 增益大小
-	Q         float64 // Q 值
+	Type      FilterType `jq:"t"`
+	Frequency int        `jp:"freq"`
+	Gain      float64    `jp:"g"` // 增益大小
+	Q         float64    `jp:"q"` // Q 值
 }
 
 func NewLowPass(freq int) Equalizer {
@@ -50,8 +50,8 @@ func NewHighShelf(freq int) Equalizer {
 	}
 }
 
-func NewFIREqualizer(freq int, gain float64, q float64) Equalizer {
-	return Equalizer{
+func NewFIREqualizer(freq int, gain float64, q float64) *Equalizer {
+	return &Equalizer{
 		Type:      PeakingFilter,
 		Frequency: freq,
 		Gain:      gain,
@@ -59,8 +59,8 @@ func NewFIREqualizer(freq int, gain float64, q float64) Equalizer {
 	}
 }
 
-func NewIIREqualizer(freq int, gain float64, q float64) Equalizer {
-	return Equalizer{
+func NewIIREqualizer(freq int, gain float64, q float64) *Equalizer {
+	return &Equalizer{
 		Type:      NotchFilter,
 		Frequency: freq,
 		Gain:      gain,
@@ -68,10 +68,49 @@ func NewIIREqualizer(freq int, gain float64, q float64) Equalizer {
 	}
 }
 
+const FEQ_MAX_SIZE uint8 = 31
+
 type DataProcess struct {
-	Delay time.Duration // 延迟
-	Type  FilterType
-	FEQ   []Equalizer
+	Delay time.Duration `jp:"d"` // 延迟
+	Type  FilterType    `jp:"t"`
+	FEQ   []*Equalizer  `jp:"fs"`
+}
+
+func (d *DataProcess) AddFIR(freq int, gain, q float64) bool {
+	for i, eq := range d.FEQ {
+		if eq == nil {
+			continue
+		}
+		if eq.Frequency == freq {
+			d.FEQ[i] = NewFIREqualizer(freq, gain, q)
+			return true
+		}
+	}
+	for i, eq := range d.FEQ {
+		if eq == nil {
+			d.FEQ[i] = NewFIREqualizer(freq, gain, q)
+			return true
+		}
+	}
+	return false
+}
+
+func (d *DataProcess) Clear(size uint8) bool {
+	if size > FEQ_MAX_SIZE {
+		return false
+	}
+	d.FEQ = make([]*Equalizer, size)
+
+	return true
+}
+
+func NewDataProcess(size uint8) *DataProcess {
+	d := &DataProcess{
+		Delay: 0,
+		Type:  PeakingFilter,
+	}
+	d.Clear(size)
+	return d
 }
 
 func IsFrequencyValid(freq int) bool {

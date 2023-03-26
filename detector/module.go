@@ -6,12 +6,12 @@ import (
 	"time"
 
 	"github.com/zwcway/castserver-go/common/bus"
+	"github.com/zwcway/castserver-go/common/config"
 	"github.com/zwcway/castserver-go/common/protocol"
 	"github.com/zwcway/castserver-go/common/speaker"
-	"github.com/zwcway/castserver-go/config"
+	"github.com/zwcway/castserver-go/common/utils"
 	"github.com/zwcway/castserver-go/mutexer"
 	"github.com/zwcway/castserver-go/pusher"
-	"github.com/zwcway/castserver-go/utils"
 	"golang.org/x/net/ipv4"
 
 	"go.uber.org/zap"
@@ -43,7 +43,12 @@ func ResponseServerInfo(sp *speaker.Speaker) {
 		log.Error("send server info package invalid", zap.Error(err))
 		return
 	}
-	addrPort := netip.AddrPortFrom(sp.Config.IP, config.MulticastPort)
+	addr, err := netip.ParseAddr(sp.Ip)
+	if err != nil {
+		log.Error("speaker ip invalid", zap.String("speaker", sp.String()), zap.String("ip", sp.Ip), zap.Error(err))
+		return
+	}
+	addrPort := netip.AddrPortFrom(addr, config.MulticastPort)
 
 	n, err := conn.WriteToUDPAddrPort(p.Bytes(), addrPort)
 	if err != nil {
@@ -206,7 +211,7 @@ func onlineCheckRoutine(ctx utils.Context) {
 
 			sp.Timeout = 0
 
-			bus.Trigger("speaker offline", sp)
+			bus.Dispatch("speaker offline", sp)
 		})
 	}
 }

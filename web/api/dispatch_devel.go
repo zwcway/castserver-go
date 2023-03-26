@@ -110,7 +110,7 @@ func apiSpeakerCreate(c *websockets.WSConnection, req Requester, log *zap.Logger
 	}
 	res := &detector.SpeakerResponse{
 		Ver:         uint8(p.Ver),
-		ID:          speaker.ID(p.ID),
+		ID:          speaker.SpeakerID(p.ID),
 		Connected:   false,
 		Addr:        netip.MustParseAddr(p.IP),
 		MAC:         mac,
@@ -131,7 +131,7 @@ func apiReconnect(c *websockets.WSConnection, req Requester, log *zap.Logger) (a
 	if err != nil {
 		return nil, &Error{1, err}
 	}
-	s := speaker.FindSpeakerByID(speaker.ID(sp))
+	s := speaker.FindSpeakerByID(speaker.SpeakerID(sp))
 	if s == nil {
 		return nil, &Error{4, fmt.Errorf("speaker[%d] not exists", sp)}
 	}
@@ -147,7 +147,7 @@ func apiSendServerInfo(c *websockets.WSConnection, req Requester, log *zap.Logge
 		return nil, err
 	}
 
-	sp := speaker.FindSpeakerByID(speaker.ID(spId))
+	sp := speaker.FindSpeakerByID(speaker.SpeakerID(spId))
 	if sp == nil {
 		return nil, nil
 	}
@@ -270,7 +270,7 @@ func apiDebugStatus(c *websockets.WSConnection, req Requester, log *zap.Logger) 
 	}
 	type r struct {
 		Name  string `jp:"name"`
-		Power bool   `jp:"on"`
+		Power int    `jp:"on"`
 		Cost  int    `jp:"cost"`
 	}
 
@@ -298,7 +298,7 @@ func apiDebugStatus(c *websockets.WSConnection, req Requester, log *zap.Logger) 
 			resp.FilePlaying = !fs.IsPaused()
 			resp.FileName = fs.CurrentFile()
 		}
-		resp.SpectrumLog = line.Spectrum.LogAxis()
+		resp.SpectrumLog = line.SpectrumEle.LogAxis()
 		if line.Input.PipeLine != nil {
 			pl, _ = line.Input.PipeLine.(*pipeline.PipeLine)
 		}
@@ -312,7 +312,13 @@ func apiDebugStatus(c *websockets.WSConnection, req Requester, log *zap.Logger) 
 			}
 			ele := s.Element()
 			if ele, ok := ele.(stream.SwitchElement); ok {
-				res.Power = ele.IsOn()
+				if ele.IsOn() {
+					res.Power = 1
+				} else {
+					res.Power = 0
+				}
+			} else {
+				res.Power = -1
 			}
 
 			resp.Elements = append(resp.Elements, res)

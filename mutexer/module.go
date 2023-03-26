@@ -7,8 +7,8 @@ import (
 	"syscall"
 	"time"
 
-	config "github.com/zwcway/castserver-go/config"
-	utils "github.com/zwcway/castserver-go/utils"
+	config "github.com/zwcway/castserver-go/common/config"
+	utils "github.com/zwcway/castserver-go/common/utils"
 
 	"go.uber.org/zap"
 )

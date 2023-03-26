@@ -10,23 +10,31 @@ import (
 	"go.uber.org/zap"
 )
 
+type requestLineEQClear struct {
+	ID  uint8 `jp:"id"`
+	Seg uint8 `jp:"seg"`
+}
+
 func apiLineClearEqualizer(c *websockets.WSConnection, req Requester, log *zap.Logger) (any, error) {
-	var params requestLineInfo
-	err := req.Unmarshal(&params)
+	var p requestLineEQClear
+	err := req.Unmarshal(&p)
 	if err != nil {
 		return nil, err
 	}
-
-	nl := speaker.FindLineByID(speaker.LineID(params.ID))
-	if nl == nil {
-		return nil, fmt.Errorf("line[%d] not exists", params.ID)
+	if p.Seg > dsp.FEQ_MAX_SIZE {
+		return nil, fmt.Errorf("seg invalid")
 	}
 
-	nl.Equalizer.SetEqualizer([]dsp.Equalizer{})
-	nl.Equalizer.Off()
+	nl := speaker.FindLineByID(speaker.LineID(p.ID))
+	if nl == nil {
+		return nil, fmt.Errorf("line[%d] not exists", p.ID)
+	}
 
-	bus.Trigger("line equalizer clean", nl)
-	bus.Trigger("line equalizer power", nl, false)
+	nl.EqualizerEle.Off()
+	nl.SetEqualizer(dsp.NewDataProcess(p.Seg))
+
+	bus.Dispatch("line eq clean", nl)
+	bus.Dispatch("line eq power", nl, false)
 
 	return true, nil
 }

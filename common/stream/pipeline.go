@@ -93,14 +93,16 @@ type EqualizerElement interface {
 	SetFilterType(dsp.FilterType)
 	FilterType() dsp.FilterType
 
-	SetEqualizer([]dsp.Equalizer)
-	Equalizer() []dsp.Equalizer
+	SetEqualizer([]*dsp.Equalizer)
+	Equalizer() []*dsp.Equalizer
 
 	Add(int, float64, float64)
 
 	SetDelay(time.Duration)
 	Delay() time.Duration
 }
+
+const EqualizerDelayMax time.Duration = 300 * time.Millisecond // 大约 102 米
 
 type PipeLiner interface {
 	StreamCloser

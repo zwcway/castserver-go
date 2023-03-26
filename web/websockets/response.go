@@ -24,7 +24,7 @@ type ResponseSpeakerList struct {
 	Name        string            `jp:"name"`
 	IP          string            `jp:"ip"`
 	MAC         string            `jp:"mac"`
-	Channel     uint8             `jp:"ch,omitempty"`
+	Channel     uint32            `jp:"ch,omitempty"`
 	Line        *ResponseLineList `jp:"line,omitempty"`
 	BitList     []string          `jp:"bitList,omitempty"`
 	RateList    []int             `jp:"rateList,omitempty"`
@@ -38,7 +38,7 @@ type ResponseSpeakerList struct {
 }
 
 func NewResponseSpeakerList(sp *speaker.Speaker) *ResponseSpeakerList {
-	power := int(sp.PowerSate)
+	power := int(sp.PowerState)
 	if !sp.Config.PowerSave {
 		power = -1
 	}
@@ -47,18 +47,18 @@ func NewResponseSpeakerList(sp *speaker.Speaker) *ResponseSpeakerList {
 		ct = int(sp.ConnTime.Unix())
 	}
 	return &ResponseSpeakerList{
-		ID:          int32(sp.Id),
+		ID:          int32(sp.ID),
 		Name:        sp.Name,
-		IP:          sp.Config.IP.String(),
-		MAC:         sp.Config.MAC.String(),
-		Channel:     uint8(sp.Channel),
+		IP:          sp.Ip,
+		MAC:         sp.Mac,
+		Channel:     sp.Channel,
 		Line:        NewResponseLineList(sp.Line),
 		BitList:     sp.Config.BitsMask.Slice(),
 		RateList:    sp.Config.RateMask.Slice(),
-		Rate:        sp.Rate.ToInt(),
-		Bits:        sp.Bits.String(),
-		Volume:      int(sp.Volume.Volume()),
-		Mute:        sp.Volume.Mute(),
+		Rate:        sp.SampleRate().ToInt(),
+		Bits:        sp.SampleBits().String(),
+		Volume:      int(sp.Volume),
+		Mute:        sp.Mute,
 		AbsoluteVol: sp.Config.AbsoluteVol,
 		PowerState:  power,
 		ConnectTime: ct,
@@ -94,10 +94,11 @@ func NewResponseLineSource(line *speaker.Line) *ResponseLineSource {
 }
 
 type ResponseLineList struct {
-	ID     uint8  `jp:"id"`
-	Name   string `jp:"name"`
-	Volume int    `jp:"vol"`
-	Mute   bool   `jp:"mute"`
+	ID      uint8  `jp:"id"`
+	Name    string `jp:"name"`
+	Default bool   `jp:"def"`
+	Volume  int    `jp:"vol"`
+	Mute    bool   `jp:"mute"`
 }
 
 func NewResponseLineList(ls *speaker.Line) *ResponseLineList {
@@ -105,15 +106,17 @@ func NewResponseLineList(ls *speaker.Line) *ResponseLineList {
 		return nil
 	}
 	return &ResponseLineList{
-		ID:     uint8(ls.Id),
-		Name:   ls.Name,
-		Volume: int(ls.Volume.Volume() * 100),
-		Mute:   ls.Volume.Mute(),
+		ID:      uint8(ls.ID),
+		Name:    ls.Name,
+		Default: ls.ID == speaker.DefaultLineID,
+		Volume:  int(ls.Volume),
+		Mute:    ls.Mute,
 	}
 }
 
 type ResponseEqualizer struct {
 	Switch     bool         `jp:"enable"`
+	Seg        uint8        `jp:"seg"`
 	Equalizers [][3]float32 `jp:"eqs,omitempty"`
 }
 
@@ -128,14 +131,21 @@ type ResponseLineInfo struct {
 }
 
 func NewResponseEqualizer(line *speaker.Line) *ResponseEqualizer {
-	if line == nil || line.Equalizer == nil {
+	if line == nil || line.EqualizerEle == nil {
 		return nil
 	}
+	eq := line.Equalizer()
 	list := &ResponseEqualizer{
-		Switch: line.Equalizer.IsOn(),
+		Switch:     line.EqualizerEle.IsOn(),
+		Seg:        uint8(len(eq.FEQ)),
+		Equalizers: make([][3]float32, len(eq.FEQ)),
 	}
-	for _, e := range line.Equalizer.Equalizer() {
-		list.Equalizers = append(list.Equalizers, [3]float32{float32(e.Frequency), float32(e.Gain), float32(e.Q)})
+
+	for i, e := range eq.FEQ {
+		if e == nil {
+			continue
+		}
+		list.Equalizers[i] = [3]float32{float32(e.Frequency), float32(e.Gain), float32(e.Q)}
 	}
 	return list
 }

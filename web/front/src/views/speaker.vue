@@ -15,8 +15,13 @@
           <span>{{ speaker.mac }}</span>
         </div>
         <div class="column">
-          <label>声道</label>
-          <span>{{ channel }}</span>
+          <label>位置</label>
+          <span>
+            <a-select size="small" v-model="line" :options="lineListOptions" placeholder="选择线路"
+              :dropdownMatchSelectWidth="false" />
+            <a-select size="small" v-model="channel" :options="channelListOptions" placeholder="选择声道"
+              :dropdownMatchSelectWidth="false" />
+          </span>
         </div>
         <div class="column">
           <label>连接状态</label>
@@ -62,7 +67,7 @@
 import VueSlider from 'vue-slider-component';
 import 'vue-slider-component/theme/antd.css';
 import { throttleFunction } from '@/common/throttle';
-import { channelList, getLineInfo } from '@/api/line';
+import * as ApiLine from '@/api/line';
 import * as ApiSpeaker from '@/api/speaker';
 import { socket } from '@/common/request';
 
@@ -77,6 +82,7 @@ export default {
     return {
       id: 0,
       speaker: {},
+      lineList: [],
       volumeLevelProcess(dotsPos) {
         return [[0, 0, { backgroundColor: 'pink' }]];
       },
@@ -85,20 +91,51 @@ export default {
   computed: {
     volume: {
       get() {
-        return this.speaker.volume || 0;
+        return this.speaker.vol;
       },
       set(value) {
         this.speaker.volume = value;
       },
     },
-    channel() {
-      for (let i in channelList) {
-        if (i == this.speaker.ch) {
-          return channelList[i].name;
-        }
+    channel: {
+      get() {
+        return this.speaker.ch > 0 ? this.speaker.ch + '' : '-1';
+      },
+      set(ch) {
+        ApiSpeaker.setSpeaker(this.speaker.id, 'ch', parseInt(ch)).then(() => {
+          this.speaker.ch = ch
+        })
       }
-
-      return '';
+    },
+    channelListOptions() {
+      let opts = [{key: '-1', label: '选择声道'}]
+      for (let i in ApiLine.channelList) {
+        opts.push({
+          key: i + '',
+          label: ApiLine.channelList[i].name
+        })
+      }
+      return opts
+    },
+    lineListOptions() {
+      let opts = [{key: '-1', label: '选择线路'}]
+      for (let i in this.lineList) {
+        opts.push({
+          key: this.lineList[i].id + '',
+          label: this.lineList[i].name
+        })
+      }
+      return opts
+    },
+    line: {
+      get() {
+        return '' + (this.speaker.line ? this.speaker.line.id : -1);
+      },
+      set(nl) {
+        ApiSpeaker.setSpeaker(this.speaker.id, 'line', parseInt(nl)).then(() => {
+          this.loadData()
+        })
+      }
     },
   },
   mounted() {
@@ -112,6 +149,9 @@ export default {
 
   methods: {
     loadData() {
+      ApiLine.getLineList().then(l => {
+        this.lineList = l
+      })
       ApiSpeaker.getSpeakerInfo(this.id)
         .then(data => {
           this.speaker = data;

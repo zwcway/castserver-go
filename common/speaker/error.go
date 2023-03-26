@@ -11,7 +11,7 @@ type LineError struct {
 }
 
 func (e *LineError) Error() string {
-	return fmt.Sprintf("The line %s(%d) got error: %s", e.Line.Name, e.Line.Id, e.Err)
+	return fmt.Sprintf("The line %s(%d) got error: %s", e.Line.Name, e.Line.ID, e.Err)
 }
 
 type UnknownLineError struct {
@@ -23,7 +23,7 @@ func (e *UnknownLineError) Error() string {
 }
 
 type SpeakerError struct {
-	ID   ID
+	ID   SpeakerID
 	Name string
 	IP   net.IP
 	MAC  net.HardwareAddr
@@ -35,7 +35,7 @@ func (e *SpeakerError) Error() string {
 }
 
 type UnknownSpeakerError struct {
-	ID ID
+	ID SpeakerID
 }
 
 func (e *UnknownSpeakerError) Error() string {

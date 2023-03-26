@@ -6,12 +6,13 @@ import (
 )
 
 const (
-	JSONPACK_NUMBER uint32 = iota + 1
+	JSONPACK_NUMBER uint8 = iota + 1
 	JSONPACK_BOOLEAN
 	JSONPACK_STRING
 	JSONPACK_ARRAY
 	JSONPACK_MAP
 	JSONPACK_FLOAT
+	JSONPACK_NULL
 )
 
 type InvalidValueError struct {

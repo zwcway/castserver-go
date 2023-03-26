@@ -7,12 +7,12 @@ import (
 	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/protocol"
 	"github.com/zwcway/castserver-go/common/speaker"
-	utils "github.com/zwcway/castserver-go/utils"
+	utils "github.com/zwcway/castserver-go/common/utils"
 )
 
 type SpeakerResponse struct {
 	Ver       uint8
-	ID        speaker.ID
+	ID        speaker.SpeakerID
 	Connected bool
 
 	Addr netip.Addr
@@ -84,7 +84,7 @@ func (r *SpeakerResponse) Unpack(p *protocol.Package) (err error) {
 		err = newUnpackError("speaker id", p.LastBytes(4), err)
 		return
 	}
-	r.ID = speaker.ID(i32)
+	r.ID = speaker.SpeakerID(i32)
 
 	bs, err = p.Read(6)
 	if err != nil {

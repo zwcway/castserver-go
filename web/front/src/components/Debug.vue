@@ -42,13 +42,13 @@
       </div>
       <div v-if="elements.length">
         <h4>管道元</h4>
-        <a-table :data-source="elements" size="small">
+        <a-table :data-source="elements" size="small" rowKey="name">
           <a-table-column key="name" title="名称">
             <template slot-scope="text, record">
               {{ record.name }}
-              <a-switch v-if="lineId >= 0" size="small" :checked="record.on" checked-children="开" un-checked-children="关"
+              <a-switch v-if="lineId > 0 && record.on >= 0" size="small" :checked="!!record.on" checked-children="开" un-checked-children="关"
                 @change="onLineElementPower(record, $event)" />
-              <a-switch v-else size="small" :checked="record.on" checked-children="开" un-checked-children="关"
+              <a-switch v-else-if="record.on >= 0" size="small" :checked="!!record.on" checked-children="开" un-checked-children="关"
                 @change="onSpeakerElementPower(record, $event)" />
             </template>
           </a-table-column>
@@ -113,6 +113,7 @@ export default {
     $route(newVal) {
       this.speakerId = -1;
       this.lineId = -1;
+      this.elements = [];
       if (newVal.name === 'speaker') {
         this.speakerId = parseInt(newVal.params.id);
       } else if (newVal.name === 'line') {
@@ -130,6 +131,9 @@ export default {
     lineId(line) {
       if (line < 0) return;
       this.loadStatus()
+      setTimeout(() => {
+        this.loadStatus()
+      }, 1000)
     },
     playing(newVal) {
       this.send('pause', { Line: this.lineId, Pause: !newVal });

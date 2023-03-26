@@ -1,6 +1,8 @@
 package pusher
 
 import (
+	"time"
+
 	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/common/stream"
@@ -57,7 +59,7 @@ func (e *Element) initBuf(samples int, format audio.Format) {
 }
 
 func (e *Element) Stream(samples *stream.Samples) {
-	if !e.power || !samples.Format.IsValid() {
+	if !e.power || !samples.Format.IsValid() || !e.line.Layout().IsValid() {
 		return
 	}
 	if samples.LastNbSamples == 0 {
@@ -96,11 +98,15 @@ func (e *Element) Stream(samples *stream.Samples) {
 		}
 		buf.LastNbSamples = c
 
+		for _, sp := range e.line.SpeakersByChannel(ch) {
+			sp.PipeLine.Stream(buf)
+		}
+
 		chList[i] = ch
 	}
 
 	// 由于存在声道路由功能，如果先转码后路由，样本数据可能已经不是float64格式，不方便混合
-	e.line.Resample.Stream(e.buffer)
+	e.line.ResampleEle.Stream(e.buffer)
 
 	for i, ch = range chList {
 		if !ch.IsValid() {
@@ -110,14 +116,10 @@ func (e *Element) Stream(samples *stream.Samples) {
 		if buf == nil || buf.LastNbSamples == 0 {
 			continue
 		}
-		e.PushToLineChannel(ch, e.chBuf[i])
-	}
-}
-
-func (e *Element) PushToLineChannel(ch audio.Channel, samples *stream.Samples) {
-	for _, sp := range e.line.SpeakersByChannel(ch) {
-		// TODO 为防止转码耗时过长，克隆新的缓存，并放置后台转码和推送
-		e.PushSpeaker(sp, samples)
+		for _, sp := range e.line.SpeakersByChannel(ch) {
+			// TODO 为防止转码耗时过长，克隆新的缓存，并放置后台转码和推送
+			e.PushSpeaker(sp, buf)
+		}
 	}
 }
 
@@ -128,18 +130,18 @@ func (e *Element) PushSpeaker(sp *speaker.Speaker, samples *stream.Samples) {
 		return
 	}
 	if len(queue) == cap(queue) {
-		log.Error("send queue full", zap.Uint32("speaker", uint32(sp.Id)), zap.Int("size", len(queue)))
+		log.Error("send queue full", zap.Uint32("speaker", uint32(sp.ID)), zap.Int("size", len(queue)))
 		return
 	}
 
-	sp.PipeLine.Stream(samples)
+	delay := sp.EqualizerEle.Delay()
 
 	buf := ServerPush{
 		Ver:      1,
 		Compress: 0,
 		Rate:     samples.Format.SampleRate,
 		Bits:     samples.Format.SampleBits,
-		Time:     1,
+		Time:     uint16(delay) + 1,
 		Samples:  samples.ChannelBytes(0),
 	}
 	p, err := buf.Pack()
@@ -147,8 +149,16 @@ func (e *Element) PushSpeaker(sp *speaker.Speaker, samples *stream.Samples) {
 		return
 	}
 
-	data := make([]byte, p.DataSize())
-	copy(data, p.Bytes())
+	if delayChanged(sp, delay) {
+		// 更改了延迟时间，抛弃旧的队列，生成新的队列
+		refreshPushQueue(sp, delay)
+	}
+
+	// 按照采样率填充指定大小的静音样本实现延迟指定时间
+	delayBufSize := bufSizeWithDelay(delay, sp.Format())
+
+	data := make([]byte, delayBufSize+p.DataSize())
+	copy(data[delayBufSize:], p.Bytes())
 
 	sp.Statistic.Queue += uint32(len(data))
 
@@ -156,6 +166,10 @@ func (e *Element) PushSpeaker(sp *speaker.Speaker, samples *stream.Samples) {
 }
 
 func (e *Element) Sample(*float64, int, int) {}
+
+func bufSizeWithDelay(delay time.Duration, f audio.Format) int {
+	return int((delay * time.Duration(f.SampleRate.ToInt()*f.SampleBits.Size()) * time.Second) / (time.Microsecond * 100))
+}
 
 func NewElement(line *speaker.Line) stream.SwitchElement {
 	return &Element{

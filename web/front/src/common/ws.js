@@ -153,7 +153,12 @@ function readBlob(data) {
     for (let i = 5; i < 11 && result[i]; i++) {
       id += String.fromCharCode(result[i]);
     }
-    onresponse(id, result[11], decode(result.slice(12)));
+    try {
+      let data = decode(result.slice(12))
+      onresponse(id, result[11], data);
+    } catch (e) {
+      console.error(apiCallback[id].command, 'jsonpack decode', e, result)
+    }
   };
   fileReader.readAsArrayBuffer(data);
 }
@@ -285,6 +290,10 @@ function receiveEvent(evt, arg, cb, sub) {
 function removeEvent(evt, arg, sub) {
   if (!(evt instanceof Array)) {
     evt = [evt];
+  }
+  if (evt.length === 0) {
+    sendSubscribe(false, evt, 0, 0)
+    return
   }
   if (!(arg instanceof Array)) {
     arg = [arg];

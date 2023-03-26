@@ -32,12 +32,11 @@
             <a @click="toRouteLine(i, line)">
               <svg-icon icon-class="music" class="icon" :size="0" />
               <span :id="'nav-' + line.id">{{ line.name }}</span>
-              <svg-icon icon-class="x" class="icon delete-line" :size="0" v-show="line.id > 0 && isLineRoute(line.id)"
+              <svg-icon icon-class="x" class="icon delete-line" :size="0" v-show="!line.def && isLineRoute(line.id)"
                 v-on:click.native.stop.prevent="
                   // 需要使用 native ，否则组件无法监听事件
                   deleteLine(line.id);
-                $event.stopPropagation();
-                                                                                                                                                                                                                                                                                                                                  " />
+                $event.stopPropagation();                                                                                                                                                                                                                                               " />
             </a>
           </li>
           <li class="navbar-item">
@@ -146,7 +145,11 @@ export default {
       getLineList().then(data => {
         this.lines = data;
       });
-      listenLineListChanged(data => { });
+      listenLineListChanged(() => {
+        getLineList().then(data => {
+          this.lines = data;
+        });
+      });
     },
     go(where) {
       if (where === 'back') this.$router.go(-1);
@@ -218,6 +221,7 @@ export default {
       if (!id) {
         this.$alert();
       }
+      let that = this
       this.$confirm({
         title: '确定要移除该线路吗？',
         content: h =>
@@ -232,19 +236,20 @@ export default {
         onOk() {
           deleteLine(id, 0).then(() => {
             let i = 0;
-            for (i = 0; i < this.lines.length; i++) {
-              if (this.lines[i].id == id) {
-                this.lines.splice(i, 1);
+            for (i = 0; i < that.lines.length; i++) {
+              if (that.lines[i].id == id) {
+                that.lines.splice(i, 1);
                 break;
               }
             }
-            if (this.lines.length === 0) {
-              this.$router.replace('/speakers');
+            that.lines = that.lines
+            if (that.lines.length === 0) {
+              that.$router.replace('/speakers');
               return;
             }
             if (i > 0) i--;
 
-            this.$router.replace('/line/' + this.lines[i].id);
+            that.$router.replace('/line/' + that.lines[i].id);
           });
         },
       });

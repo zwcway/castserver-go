@@ -8,11 +8,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/bus"
+	"github.com/zwcway/castserver-go/common/config"
 	"github.com/zwcway/castserver-go/common/element"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/common/stream"
-	"github.com/zwcway/castserver-go/config"
-	"github.com/zwcway/castserver-go/utils"
+	"github.com/zwcway/castserver-go/common/utils"
 )
 
 var (
@@ -95,6 +95,7 @@ func AddLine(line *speaker.Line) {
 		}
 	}
 	format := audio.DefaultFormat()
+	format.Layout = audio.ChannelLayoutStereo
 
 	mixer.Add(line.Input.PipeLine)
 	lines = append(lines, line)
@@ -135,7 +136,7 @@ func Play() {
 	}
 	player.Play()
 
-	bus.Trigger("localspeaker playing")
+	bus.Dispatch("localspeaker playing")
 }
 
 func Close() error {
@@ -153,6 +154,7 @@ func Close() error {
 
 func Slient(s bool) {
 	slient = s
+	bus.Dispatch("localspeaker slient", s)
 }
 
 func Cost() time.Duration {

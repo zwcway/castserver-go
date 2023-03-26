@@ -1,6 +1,7 @@
 package pusher
 
 import (
+	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/decoder/localspeaker"
 	"go.uber.org/zap"
@@ -29,6 +30,12 @@ func initTrigger() {
 	}
 
 	currentTrigger = lastTrigger
+
+	bus.Register("line created", func(a ...any) error {
+		line := a[0].(*speaker.Line)
+		TriggerAddLine(line)
+		return nil
+	})
 }
 
 func TriggerReceiverIn(b bool) {
@@ -40,8 +47,8 @@ func TriggerReceiverIn(b bool) {
 }
 
 func TriggerAddLine(line *speaker.Line) {
-	line.Pusher = NewElement(line)
-	line.Input.PipeLine.Append(line.Pusher)
+	line.PusherEle = NewElement(line)
+	line.Input.PipeLine.Append(line.PusherEle)
 
 	TimerAddLine(line)
 }

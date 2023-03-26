@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"strconv"
 	"time"
 
 	"github.com/zwcway/castserver-go/common/audio"
@@ -13,14 +14,10 @@ import (
 	"github.com/zwcway/castserver-go/common/stream"
 )
 
-var speakerList []*Speaker
+var speakerList []*Speaker = make([]*Speaker, 0)
 
 type SpeakerConfig struct {
-	MAC   net.HardwareAddr
-	IP    netip.Addr
-	ipStr string
-	Mode  Model
-	Dport uint16 // pcm data port
+	ID uint `gorm:"primaryKey"`
 
 	RateMask    audio.AudioRateMask // 设备支持的采样率列表
 	BitsMask    audio.BitsMask      // 设备支持的位宽列表
@@ -28,46 +25,104 @@ type SpeakerConfig struct {
 	PowerSave   bool                // 是否支持电源控制
 }
 
-func (sc *SpeakerConfig) SetIP(ip netip.Addr) {
-	sc.IP = ip
-	sc.ipStr = ip.String()
-}
-
 type Speaker struct {
-	Id        ID
-	Name      string
-	Line      *Line
-	Supported bool // 是否兼容
+	ID        SpeakerID `gorm:"primaryKey"`
+	LineId    LineID    `gorm:"index,column:line_id"`
+	Name      string    `gorm:"column:name"`
+	Supported bool      `gorm:"column:supported"` // 是否兼容
 
-	Channel audio.Channel // 当前设置的声道
-	Rate    audio.Rate    // 当前指定的采样率
-	Bits    audio.Bits    // 当前指定的位宽
+	Mac   string `gorm:"column:mac"`
+	Ip    string `gorm:"column:ip"`
+	Mode  Model  `gorm:"column:mode"`
+	Dport uint16 `gorm:"column:dport"` // pcm data port
 
-	PowerSate PowerState // 电源状态
+	Rate    uint8  `gorm:"column:rate"`
+	Bits    uint8  `gorm:"column:bits"`
+	Channel uint32 `gorm:"column:channel"` // 当前设置的声道
 
-	Config SpeakerConfig
+	PowerState PowerState `gorm:"column:power_state"` // 当前电源状态
 
-	PipeLine  stream.PipeLiner
-	Mixer     stream.MixerElement
-	Player    stream.RawPlayerElement
-	Volume    stream.VolumeElement // 音量
-	Spectrum  stream.SpectrumElement
-	Equalizer stream.EqualizerElement
-	Resample  stream.ResampleElement
+	Volume uint8 `gorm:"column:volume"`
+	Mute   bool  `gorm:"column:mute"`
 
-	Conn  *net.UDPConn
-	Queue chan QueueData
+	Config SpeakerConfig `gorm:"foreignKey:ID;column:config"`
 
-	Timeout   int // 超时计数
 	ConnTime  time.Time
-	State     State
-	Statistic Statistic
+	CreatedAt time.Time
+	UpdatedAt time.Time
+
+	/******************************* Model end ******************************************/
+
+	State State `gorm:"-"` // 当前连接状态
+
+	Line *Line `gorm:"-"`
+
+	PipeLine     stream.PipeLiner        `gorm:"-"`
+	MixerEle     stream.MixerElement     `gorm:"-"`
+	PlayerEle    stream.RawPlayerElement `gorm:"-"`
+	VolumeEle    stream.VolumeElement    `gorm:"-"` // 音量
+	SpectrumEle  stream.SpectrumElement  `gorm:"-"`
+	EqualizerEle stream.EqualizerElement `gorm:"-"`
+	ResampleEle  stream.ResampleElement  `gorm:"-"`
+
+	Conn  *net.UDPConn   `gorm:"-"`
+	Queue chan QueueData `gorm:"-"`
+
+	Timeout   int       `gorm:"-"` // 超时计数
+	Statistic Statistic `gorm:"-"`
 
 	isDeleted bool
 }
 
 func (sp *Speaker) String() string {
-	return fmt.Sprintf("%s(%s)", sp.Config.IP.String(), sp.Config.MAC.String())
+	return fmt.Sprintf("%s(%s/%s)", sp.Name, sp.Ip, sp.Mac)
+}
+
+func (sp *Speaker) SetIP(ip netip.Addr) {
+	sp.Ip = ip.String()
+}
+
+func (sp *Speaker) Format() audio.Format {
+	return audio.Format{
+		SampleRate: sp.SampleRate(),
+		SampleBits: sp.SampleBits(),
+		Layout:     sp.Layout(),
+	}
+}
+func (sp *Speaker) SampleRate() audio.Rate {
+	return audio.NewAudioRate(int(sp.Rate))
+}
+
+func (sp *Speaker) SampleBits() audio.Bits {
+	return audio.NewAudioBits(int(sp.Bits))
+}
+
+func (sp *Speaker) Layout() audio.ChannelLayout {
+	return audio.NewChannelLayout(sp.SampleChannel())
+}
+
+func (sp *Speaker) SetFormat(f audio.Format) {
+	sp.Rate = uint8(f.SampleRate)
+	sp.Bits = uint8(f.SampleBits)
+	bus.Dispatch("speaker edited", sp, "rate", sp.Rate, "bits", sp.Bits)
+	bus.Dispatch("speaker format changed", sp)
+}
+
+func (sp *Speaker) SampleChannel() audio.Channel {
+	return audio.Channel(sp.Channel)
+}
+
+func (sp *Speaker) SetChannel(ch audio.Channel) {
+	if ch.IsValid() {
+		sp.Channel = uint32(ch)
+	} else {
+		sp.Channel = uint32(audio.Channel_NONE)
+	}
+	if sp.Line != nil {
+		sp.Line.refresh()
+	}
+	bus.Dispatch("speaker edited", sp, "channel", sp.Channel)
+	bus.Dispatch("speaker channel changed", sp)
 }
 
 func (sp *Speaker) IsOnline() bool {
@@ -81,11 +136,22 @@ func (sp *Speaker) IsSupported() bool {
 }
 
 func (sp *Speaker) CheckOnline() {
-	if sp.Config.Dport > 0 {
+	if sp.Dport > 0 {
 		sp.SetOnline()
 	} else {
 		sp.SetOffline()
 	}
+}
+
+func (sp *Speaker) SetVolume(vol uint8, mute bool) {
+	sp.Volume = vol
+	sp.Mute = mute
+
+	sp.VolumeEle.SetVolume(float64(vol) / 100)
+	sp.VolumeEle.SetMute(mute)
+
+	bus.Dispatch("speaker edited", sp, "volume", vol, "mute", mute)
+	bus.Dispatch("speaker volume changed", sp)
 }
 
 func (sp *Speaker) SetOffline() {
@@ -97,75 +163,73 @@ func (sp *Speaker) SetOnline() {
 }
 
 func (sp *Speaker) UDPAddr() *net.UDPAddr {
-	return &net.UDPAddr{
-		IP:   sp.Config.IP.AsSlice(),
-		Zone: sp.Config.IP.Zone(),
-		Port: int(sp.Config.Dport),
-	}
+	addr, _ := net.ResolveUDPAddr("udp", sp.Ip+":"+strconv.Itoa(int(sp.Dport)))
+	return addr
 }
 
 func (sp *Speaker) WriteUDP(d []byte) error {
 	if sp.Conn == nil {
-		return fmt.Errorf("speaker %d not connected", sp.Id)
+		return fmt.Errorf("speaker %d not connected", sp.ID)
 	}
 	n, err := sp.Conn.Write(d)
 	if err != nil {
 		sp.Statistic.Error += uint32(len(d))
-		return fmt.Errorf("write to speaker '%d' failed: %s", sp.Id, err.Error())
+		return fmt.Errorf("write to speaker '%d' failed: %s", sp.ID, err.Error())
 	}
 
 	sp.Statistic.Spend += uint64(n)
 
 	if n != len(d) {
 		sp.Statistic.Error += uint32(len(d) - n)
-		return fmt.Errorf("write to speaker '%d' length error %d!=%d", sp.Id, n, len(d))
+		return fmt.Errorf("write to speaker '%d' length error %d!=%d", sp.ID, n, len(d))
 	}
 
 	return nil
 }
 
-func (sp *Speaker) ChangeChannel(ch audio.Channel) {
-	och := sp.Channel
-
-	if ch.IsValid() {
-		sp.Channel = ch
-	} else {
-		sp.Channel = audio.Channel_NONE
+func (sp *Speaker) SetLine(newLine *Line) {
+	if sp.Line != nil {
+		sp.Line.RemoveSpeaker(sp)
 	}
-	sp.Line.refresh()
-
-	bus.Trigger("speaker channel moved", sp, och)
-}
-
-func (sp *Speaker) ChangeLine(newLine *Line) {
-	sp.Line.RemoveSpeaker(sp)
 
 	ol := sp.Line
 	sp.Line = newLine
 
-	newLine.AppendSpeaker(sp)
+	if newLine != nil {
+		sp.LineId = newLine.ID
 
-	bus.Trigger("speaker line changed", sp, ol)
-}
-
-func (sp *Speaker) Format() audio.Format {
-	return audio.Format{
-		SampleRate: sp.Rate,
-		Layout:     audio.NewChannelLayout(sp.Channel),
-		SampleBits: sp.Bits,
+		newLine.AppendSpeaker(sp)
+	} else {
+		sp.LineId = 0
 	}
+	sp.SetChannel(audio.Channel_NONE)
+
+	bus.Dispatch("speaker edited", sp, "line_id", sp.LineId)
+	bus.Dispatch("speaker line changed", sp, ol)
 }
 
 func (l *Speaker) IsDeleted() bool {
 	return l.isDeleted
 }
 
-func initSpeaker() error {
-	maxSize := 0
+func (sp *Speaker) Save() {
+	bus.Dispatch("save speaker", sp)
+}
 
-	speakerList = make([]*Speaker, maxSize)
-
-	return nil
+func (sp *Speaker) init() {
+	sp.PlayerEle = element.NewPlayer()
+	sp.MixerEle = element.NewMixer(sp.PlayerEle)
+	sp.VolumeEle = element.NewVolume(float64(sp.Volume) / 100)
+	sp.SpectrumEle = element.NewSpectrum()
+	sp.EqualizerEle = element.NewEqualizer(nil)
+	sp.ResampleEle = element.NewResample(sp.Format())
+	sp.PipeLine = pipeline.NewPipeLine(sp.Format(),
+		sp.MixerEle,
+		sp.EqualizerEle,
+		sp.SpectrumEle,
+		sp.VolumeEle,
+		sp.ResampleEle,
+	)
 }
 
 func CountSpeaker() int {
@@ -192,23 +256,12 @@ func NewSpeaker(ip string, line LineID, channel audio.Channel) (*Speaker, error)
 
 	var sp Speaker
 
-	sp.Id = getSpeakerID()
-	sp.Channel = channel
+	sp.ID = getSpeakerID()
+	sp.LineId = line
+	sp.Channel = uint32(channel)
 	sp.State = State_OFFLINE
-
-	sp.Player = element.NewPlayer()
-	sp.Mixer = element.NewMixer(sp.Player)
-	sp.Volume = element.NewVolume(1)
-	sp.Spectrum = element.NewSpectrum()
-	sp.Equalizer = element.NewEqualizer(nil)
-	sp.Resample = element.NewResample(sp.Format())
-	sp.PipeLine = pipeline.NewPipeLine(sp.Format(),
-		sp.Mixer,
-		sp.Equalizer,
-		sp.Spectrum,
-		sp.Volume,
-		sp.Resample,
-	)
+	sp.Volume = 50
+	sp.init()
 
 	speakerList = append(speakerList, &sp)
 
@@ -217,12 +270,14 @@ func NewSpeaker(ip string, line LineID, channel audio.Channel) (*Speaker, error)
 		l.AppendSpeaker(&sp)
 	}
 
-	bus.Trigger("speaker created", &sp)
+	sp.Save()
+
+	bus.Dispatch("speaker created", &sp)
 
 	return &sp, nil
 }
 
-func DelSpeaker(id ID) error {
+func DelSpeaker(id SpeakerID) error {
 	sp := FindSpeakerByID(id)
 	if sp == nil {
 		return &UnknownSpeakerError{id}
@@ -239,15 +294,15 @@ func DelSpeaker(id ID) error {
 
 	sp.PipeLine.Close()
 
-	bus.Trigger("speaker deleted", sp)
+	bus.Dispatch("speaker deleted", sp)
 
 	return nil
 }
 
-func removeSpeaker(id ID) {
+func removeSpeaker(id SpeakerID) {
 	l := len(speakerList) - 1
 	for i := 0; i <= l; i++ {
-		if speakerList[i].Id == id {
+		if speakerList[i].ID == id {
 			if i != l {
 				speakerList[i] = speakerList[l]
 			}
@@ -256,9 +311,9 @@ func removeSpeaker(id ID) {
 	}
 }
 
-func FindSpeakerByID(id ID) *Speaker {
+func FindSpeakerByID(id SpeakerID) *Speaker {
 	for _, sp := range speakerList {
-		if sp.Id == id {
+		if sp.ID == id {
 			return sp
 		}
 	}
@@ -266,16 +321,16 @@ func FindSpeakerByID(id ID) *Speaker {
 	return nil
 }
 
-func getSpeakerID() (m ID) {
+func getSpeakerID() (m SpeakerID) {
 	m = maxSpeakerID
 
 	for FindSpeakerByID(m) != nil {
 		m++
-		if m > ID_MAX {
+		if m > SpeakerID_MAX {
 			m = 1
 		}
 	}
-	if m > maxSpeakerID && m < ID_MAX {
+	if m > maxSpeakerID && m < SpeakerID_MAX {
 		maxSpeakerID = m + 1
 	}
 
@@ -284,7 +339,7 @@ func getSpeakerID() (m ID) {
 
 func FindSpeakerByIP(ip string) *Speaker {
 	for i := 0; i < len(speakerList); i++ {
-		if speakerList[i].Config.ipStr == ip {
+		if speakerList[i].Ip == ip {
 			return speakerList[i]
 		}
 	}

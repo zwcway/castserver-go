@@ -7,34 +7,44 @@ import (
 
 	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/bus"
+	"github.com/zwcway/castserver-go/common/dsp"
 	"github.com/zwcway/castserver-go/common/element"
 	"github.com/zwcway/castserver-go/common/pipeline"
 	"github.com/zwcway/castserver-go/common/stream"
-	"github.com/zwcway/castserver-go/utils"
+	"github.com/zwcway/castserver-go/common/utils"
 )
 
 var lineList []*Line = make([]*Line, 0)
 
 type Line struct {
-	Id   LineID
-	Name string
-	UUID string // dlna 标识
+	ID   LineID `gorm:"primaryKey;column:id"`
+	Name string `gorm:"column:name"`
+	UUID string `gorm:"column:uuid"` // dlna 标识
 
-	chRoute  []audio.ChannelRoute // 输出的声道路由关系表
-	speakers []*Speaker
+	Volume uint8 `gorm:"column:volume"`
+	Mute   bool  `gorm:"column:mute"`
 
-	Input  stream.Source // 输入格式
-	Output audio.Format  // 输出格式
+	EQ      DBeqData       `gorm:"column:eq"`    // 均衡器
+	ChRoute DBChannelRoute `gorm:"column:route"` // 输出的声道路由关系表
 
-	Mixer     stream.MixerElement
-	Volume    stream.VolumeElement
-	Spectrum  stream.SpectrumElement
-	Equalizer stream.EqualizerElement
-	Player    stream.RawPlayerElement
-	Resample  stream.ResampleElement
-	Pusher    stream.SwitchElement
+	CreatedAt time.Time
+	UpdatedAt time.Time
+
+	Input  stream.Source `gorm:"-"` // 输入格式
+	Output audio.Format  `gorm:"-"` // 输出格式
+
+	MixerEle     stream.MixerElement     `gorm:"-"`
+	VolumeEle    stream.VolumeElement    `gorm:"-"`
+	SpectrumEle  stream.SpectrumElement  `gorm:"-"`
+	EqualizerEle stream.EqualizerElement `gorm:"-"`
+	PlayerEle    stream.RawPlayerElement `gorm:"-"`
+	ResampleEle  stream.ResampleElement  `gorm:"-"`
+	PusherEle    stream.SwitchElement    `gorm:"-"`
 
 	isDeleted bool
+
+	speakers []*Speaker   `gorm:"-"`
+	spsByCh  [][]*Speaker `gorm:"-"`
 }
 
 func (l *Line) Layout() *audio.ChannelLayout {
@@ -47,12 +57,78 @@ func (l *Line) Channels() []audio.Channel {
 }
 
 func (l *Line) ChannelRoute(dst audio.Channel) []audio.Channel {
-	for _, cr := range l.chRoute {
+	for _, cr := range l.ChRoute.R {
 		if cr.To == dst {
 			return cr.From
 		}
 	}
 	return []audio.Channel{dst}
+}
+
+func (l *Line) AddRoute(to audio.Channel, from audio.Channel) {
+	for i, cr := range l.ChRoute.R {
+		if cr.To != to {
+			continue
+		}
+		l.ChRoute.R[i].From = append(l.ChRoute.R[i].From, from)
+		l.changeRoute()
+		return
+	}
+
+	l.ChRoute.R = append(l.ChRoute.R, audio.ChannelRoute{
+		From: []audio.Channel{from},
+		To:   to,
+	})
+	l.changeRoute()
+}
+
+func (l *Line) RemoveRoute(to audio.Channel, from audio.Channel) {
+	for i, cr := range l.ChRoute.R {
+		if cr.To != to {
+			continue
+		}
+		if from.IsValid() {
+			utils.SliceQuickRemoveItem(&l.ChRoute.R[i].From, from)
+		} else {
+			utils.SliceQuickRemove(&l.ChRoute.R, i)
+		}
+		l.changeRoute()
+		return
+	}
+}
+
+func (l *Line) changeRoute() {
+	bus.Dispatch("line edited", l, "route", l.ChRoute)
+}
+
+func (l *Line) syncRoute() {
+	bus.Dispatch("line route changed", l)
+}
+
+func (l *Line) Equalizer() *dsp.DataProcess {
+	return l.EQ.Eq
+}
+
+func (l *Line) SetEqualizer(eq *dsp.DataProcess) (err error) {
+	l.EQ.Eq = eq
+
+	l.syncEqualizer()
+
+	bus.Dispatch("line edited", l, "eq", l.EQ)
+
+	return nil
+}
+
+func (l *Line) syncEqualizer() {
+	if l.EQ.Eq == nil {
+		l.EQ.Eq = dsp.NewDataProcess(0)
+	}
+	eq := l.EQ.Eq
+	l.EqualizerEle.SetDelay(eq.Delay)
+	l.EqualizerEle.SetFilterType(eq.Type)
+	l.EqualizerEle.SetEqualizer(eq.FEQ)
+
+	bus.Dispatch("line eq changed", l)
 }
 
 func (l *Line) Speakers() []*Speaker {
@@ -64,27 +140,20 @@ func (l *Line) SpeakerCount() int {
 }
 
 func (l *Line) SpeakersByChannel(ch audio.Channel) []*Speaker {
-	sps := make([]*Speaker, 0)
-
-	for i := 0; i < len(l.speakers); i++ {
-		if l.speakers[i].Channel == ch {
-			sps = append(sps, l.speakers[i])
-		}
-	}
-	return sps
+	return l.spsByCh[ch]
 }
 
 func (l *Line) AppendSpeaker(sp *Speaker) {
 	l.speakers = append(l.speakers, sp)
 	l.refresh()
-	bus.Trigger("line speaker appended", l, sp)
+	bus.Dispatch("line speaker appended", l, sp)
 }
 
-func (line *Line) RemoveSpeakerById(spid ID) {
+func (line *Line) RemoveSpeakerById(spid SpeakerID) {
 	for i, sp := range line.speakers {
-		if sp.Id == spid {
+		if sp.ID == spid {
 			utils.SliceQuickRemove(&line.speakers, i)
-			bus.Trigger("line speaker removed", line, sp)
+			bus.Dispatch("line speaker removed", line, sp)
 			line.refresh()
 			break
 		}
@@ -92,7 +161,7 @@ func (line *Line) RemoveSpeakerById(spid ID) {
 }
 
 func (l *Line) RemoveSpeaker(sp *Speaker) {
-	l.RemoveSpeakerById(sp.Id)
+	l.RemoveSpeakerById(sp.ID)
 }
 
 func (l *Line) SetOutput(f audio.Format) {
@@ -101,29 +170,54 @@ func (l *Line) SetOutput(f audio.Format) {
 	}
 
 	l.Output = f
+	for _, sp := range l.speakers {
+		sp.SetFormat(f)
+	}
+
 	l.refresh()
 
-	bus.Trigger("line output changed", l, f)
+	bus.Dispatch("line output changed", l)
+}
+
+func (l *Line) SetVolume(vol uint8, mute bool) {
+	l.Volume = vol
+	l.Mute = mute
+	l.Save()
+
+	l.VolumeEle.SetVolume(float64(vol) / 100)
+	l.VolumeEle.SetMute(mute)
+
+	bus.Dispatch("line volume changed", l)
+}
+
+func (l *Line) SetName(n string) {
+	l.Name = n
+	bus.Dispatch("line edited", l, "name", n)
+	bus.Dispatch("line name changed", l)
 }
 
 func (l *Line) refresh() {
 	channels := []audio.Channel{}
-	for i := 0; i < len(l.speakers); i++ {
-		channels = append(channels, (l.speakers[i].Channel))
+	l.spsByCh = make([][]*Speaker, audio.Channel_MAX)
+
+	for _, sp := range l.speakers {
+		l.spsByCh[sp.Channel] = append(l.spsByCh[sp.Channel], sp)
+		channels = append(channels, sp.SampleChannel())
 	}
+
 	l.Output.Layout = audio.NewChannelLayout(channels...)
 
-	bus.Trigger("line refresh", l)
+	bus.Dispatch("line refresh", l)
 }
 
 func (l *Line) Elements() []stream.Element {
 	return []stream.Element{
-		l.Mixer,
-		l.Equalizer,
-		l.Player,
-		l.Spectrum,
-		l.Volume,
-		l.Pusher,
+		l.MixerEle,
+		l.EqualizerEle,
+		l.PlayerEle,
+		l.SpectrumEle,
+		l.VolumeEle,
+		l.PusherEle,
 	}
 }
 
@@ -133,7 +227,7 @@ func (l *Line) IsDeleted() bool {
 
 func (l *Line) ApplyInput(ss stream.SourceStreamer) {
 	l.Input.ApplySource(ss)
-	bus.Trigger("line input changed", l, ss)
+	bus.Dispatch("line input changed", l, ss)
 
 	bus.Register("audiofile opened", func(a ...any) error {
 		tfs := a[0].(stream.FileStreamer)
@@ -154,7 +248,36 @@ func (l *Line) onInputChanged(ss stream.SourceStreamer, inFormat, outFormat audi
 		format.InitFrom(inFormat)
 		fs.SetOutFormat(format)
 	}
-	bus.Trigger("line audiofile opened", l, ss, inFormat, outFormat)
+	bus.Dispatch("line audiofile opened", l, ss, inFormat, outFormat)
+}
+
+func (l *Line) Save() {
+	bus.Dispatch("save line", l)
+}
+
+func (line *Line) init() {
+	line.SetOutput(audio.DefaultFormat())
+
+	line.PlayerEle = element.NewPlayer()
+	line.VolumeEle = element.NewVolume(float64(line.Volume) / 100)
+	line.MixerEle = element.NewEmptyMixer()
+	line.SpectrumEle = element.NewSpectrum()
+	line.EqualizerEle = element.NewEqualizer(line.EQ.Eq)
+	line.ResampleEle = element.NewResample(line.Output)
+
+	line.Input.Mixer = line.MixerEle
+	line.Input.PipeLine = pipeline.NewPipeLine(line.Output,
+		line.MixerEle,
+		line.EqualizerEle,
+		line.PlayerEle,
+		line.SpectrumEle,
+		line.VolumeEle,
+		//line.Pusher, Resample 放到 pusher 中处理，否则声道路由功能不方便实现
+	)
+
+	line.syncEqualizer()
+	line.syncRoute()
+
 }
 
 func LineList() []*Line {
@@ -163,7 +286,7 @@ func LineList() []*Line {
 
 func FindLineByID(id LineID) *Line {
 	for _, l := range lineList {
-		if l.Id == id {
+		if l.ID == id {
 			return l
 		}
 	}
@@ -180,7 +303,7 @@ func getLineID() (m LineID) {
 			m = DefaultLineID + 1
 		}
 	}
-	if m > maxLineID && m < LineID_MAX {
+	if m >= maxLineID && m < LineID_MAX {
 		maxLineID = m + 1
 	}
 
@@ -221,7 +344,10 @@ func DelLine(id LineID, move LineID) error {
 
 	// 迁移至新的线路
 	for i := 0; i < len(src.speakers); i++ {
-		src.speakers[i].Line = dst
+		sp := src.speakers[i]
+		sp.LineId = dst.ID
+		sp.Save()
+		sp.Line = dst
 	}
 	dst.refresh()
 
@@ -229,7 +355,7 @@ func DelLine(id LineID, move LineID) error {
 
 	src.isDeleted = true
 
-	bus.Trigger("line deleted", src, dst)
+	bus.Dispatch("line deleted", src, dst)
 
 	return nil
 }
@@ -241,11 +367,12 @@ func CountLine() int {
 func removeLine(id LineID) {
 	l := len(lineList) - 1
 	for i := 0; i <= l; i++ {
-		if lineList[i].Id == id {
+		if lineList[i].ID == id {
 			if i != l {
 				lineList[i] = lineList[l]
 			}
 			lineList = lineList[:l]
+			return
 		}
 	}
 }
@@ -282,12 +409,6 @@ func generateUUID(name string) string {
 	}
 }
 
-func initLine() error {
-	NewLine("Default")
-
-	return nil
-}
-
 func NewLine(name string) *Line {
 	locker.Lock()
 	defer locker.Unlock()
@@ -299,32 +420,16 @@ func NewLine(name string) *Line {
 		return nil
 	}
 
-	line.Id = getLineID()
+	line.ID = getLineID()
 	line.Name = name
 	line.UUID = generateUUID(name)
-
-	line.SetOutput(audio.DefaultFormat())
-
-	line.Player = element.NewPlayer()
-	line.Volume = element.NewVolume(0.1)
-	line.Mixer = element.NewEmptyMixer()
-	line.Spectrum = element.NewSpectrum()
-	line.Equalizer = element.NewEqualizer(nil)
-	line.Resample = element.NewResample(line.Output)
-
-	line.Input.Mixer = line.Mixer
-	line.Input.PipeLine = pipeline.NewPipeLine(line.Output,
-		line.Mixer,
-		line.Equalizer,
-		line.Player,
-		line.Spectrum,
-		line.Volume,
-		//line.Pusher, Resample 放到 pusher 中处理，否则声道路由功能不方便实现
-	)
-
+	line.Volume = 50
+	line.init()
 	lineList = append(lineList, &line)
 
-	bus.Trigger("line created", &line)
+	line.Save()
+
+	bus.Dispatch("line created", &line)
 
 	return &line
 }

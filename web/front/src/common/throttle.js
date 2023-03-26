@@ -28,6 +28,6 @@ export function throttleFunction(fn, delay) {
     timer = null;
     fn.apply(func, arguments);
   }
-  
+
   return func;
 }

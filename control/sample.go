@@ -24,10 +24,10 @@ func (s *Sample) Pack() (p *protocol.Package, err error) {
 
 func ControlSample(sp *speaker.Speaker) {
 	s := Sample{
-		f:       Control{Command_SAMPLE, sp.Id},
-		bit:     sp.Bits,
-		rate:    sp.Rate,
-		channel: sp.Channel,
+		f:       Control{Command_SAMPLE, sp.ID},
+		bit:     sp.SampleBits(),
+		rate:    sp.SampleRate(),
+		channel: sp.SampleChannel(),
 	}
 
 	p, err := s.Pack()
@@ -41,22 +41,4 @@ func ControlSample(sp *speaker.Speaker) {
 		log.Error("ControlSample error", zap.String("speaker", sp.String()), zap.Error(err))
 		return
 	}
-}
-
-func ControlRate(sp *speaker.Speaker, rate audio.Rate) {
-	sp.Rate = rate
-	ControlSample(sp)
-}
-
-func ControlBits(sp *speaker.Speaker, bits audio.Bits) {
-	sp.Bits = bits
-	ControlSample(sp)
-}
-func ControlChannel(sp *speaker.Speaker, ch audio.Channel) {
-	if sp.Channel == ch {
-		return
-	}
-
-	sp.ChangeChannel(ch)
-	ControlSample(sp)
 }

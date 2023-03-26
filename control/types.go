@@ -19,7 +19,7 @@ const (
 
 type Control struct {
 	cmd  Command
-	spid speaker.ID
+	spid speaker.SpeakerID
 }
 
 func (f *Control) Pack() (p *protocol.Package, err error) {

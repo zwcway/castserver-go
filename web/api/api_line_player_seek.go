@@ -39,7 +39,7 @@ func apiLinePlayerSeek(c *websockets.WSConnection, req Requester, log *zap.Logge
 		return nil, err
 	}
 
-	bus.Trigger("line audiofile seek", nl, fs, pos)
+	bus.Dispatch("line audiofile seek", nl, fs, pos)
 
 	return websockets.NewResponseLineSource(nl), nil
 }

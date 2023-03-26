@@ -2,7 +2,7 @@ package api
 
 import (
 	"github.com/fasthttp/websocket"
-	"github.com/zwcway/castserver-go/utils"
+	"github.com/zwcway/castserver-go/common/utils"
 	"github.com/zwcway/castserver-go/web/websockets"
 	"go.uber.org/zap"
 )

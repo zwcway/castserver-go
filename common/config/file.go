@@ -11,7 +11,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/zwcway/castserver-go/utils"
+	"github.com/zwcway/castserver-go/common/utils"
+	"gorm.io/gorm"
 
 	"github.com/zwcway/castserver-go/common/audio"
 
@@ -141,6 +142,7 @@ func parsePath(log *zap.Logger, cfg reflect.Value, k *ini.Key, ck *CfgKey) {
 		cfg.SetString(path)
 	}
 }
+
 func parseTempDir(log *zap.Logger, cfg reflect.Value, k *ini.Key, ck *CfgKey) {
 	path := ""
 	if k != nil {
@@ -433,11 +435,11 @@ func configToString(cr reflect.Value) (val string, tn string) {
 		}
 		return strings.Join(strs, string(SEP)), "[]" + k
 	case reflect.Pointer:
+		if s, ok := cr.Interface().(*gorm.DB); ok {
+			return getDSN(s), "db"
+		}
 		return configToString(cr.Elem())
 	case reflect.Struct:
-		if s, ok := cr.Interface().(*net.Interface); ok {
-			return s.Name, "iface"
-		}
 	}
 
 	return "", tn

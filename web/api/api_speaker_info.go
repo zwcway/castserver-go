@@ -16,7 +16,7 @@ func apiSpeakerInfo(c *websockets.WSConnection, req Requester, log *zap.Logger) 
 	if err != nil {
 		return nil, err
 	}
-	sp := speaker.FindSpeakerByID(speaker.ID(p))
+	sp := speaker.FindSpeakerByID(speaker.SpeakerID(p))
 	if sp == nil {
 		return nil, &Error{4, fmt.Errorf("speaker[%d] not exists", p)}
 	}

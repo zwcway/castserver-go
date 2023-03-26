@@ -18,7 +18,7 @@ var ConfigStruct = []CfgSection{
 		{&SpeakerOfflineCheckInterval, "offline check interval", "", nil},
 	}},
 	{"speaker", []CfgKey{
-		{&SpeakerDir, "save dir", "", nil},
+		{&DB, "database", "", parseDatabase},
 		{&ReadBufferSize, "receive buffer", "", nil},
 		{&SendRoutinesMax, "send thread max", "", nil},
 		{&SendQueueSize, "send queue size", "", nil},

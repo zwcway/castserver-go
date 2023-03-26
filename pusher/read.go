@@ -1,9 +1,9 @@
 package pusher
 
 import (
+	config "github.com/zwcway/castserver-go/common/config"
 	"github.com/zwcway/castserver-go/common/speaker"
-	config "github.com/zwcway/castserver-go/config"
-	utils "github.com/zwcway/castserver-go/utils"
+	utils "github.com/zwcway/castserver-go/common/utils"
 	"go.uber.org/zap"
 )
 
@@ -19,7 +19,7 @@ func receiveSpeakerRoutine(sp *speaker.Speaker) {
 			if utils.IsConnectCloseError(err) {
 				return
 			}
-			log.Error("read from speaker failed", zap.Uint32("speaker", uint32(sp.Id)), zap.Error(err))
+			log.Error("read from speaker failed", zap.Uint32("speaker", uint32(sp.ID)), zap.Error(err))
 			return
 		}
 		ip := addrPort.String()

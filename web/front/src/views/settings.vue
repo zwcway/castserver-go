@@ -3,6 +3,7 @@
     <a-anchor wrapperClass="anchors" :getContainer="() => this.$parent.$refs.main" showInkInFixed @click.prevent=""
       :offsetTop="20">
       <a-anchor-link href="#basic" title="基本" />
+      <a-anchor-link href="#line" title="线路" />
       <a-anchor-link href="#config" title="配置" />
     </a-anchor>
     <div class="container is-max-desktop">
@@ -256,14 +257,16 @@ export default {
 
 <style lang="scss">
 .settings-page {
+  --body-width: 720px;
+
   padding: 1rem;
   display: flex;
   justify-content: center;
 
   .anchors {
     position: fixed;
-    top: 50px;
-    right: 1rem;
+    top: var(--nav-height);
+    left: calc(50% + var(--body-width) / 2 + 20px);
   }
 
   .hr {
@@ -276,7 +279,7 @@ export default {
   }
 
   .container {
-    width: 720px;
+    width: var(--body-width);
     flex-grow: 0;
   }
 

@@ -3,9 +3,7 @@ package api
 import (
 	"fmt"
 
-	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/speaker"
-	"github.com/zwcway/castserver-go/control"
 	"github.com/zwcway/castserver-go/web/websockets"
 	"go.uber.org/zap"
 )
@@ -17,18 +15,16 @@ func apiLineVolume(c *websockets.WSConnection, req Requester, log *zap.Logger) (
 		return nil, err
 	}
 
-	nl := speaker.FindLineByID(speaker.LineID(p.ID))
-	if nl == nil {
-		return nil, fmt.Errorf("add new line faild")
+	line := speaker.FindLineByID(speaker.LineID(p.ID))
+	if line == nil {
+		return nil, fmt.Errorf("line %d not exists", p.ID)
 	}
-	vol := float64(p.Volume) / 100
 
-	ovol := nl.Volume.Volume()
-	omute := nl.Volume.Volume()
-
-	control.ControlLineVolume(nl, vol, p.Mute)
-
-	bus.Trigger("line volume changed", nl, ovol, omute)
+	if p.Volume != nil {
+		line.SetVolume(*p.Volume, line.Mute)
+	} else if p.Mute != nil {
+		line.SetVolume(line.Volume, *p.Mute)
+	}
 
 	return true, nil
 }

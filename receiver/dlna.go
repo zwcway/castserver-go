@@ -2,8 +2,8 @@ package receiver
 
 import (
 	"github.com/zwcway/castserver-go/common/bus"
+	"github.com/zwcway/castserver-go/common/config"
 	"github.com/zwcway/castserver-go/common/speaker"
-	"github.com/zwcway/castserver-go/config"
 	"github.com/zwcway/castserver-go/receiver/dlna"
 )
 
@@ -14,15 +14,13 @@ func initDlna() error {
 		return nil
 	}
 
-	line := speaker.DefaultLine()
-
-	dlnaInstance, line.UUID, err = dlna.NewDLNAServer(ctx, line.Name)
+	dlnaInstance, err = dlna.NewDLNAServer(ctx)
 	if err != nil {
 		return err
 	}
 	go dlnaInstance.ListenAndServe()
 
-	bus.Register("line name edited", func(a ...any) error {
+	bus.Register("line name changed", func(a ...any) error {
 		line := a[0].(*speaker.Line)
 
 		EditDLNA(line)

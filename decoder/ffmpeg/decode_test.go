@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/zwcway/castserver-go/common/audio"
+	"github.com/zwcway/castserver-go/common/playlist"
 	"github.com/zwcway/castserver-go/common/stream"
 )
 
@@ -46,4 +47,19 @@ func TestAVFormatContext_Stream(t *testing.T) {
 		}
 	})
 
+}
+
+func TestAudioInfo(t *testing.T) {
+
+	t.Run("get empty audio info", func(t *testing.T) {
+		ai := playlist.AudioInfo{}
+		if err := AudioInfo("test/test_44100_fltp_stereo.mp3", &ai); err != nil {
+			t.Errorf("AudioInfo() error = %v", err)
+		}
+		t.Logf("%s", ai.Url)
+		t.Logf("%s", ai.Format.String())
+		t.Logf("%v/%v", ai.Position, ai.Duration)
+		t.Logf("%s", ai.Title)
+		t.Logf("%s", ai.Artist)
+	})
 }

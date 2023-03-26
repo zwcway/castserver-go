@@ -1,8 +1,6 @@
 package api
 
 import (
-	"fmt"
-
 	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/sounds"
 	"github.com/zwcway/castserver-go/common/speaker"
@@ -26,7 +24,7 @@ func apiTestSound(c *websockets.WSConnection, req Requester, log *zap.Logger) (r
 
 		nl := speaker.FindLineByID(speaker.LineID(*p.Line))
 		if nl == nil {
-			err = fmt.Errorf("add new line faild")
+			err = &speaker.UnknownLineError{Line: *p.Line}
 			return
 		}
 
@@ -57,15 +55,15 @@ func apiTestSound(c *websockets.WSConnection, req Requester, log *zap.Logger) (r
 		}
 		format := sounds.Format()
 		format.Layout = audio.NewChannelLayout(ch)
-		nl.Player.AddToChannel(ch, format, chsound)
+		nl.PlayerEle.AddToChannel(ch, format, chsound)
 	}
 
 	if p.Speaker != nil {
-		sp := speaker.FindSpeakerByID(speaker.ID(*p.Speaker))
+		sp := speaker.FindSpeakerByID(speaker.SpeakerID(*p.Speaker))
 		if sp != nil {
 			format := sounds.Format()
-			format.Layout = audio.NewChannelLayout(sp.Channel)
-			sp.Player.Add(format, sounds.Here())
+			format.Layout = sp.Layout()
+			sp.PlayerEle.Add(format, sounds.Here())
 		}
 	}
 

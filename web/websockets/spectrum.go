@@ -8,7 +8,7 @@ import (
 	"github.com/zwcway/castserver-go/common/jsonpack"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/common/stream"
-	"github.com/zwcway/castserver-go/utils"
+	"github.com/zwcway/castserver-go/common/utils"
 )
 
 var ticker = time.NewTicker(50 * time.Millisecond)
@@ -116,7 +116,7 @@ func lineSpectrum(es *eventService) {
 	if line == nil {
 		return
 	}
-	if es.se = line.Spectrum; es.se == nil {
+	if es.se = line.SpectrumEle; es.se == nil {
 		return
 	}
 	if es.se.IsOn() {
@@ -128,11 +128,11 @@ func lineSpectrum(es *eventService) {
 }
 
 func speakerSpectrum(es *eventService) {
-	sp := speaker.FindSpeakerByID(speaker.ID(es.arg))
-	if sp == nil || sp.Spectrum == nil {
+	sp := speaker.FindSpeakerByID(speaker.SpeakerID(es.arg))
+	if sp == nil || sp.SpectrumEle == nil {
 		return
 	}
-	es.se = sp.Spectrum
+	es.se = sp.SpectrumEle
 
 	if es.se.IsOn() {
 		return
@@ -161,6 +161,7 @@ func spectrumRoutine() {
 		case <-ctx.Done(): // 全局退出
 			return
 		case <-ctlSignal: // routine 退出
+			log.Info("stop spectrum routine")
 			return
 		case <-ticker.C: // 定时器
 		}

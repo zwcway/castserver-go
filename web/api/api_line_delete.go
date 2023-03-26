@@ -10,7 +10,7 @@ import (
 
 type requestLineDelete struct {
 	ID   uint8 `jp:"id"`
-	Move uint8 `jp:"moveTo,omitempty"` // 默认0
+	Move uint8 `jp:"moveTo,omitempty"`
 }
 
 func apiLineDelete(c *websockets.WSConnection, req Requester, log *zap.Logger) (any, error) {
@@ -25,10 +25,14 @@ func apiLineDelete(c *websockets.WSConnection, req Requester, log *zap.Logger) (
 		return nil, fmt.Errorf("line[%d] not exists", params.ID)
 	}
 
-	err = speaker.DelLine(nl.Id, speaker.LineID(params.Move))
+	if params.Move == 0 {
+		params.Move = speaker.DefaultLineID
+	}
+
+	err = speaker.DelLine(nl.ID, speaker.LineID(params.Move))
 	if err != nil {
 		return nil, err
 	}
 
-	return nl.Id, nil
+	return nl.ID, nil
 }

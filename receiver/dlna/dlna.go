@@ -3,9 +3,9 @@ package dlna
 import (
 	"strings"
 
-	"github.com/zwcway/castserver-go/config"
+	"github.com/zwcway/castserver-go/common/config"
+	"github.com/zwcway/castserver-go/common/utils"
 	"github.com/zwcway/castserver-go/receiver/dlna/service"
-	"github.com/zwcway/castserver-go/utils"
 	upnp "github.com/zwcway/fasthttp-upnp"
 	upnps "github.com/zwcway/fasthttp-upnp/service"
 	"github.com/zwcway/fasthttp-upnp/ssdp"
@@ -17,9 +17,8 @@ type DLNAServer struct {
 	ctx utils.Context
 	log *zap.Logger
 
-	defaultUUID string
-	upnp        *upnp.DeviceServer
-	c           chan int
+	upnp *upnp.DeviceServer
+	c    chan int
 }
 
 func (s *DLNAServer) ListenAndServe() {
@@ -75,8 +74,8 @@ func (s *DLNAServer) DelInstance(uuid string) {
 	s.upnp.DelServer(uuid)
 }
 
-func (s *DLNAServer) newUPnPServer(ctx utils.Context, name string) (err error) {
-	s.upnp, s.defaultUUID, err = upnp.NewDeviceServer(ctx, name)
+func (s *DLNAServer) newUPnPServer(ctx utils.Context) (err error) {
+	s.upnp, err = upnp.NewDeviceServer(ctx)
 	if err != nil {
 		return
 	}
@@ -106,21 +105,16 @@ func (s *DLNAServer) newUPnPServer(ctx utils.Context, name string) (err error) {
 	return nil
 }
 
-func NewDLNAServer(ctx utils.Context, name string) (s *DLNAServer, uuid string, err error) {
-	if name == "" {
-		name = config.APPNAME
-	}
+func NewDLNAServer(ctx utils.Context) (s *DLNAServer, err error) {
 	s = &DLNAServer{}
 	s.ctx = ctx
 	s.log = ctx.Logger("dlna")
 	s.c = make(chan int, 1)
 
-	err = s.newUPnPServer(ctx, name)
+	err = s.newUPnPServer(ctx)
 	if err != nil {
 		return
 	}
-
-	uuid = s.defaultUUID
 
 	err = s.upnp.Init()
 

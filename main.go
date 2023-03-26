@@ -10,13 +10,14 @@ import (
 	"syscall"
 
 	"github.com/zwcway/castserver-go/common"
-	"github.com/zwcway/castserver-go/config"
+	"github.com/zwcway/castserver-go/common/config"
+	"github.com/zwcway/castserver-go/common/database"
+	"github.com/zwcway/castserver-go/common/utils"
 	"github.com/zwcway/castserver-go/control"
 	"github.com/zwcway/castserver-go/detector"
 	"github.com/zwcway/castserver-go/mutexer"
 	"github.com/zwcway/castserver-go/pusher"
 	"github.com/zwcway/castserver-go/receiver"
-	"github.com/zwcway/castserver-go/utils"
 	"github.com/zwcway/castserver-go/web"
 
 	"go.uber.org/zap"
@@ -134,22 +135,29 @@ func main() {
 	}
 
 	debug.SetMaxThreads(config.RuntimeThreads)
-	common.Init(rootCtx)
+
+	database.Init(rootCtx, config.DB)
 
 	mods := []Module{
+		common.Module,
 		mutexer.Module,
 		detector.Module,
-		control.Module,
 		pusher.Module,
+		control.Module,
 		receiver.Module,
 		web.Module,
 	}
 
-	for _, f := range mods {
-		err = f.Init(rootCtx)
+	for i := 0; i < len(mods); i++ {
+		err = mods[i].Init(rootCtx)
 		if err != nil {
 			exit(255, false, err.Error())
 		}
+	}
+
+	err = common.LoadData()
+	if err != nil {
+		goto __exit__
 	}
 
 	// 阻塞
@@ -167,8 +175,9 @@ func main() {
 
 	log.Info("exit")
 
-	for _, f := range mods {
-		f.DeInit()
+__exit__:
+	for i := len(mods) - 1; i >= 0; i-- {
+		mods[i].DeInit()
 	}
 
 	if logClose != nil {

@@ -6,7 +6,20 @@ const JsonPackType = Object.freeze({
   ARRAY: 0x04,
   MAP: 0x05,
   FLOAT: 0x06,
+  NULL: 0x07,
 });
+function typename(t) {
+  switch (t) {
+    case JsonPackType.INTEGER: return 'integer';
+    case JsonPackType.BOOLEAN: return 'boolean';
+    case JsonPackType.STRING: return 'string';
+    case JsonPackType.ARRAY: return 'array';
+    case JsonPackType.MAP: return 'object';
+    case JsonPackType.FLOAT: return 'float';
+    case JsonPackType.NULL: return 'null';
+    default: return 'unknown';
+  }
+}
 
 let stringEncoder = new TextEncoder();
 let stringDecoder = new TextDecoder();
@@ -129,7 +142,7 @@ class PackArray extends Array {
     for (let k in map) {
       if (!map.hasOwnProperty(k)) continue;
       if (k.length > 0xff) {
-        throw 'key size too big: ' + k;
+        throw this.pos + ': key size too big: ' + k;
       }
       unpacker.encodeString('' + k);
       unpacker.encodeObject(map[k], k);
@@ -159,7 +172,7 @@ class PackArray extends Array {
     } else if (obj === null) {
       this.encodeString('null')
     } else {
-      throw 'key type unknown ' + key;
+      throw this.pos + ': key type unknown ' + key;
     }
   }
 }
@@ -192,7 +205,7 @@ class UnPackArray {
   }
   rNumber(flag) {
     dataV.setUint32(0, 0);
-    for (let i = 0; i < (flag & 0x07); i++) {
+    for (let i = 0; i < flag; i++) {
       dataV.setUint8(3 - i, this.r(0))
     }
     return dataV.getUint32()
@@ -208,14 +221,21 @@ class UnPackArray {
     return i & 0x0f;
   }
 
-  decodeInteger(flag) {
-    let i = this.rNumber(flag)
+  decodeInteger(flag, field) {
+    if ((flag & 0x07) > 4) {
+      throw this.pos + ": length size overflow " + flag + ' on ' + field;
+    }
+
+    let i = this.rNumber(flag & 0x07)
     if ((flag & 0x08) === 0) return i;
     return -i;
   }
-  decodeFloat32(flag) {
+  decodeFloat32(flag, field) {
+    if (flag !== 4) {
+      throw this.pos + ": float size invalid " + flag + ' on ' + field;
+    }
     this.array.slice(this.pos, this.pos + 4)
-    let i = this.decodeInteger(flag);
+    let i = this.decodeInteger(flag, field);
     dataV.setUint32(0, i);
     return dataV.getFloat32();
   }
@@ -241,51 +261,51 @@ class UnPackArray {
     return str;
   }
 
-  decodeArray(flag) {
+  decodeArray(flag, field) {
     let ret = [];
     let len = this.rNumber(flag);
 
     for (let i = 0; i < len; i++) {
-      ret.push(this.decodeObject());
+      ret.push(this.decodeObject(null, field ? field + '.' + i : '' + i));
     }
     return ret;
   }
-  decodeMap(flag) {
+  decodeMap(flag, field) {
     let ret = {};
     let len = this.rNumber(flag);
     let key = '';
     for (let i = 0; i < len; i++) {
-      key = this.decodeObject(JsonPackType.STRING);
+      key = this.decodeObject(JsonPackType.STRING, field);
       if (!key.length) {
-        throw 'decode error. no key in map';
+        throw this.pos + ': decode error. no key in map ' + field;
       }
-      ret[key] = this.decodeObject();
+      ret[key] = this.decodeObject(null, field ? field + '.' + key : key);
     }
     return ret;
   }
-  decodeObject(mustType = null) {
+  decodeObject(mustType = null, field) {
     let type = this.r8(),
       flag = this.flag(type);
     type = this.type(type);
 
     if (mustType && mustType !== type)
-      throw 'type not expected';
+      throw this.pos + ': type ' + typename(type) + ' not expected on ' + field + ' want ' + typename(mustType);
 
     switch (type) {
       case JsonPackType.INTEGER:
-        return this.decodeInteger(flag);
+        return this.decodeInteger(flag, field);
       case JsonPackType.BOOLEAN:
-        return this.decodeBoolean(flag);
+        return this.decodeBoolean(flag, field);
       case JsonPackType.STRING:
-        return this.decodeString(flag);
+        return this.decodeString(flag, field);
       case JsonPackType.ARRAY:
-        return this.decodeArray(flag);
+        return this.decodeArray(flag, field);
       case JsonPackType.MAP:
-        return this.decodeMap(flag);
+        return this.decodeMap(flag, field);
       case JsonPackType.FLOAT:
-        return this.decodeFloat32(flag);
+        return this.decodeFloat32(flag, field);
       default:
-        throw 'decode error. unknown type ' + type;
+        throw this.pos + ': decode error. unknown type ' + type + ' on ' + field;
     }
   }
 }
@@ -309,5 +329,5 @@ export function encodeReq(id, cmd, obj) {
 export function decode(bytes) {
   if (bytes.length === 0) return {};
   let arr = new UnPackArray(bytes);
-  return arr.decodeObject();
+  return arr.decodeObject(null, "");
 }

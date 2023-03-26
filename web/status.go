@@ -4,7 +4,7 @@ import (
 	"text/template"
 
 	"github.com/valyala/fasthttp"
-	"github.com/zwcway/castserver-go/config"
+	"github.com/zwcway/castserver-go/common/config"
 	"github.com/zwcway/castserver-go/web/websockets"
 )
 
@@ -29,7 +29,7 @@ func statusHandler(ctx *fasthttp.RequestCtx) {
 		Name: config.NameVersion(),
 	}
 
-	for c, _ := range websockets.WSHub.Clients {
+	for c := range websockets.WSHub.Clients {
 		if c != nil && c.Conn != nil {
 			client := tplClient{
 				IP: c.Conn.RemoteAddr().String(),

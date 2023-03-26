@@ -248,7 +248,7 @@ export default {
         let band = parseInt(value);
         if (band == this.equalizerBands) return;
         this.equalizerBands = band;
-        ApiLine.clearEqualizer(this.line.id).then(() => {
+        ApiLine.clearEqualizer(this.line.id, band).then(() => {
           this.line.eq.eqs = []
         });
       },
@@ -282,11 +282,7 @@ export default {
   },
   methods: {
     deinit() {
-      ApiLine.removelistenLineChanged();
-      ApiLine.removeListenLineSpectrum();
-      ApiLine.removeListenLineInput();
-      ApiSpeaker.removeListenSpeakerSpectrum();
-      ApiLine.removeListenLineSpeakerChanged();
+      ApiLine.removelistenAll();
 
       cancelAnimationFrame(this.specturmCtx.spRequestId);
       this.specturmCtx.ctx = null;
@@ -383,6 +379,7 @@ export default {
             this.startPlayerDuration()
           }
 
+          this.equalizerBands = data.eq.seg;
           this.initChannelSpeakers();
           this.onShowChannelInfo(-1);
 
@@ -539,7 +536,7 @@ export default {
       ApiSpeaker.setSpeaker(id, 'mute', v);
     },
     onEQChange(freq, gain) {
-      ApiLine.setEqualizer(this.line.id, freq, gain).then((s) => {
+      ApiLine.setEqualizer(this.line.id, this.equalizerBands, freq, gain).then((s) => {
         this.line.eq = s
       }).catch(() => {
         this.line.eq.eqs = this.line.eq.eqs

@@ -1,44 +1,51 @@
 package jsonpack
 
 import (
-	"fmt"
 	"math"
 	"reflect"
+	"strconv"
 	"strings"
-
-	"golang.org/x/text/language"
-	"golang.org/x/text/message"
 )
 
 type Encoder []byte
 
-func (j *Encoder) intSize(val uint32) uint32 {
+func (j *Encoder) intSize(val uint64) uint8 {
 	if val <= 0xff {
 		return 1
 	} else if val <= 0xffff {
 		return 2
-	} else {
+	} else if val <= 0xffffffff {
 		return 4
+	} else if val <= 0xffffffffffffff {
+		return 7
+	} else {
+		return 0
 	}
 }
 
-func (j *Encoder) writeType(t uint32, size uint32) {
+func (j *Encoder) writeType(t uint8, size uint8) {
 	*j = append(*j, byte((t<<4)&0xF0|size&0x0F))
 }
 
-func (j *Encoder) writeInteger(t uint32, size uint32) {
+func (j *Encoder) writeInteger(v uint32, size uint8) {
 	switch size & 0x07 {
 	case 1:
-		*j = append(*j, byte(t))
+		*j = append(*j, byte(v))
 	case 2:
-		*j = append(*j, byte(t), byte(t>>8))
+		*j = append(*j, byte(v), byte(v>>8))
 	case 4:
-		*j = append(*j, byte(t), byte(t>>8), byte(t>>16), byte(t>>24))
+		*j = append(*j, byte(v), byte(v>>8), byte(v>>16), byte(v>>24))
 	}
 }
 func (j *Encoder) writeFloat(t float32) {
 	bits := math.Float32bits(t)
 	j.writeInteger(bits, 4)
+}
+
+func (j *Encoder) writeFloat64(t float64) {
+	b := math.Float64bits(t)
+	j.writeInteger(uint32(b), 4)
+	j.writeInteger(uint32(b>>32), 4)
 }
 
 func (j *Encoder) encodeInt8(val int8) {
@@ -64,18 +71,31 @@ func (j *Encoder) encodeUint16(val uint16) {
 }
 
 func (j *Encoder) encodeInt32(val int32) {
-	var i uint32 = uint32(val)
-	var size uint32 = j.intSize(i)
+	j.encodeInt64(int64(val))
+}
+
+func (j *Encoder) encodeInt64(val int64) {
+	var i uint64 = uint64(val)
+	var size = j.intSize(i)
 	if val < 0 {
-		i = uint32(-val)
+		i = uint64(-val)
 		size = j.intSize(i) | 0x08
+		j.writeType(JSONPACK_NUMBER, size|0x08)
+	} else {
+		j.writeType(JSONPACK_NUMBER, size)
 	}
 
-	j.writeType(JSONPACK_NUMBER, size)
-	j.writeInteger(i, size)
+	size = size & 0x07
+	if size > 4 {
+		j.writeInteger(uint32(i), 4)
+		j.writeInteger(uint32(i>>32), size-4)
+	} else {
+		j.writeInteger(uint32(i), size)
+	}
 }
+
 func (j *Encoder) encodeUint32(val uint32) {
-	size := j.intSize(val)
+	size := j.intSize(uint64(val))
 	j.writeType(JSONPACK_NUMBER, size)
 	j.writeInteger(val, size)
 }
@@ -83,6 +103,11 @@ func (j *Encoder) encodeUint32(val uint32) {
 func (j *Encoder) encodeFloat32(val float32) {
 	j.writeType(JSONPACK_FLOAT, 4)
 	j.writeFloat(val)
+}
+
+func (j *Encoder) encodeFloat64(val float64) {
+	j.writeType(JSONPACK_FLOAT, 8)
+	j.writeFloat64(val)
 }
 
 func (j *Encoder) encodeBool(val bool) {
@@ -93,35 +118,39 @@ func (j *Encoder) encodeBool(val bool) {
 	}
 }
 
+func (j *Encoder) encodeNull() {
+	j.writeType(JSONPACK_NULL, 0)
+}
+
 func (j *Encoder) encodeString(val string) {
 	j.EncodeBinary([]byte(val))
 }
 
 func (j *Encoder) EncodeBinary(val []byte) {
 	len := uint32(len(val))
-	size := j.intSize(len)
+	size := j.intSize(uint64(len))
 	j.writeType(JSONPACK_STRING, size)
 	j.writeInteger(len, size)
 	*j = append(*j, val...)
 }
 
 func (j *Encoder) EncodeArray(len uint32) {
-	size := j.intSize(len)
+	size := j.intSize(uint64(len))
 	j.writeType(JSONPACK_ARRAY, size)
 	j.writeInteger(len, size)
 }
 
 func (j *Encoder) EncodeMap(len uint32) {
-	size := j.intSize(len)
+	size := j.intSize(uint64(len))
 	j.writeType(JSONPACK_MAP, size)
 	j.writeInteger(len, size)
 }
 
-func (j *Encoder) reflectArray(r reflect.Value, t reflect.Type) error {
+func (j *Encoder) reflectArray(r reflect.Value, t reflect.Type, field string) error {
 	len := r.Len()
 	j.EncodeArray(uint32(len))
 	for i := 0; i < len; i++ {
-		err := j.reflectValue(r.Index(i), fmt.Sprintf("%d", i))
+		err := j.reflectValue(r.Index(i), field+"."+strconv.Itoa(i))
 		if err != nil {
 			return err
 		}
@@ -191,14 +220,14 @@ func (j *Encoder) collectMap(r reflect.Value, t reflect.Type) []structFieldInfo 
 	return ss
 }
 
-func (j *Encoder) reflectMap(r reflect.Value, t reflect.Type) error {
+func (j *Encoder) reflectMap(r reflect.Value, t reflect.Type, field string) error {
 	ss := j.collectMap(r, t)
 
 	j.EncodeMap(uint32(len(ss)))
 	for _, s := range ss {
 		tf := s.tf
 		j.encodeString(s.name)
-		err := j.reflectValue(s.tr, tf.Name())
+		err := j.reflectValue(s.tr, field+"."+tf.Name())
 		if err != nil {
 			return err
 		}
@@ -208,15 +237,19 @@ func (j *Encoder) reflectMap(r reflect.Value, t reflect.Type) error {
 
 func (j *Encoder) reflectValue(r reflect.Value, field string) (err error) {
 	if !r.IsValid() {
-		return &InvalidValueError{}
+		return &InvalidValueError{field: field}
 	}
 	switch r.Kind() {
 	case reflect.Pointer:
+		if r.IsNil() {
+			j.encodeNull()
+			return
+		}
 		err = j.reflectValue(r.Elem(), field)
 	case reflect.Struct:
-		err = j.reflectMap(r, r.Type())
+		err = j.reflectMap(r, r.Type(), field)
 	case reflect.Array, reflect.Slice:
-		err = j.reflectArray(r, r.Type())
+		err = j.reflectArray(r, r.Type(), field)
 	case reflect.String:
 		j.encodeString(r.String())
 	case reflect.Bool:
@@ -234,15 +267,15 @@ func (j *Encoder) reflectValue(r reflect.Value, field string) (err error) {
 	case reflect.Uint16:
 		j.encodeUint16(uint16(r.Uint()))
 	case reflect.Int64: // js 不支持64位整数，转为千分字符串
-		j.encodeString(comma.Sprintf("%f", r.Int()))
+		j.encodeInt64(r.Int())
 	case reflect.Uint64:
-		j.encodeString(comma.Sprintf("%f", r.Uint()))
+		j.encodeInt64(int64(r.Uint()))
 	case reflect.Float32:
 		j.encodeFloat32(float32(r.Float()))
+	case reflect.Float64:
+		j.encodeFloat64(r.Float())
 	default:
 		return &InvalidValueError{field, r.Kind()}
 	}
 	return
 }
-
-var comma = message.NewPrinter(language.English)

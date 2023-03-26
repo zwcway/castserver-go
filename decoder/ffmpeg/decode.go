@@ -7,12 +7,14 @@ package ffmpeg
 import "C"
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 	"unsafe"
 
 	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/bus"
+	"github.com/zwcway/castserver-go/common/playlist"
 	"github.com/zwcway/castserver-go/common/stream"
 	"github.com/zwcway/castserver-go/decoder/ffmpeg/avutil"
 )
@@ -21,6 +23,59 @@ func New(outFormat audio.Format) stream.FileStreamer {
 	return &AVFormatContext{
 		outputFmt: outFormat,
 	}
+}
+
+func AudioInfo(f string, ai *playlist.AudioInfo) (err error) {
+	var (
+		cFileName = C.CString(f)
+		ctx       *C.GOAVDecoder
+		tag       *C.AVDictionaryEntry
+		cEmptyStr = C.CString("")
+	)
+	defer func() {
+		C.free(unsafe.Pointer(cFileName))
+		C.free(unsafe.Pointer(cEmptyStr))
+		if err != nil {
+			C.go_free(&ctx)
+		}
+	}()
+
+	rate := C.int(0)
+	format := C.enum_AVSampleFormat(C.AV_SAMPLE_FMT_NONE)
+	channels := C.int(0)
+
+	ret := C.go_init(&ctx, cFileName, &rate, &channels, &format)
+
+	if ret < 0 {
+		return avutil.NewErrorFromCCode(int(ret))
+	}
+
+	bit := avutil.BitsFromAVFormat(format)
+	ai.Format = audio.Format{
+		SampleRate: audio.NewAudioRate(int(rate)),
+		Layout:     avutil.ChannelsFromLayout(uint64(ctx.codecCtx.channel_layout)),
+		SampleBits: bit,
+	}
+
+	ai.Url = f
+	ai.Duration = time.Duration(ctx.formatCtx.duration) * time.Microsecond
+	ai.Position = time.Duration(ctx.duration) * time.Second
+
+	for {
+		tag = C.av_dict_get(ctx.formatCtx.metadata, cEmptyStr, tag, C.AV_DICT_IGNORE_SUFFIX)
+		if tag == nil {
+			break
+		}
+		key := strings.ToLower(C.GoString(tag.key))
+		val := C.GoString(tag.value)
+		switch key {
+		case "title":
+			ai.Title = val
+		case "artist":
+			ai.Artist = val
+		}
+	}
+	return nil
 }
 
 type AVFormatContext struct {
@@ -87,7 +142,7 @@ func (c *AVFormatContext) OpenFile(fileName string) (err error) {
 		return err
 	}
 
-	bus.Trigger("audiofile opened", c, c.format, c.outputFmt, fileName)
+	bus.Dispatch("audiofile opened", c, c.format, c.outputFmt, fileName)
 
 	return nil
 }

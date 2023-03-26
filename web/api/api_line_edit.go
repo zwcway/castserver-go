@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"unicode/utf8"
 
-	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/web/websockets"
 	"go.uber.org/zap"
@@ -24,7 +23,7 @@ func apiLineEdit(c *websockets.WSConnection, req Requester, log *zap.Logger) (re
 	}
 	nl := speaker.FindLineByID(speaker.LineID(p.ID))
 	if nl == nil {
-		err = fmt.Errorf("add new line faild")
+		err = fmt.Errorf("line %d not exists", p.ID)
 		return
 	}
 
@@ -33,13 +32,11 @@ func apiLineEdit(c *websockets.WSConnection, req Requester, log *zap.Logger) (re
 			err = fmt.Errorf("name invalid")
 			return
 		}
-		nl.Name = *p.Name
-		bus.Trigger("line name edited", nl)
-		bus.Trigger("line edited", nl)
+		nl.SetName(*p.Name)
 	}
 
 	if p.SpectrumLogAxis != nil {
-		nl.Spectrum.SetLogAxis(*p.SpectrumLogAxis)
+		nl.SpectrumEle.SetLogAxis(*p.SpectrumLogAxis)
 	}
 
 	ret = true

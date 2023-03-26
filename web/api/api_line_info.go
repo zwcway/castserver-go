@@ -1,8 +1,6 @@
 package api
 
 import (
-	"fmt"
-
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/web/websockets"
 	"go.uber.org/zap"
@@ -21,7 +19,7 @@ func apiLineInfo(c *websockets.WSConnection, req Requester, log *zap.Logger) (an
 
 	nl := speaker.FindLineByID(speaker.LineID(params.ID))
 	if nl == nil {
-		return nil, fmt.Errorf("add new line faild")
+		return nil, &speaker.UnknownLineError{Line: params.ID}
 	}
 
 	line := websockets.NewResponseLineInfo(nl)

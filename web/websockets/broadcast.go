@@ -15,7 +15,7 @@ type notifySpeakerMoved struct {
 
 func BroadcastSpeakerChannelMovedEvent(sp *speaker.Speaker, from audio.Channel, to audio.Channel) error {
 	resp := notifySpeakerMoved{
-		Speaker: int(sp.Id),
+		Speaker: int(sp.ID),
 		Type:    1,
 		From:    int(from),
 		To:      int(to),
@@ -30,7 +30,7 @@ func BroadcastSpeakerChannelMovedEvent(sp *speaker.Speaker, from audio.Channel, 
 
 func BroadcastSpeakerLineMovedEvent(sp *speaker.Speaker, from speaker.LineID, to speaker.LineID) error {
 	resp := notifySpeakerMoved{
-		Speaker: int(sp.Id),
+		Speaker: int(sp.ID),
 		Type:    2,
 		From:    int(from),
 		To:      int(to),
@@ -49,9 +49,9 @@ func BroadcastSpeakerEvent(sp *speaker.Speaker, evt uint8) error {
 		return err
 	}
 	if sp.Line != nil {
-		Broadcast(Event_Line_Speaker, evt, int(sp.Line.Id), msg)
+		Broadcast(Event_Line_Speaker, evt, int(sp.Line.ID), msg)
 	}
-	return Broadcast(evt, 0, int(sp.Id), msg)
+	return Broadcast(evt, 0, int(sp.ID), msg)
 }
 
 func BroadcastLineEvent(line *speaker.Line, evt uint8) error {
@@ -60,7 +60,7 @@ func BroadcastLineEvent(line *speaker.Line, evt uint8) error {
 		return err
 	}
 
-	return Broadcast(evt, 0, int(line.Id), msg)
+	return Broadcast(evt, 0, int(line.ID), msg)
 }
 
 func BroadcastLineInputEvent(line *speaker.Line) error {
@@ -69,7 +69,7 @@ func BroadcastLineInputEvent(line *speaker.Line) error {
 		return err
 	}
 
-	return Broadcast(Event_Line_Input, 0, int(line.Id), msg)
+	return Broadcast(Event_Line_Input, 0, int(line.ID), msg)
 }
 
 func Broadcast(evt uint8, sub uint8, arg int, msg []byte) error {
@@ -156,6 +156,10 @@ func Unsubscribe(c *WSConnection, evt []uint8, sub uint8, arg int) {
 	if !ok {
 		return
 	}
+	if len(evt) == 0 {
+		UnsubscribeAll(c)
+		return
+	}
 
 	ne := []broadcastEvent{}
 
@@ -183,7 +187,7 @@ func Unsubscribe(c *WSConnection, evt []uint8, sub uint8, arg int) {
 }
 
 func UnsubscribeAll(c *WSConnection) {
-	if !hasSpectrumEvent(WSHub.broadcast) {
+	if hasSpectrumEvent(WSHub.broadcast) {
 		stopSpectumRoutine()
 	}
 

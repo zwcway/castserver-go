@@ -5,7 +5,7 @@
     </div>
     <vue-slider v-model="curVolume" :min="0" :max="100" :process="volumeLevelProcess"
       :tooltip-placement="this.tooltipPlacement" ref="volumeSlider" @change="throttleTimer"
-      @drag-end="throttleTimer(curVolume)" />
+      @drag-end="throttleTimer.finally(curVolume)" />
   </div>
 </template>
 

@@ -27,12 +27,12 @@ func apiLineSetEqualizerEnable(c *websockets.WSConnection, req Requester, log *z
 	}
 
 	if p.Enable {
-		nl.Equalizer.On()
+		nl.EqualizerEle.On()
 	} else {
-		nl.Equalizer.Off()
+		nl.EqualizerEle.Off()
 	}
 
-	bus.Trigger("line equalizer power", nl, p.Enable)
+	bus.Dispatch("line eq power", nl, p.Enable)
 
 	return true, nil
 }

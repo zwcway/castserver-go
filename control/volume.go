@@ -12,7 +12,7 @@ type Volume struct {
 	Mute   bool
 }
 
-func (s *Volume) Pack(id speaker.ID) (p *protocol.Package, err error) {
+func (s *Volume) Pack(id speaker.SpeakerID) (p *protocol.Package, err error) {
 	s.f.cmd = Command_VOLUME
 	s.f.spid = id
 
@@ -30,8 +30,8 @@ func (s *Volume) Pack(id speaker.ID) (p *protocol.Package, err error) {
 func ControlSpeakerVolume(sp *speaker.Speaker, vol float64, mute bool) {
 	if !sp.Config.AbsoluteVol {
 		// 不支持绝对音量控制
-		sp.Volume.SetVolume(vol)
-		sp.Volume.SetMute(mute)
+		sp.VolumeEle.SetVolume(vol)
+		sp.VolumeEle.SetMute(mute)
 		return
 	}
 	s := Volume{
@@ -39,26 +39,15 @@ func ControlSpeakerVolume(sp *speaker.Speaker, vol float64, mute bool) {
 		Mute:   mute,
 	}
 
-	p, err := s.Pack(sp.Id)
+	p, err := s.Pack(sp.ID)
 	if err != nil {
-		log.Error("encode volume package error", zap.Uint32("speaker", uint32(sp.Id)), zap.Error(err))
+		log.Error("encode volume package error", zap.Uint32("speaker", uint32(sp.ID)), zap.Error(err))
 		return
 	}
 
 	err = sp.WriteUDP(p.Bytes())
 	if err != nil {
-		log.Error("write speaker error", zap.Uint32("speaker", uint32(sp.Id)), zap.Error(err))
+		log.Error("write speaker error", zap.Uint32("speaker", uint32(sp.ID)), zap.Error(err))
 		return
 	}
-}
-
-func ControlLineVolume(line *speaker.Line, vol float64, mute bool) {
-	p := line.Input.PipeLine
-	if p == nil || line.Volume == nil {
-		return
-	}
-
-	line.Volume.SetVolume(vol)
-	line.Volume.SetMute(mute)
-
 }

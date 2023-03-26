@@ -43,6 +43,9 @@ func (e *Equalizer) Stream(samples *stream.Samples) {
 
 	for ch := 0; ch < samples.Format.Layout.Count; ch++ {
 		for f := 0; f < len(e.filters[ch]); f++ {
+			if e.filters[ch][f] == nil {
+				continue
+			}
 			for i := 0; i < samples.LastNbSamples; i++ {
 				samples.Data[ch][i] = e.filters[ch][f].Process(samples.Data[ch][i])
 			}
@@ -80,19 +83,20 @@ func (e *Equalizer) changing(f func()) {
 
 	e.init()
 }
-func (e *Equalizer) SetEqualizer(eq []dsp.Equalizer) {
+
+func (e *Equalizer) SetEqualizer(eq []*dsp.Equalizer) {
 	e.changing(func() {
 		e.equalizer.FEQ = eq
 	})
 }
 
-func (e *Equalizer) Equalizer() []dsp.Equalizer {
+func (e *Equalizer) Equalizer() []*dsp.Equalizer {
 	return e.equalizer.FEQ
 }
 
 func (e *Equalizer) Add(freq int, gain, q float64) {
 	e.changing(func() {
-		e.equalizer.FEQ = append(e.equalizer.FEQ, dsp.NewFIREqualizer(freq, gain, q))
+		e.equalizer.AddFIR(freq, gain, q)
 	})
 }
 
@@ -111,7 +115,11 @@ func (e *Equalizer) init() {
 		e.filters[ch] = make([]*dsp.Filter, len(e.equalizer.FEQ))
 
 		for i := 0; i < len(e.equalizer.FEQ); i++ {
-			e.filters[ch][i] = dsp.NewFilter(&e.equalizer.FEQ[i], &e.format)
+			if e.equalizer.FEQ[i] == nil {
+				e.filters[ch][i] = nil
+				continue
+			}
+			e.filters[ch][i] = dsp.NewFilter(e.equalizer.FEQ[i], &e.format)
 		}
 	}
 }
@@ -126,7 +134,7 @@ func (e *Equalizer) Close() error {
 
 func NewEqualizer(eq *dsp.DataProcess) stream.EqualizerElement {
 	if eq == nil {
-		eq = &dsp.DataProcess{}
+		eq = dsp.NewDataProcess(0)
 	}
 	e := &Equalizer{equalizer: eq}
 	return e

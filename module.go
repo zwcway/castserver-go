@@ -1,7 +1,7 @@
 package main
 
 import (
-	utils "github.com/zwcway/castserver-go/utils"
+	utils "github.com/zwcway/castserver-go/common/utils"
 )
 
 type Module interface {

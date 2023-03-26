@@ -1,9 +1,10 @@
 package pusher
 
 import (
+	"github.com/zwcway/castserver-go/common/bus"
+	"github.com/zwcway/castserver-go/common/config"
 	"github.com/zwcway/castserver-go/common/speaker"
-	"github.com/zwcway/castserver-go/config"
-	"github.com/zwcway/castserver-go/utils"
+	"github.com/zwcway/castserver-go/common/utils"
 
 	"go.uber.org/zap"
 )
@@ -20,13 +21,23 @@ func (pusherModule) Init(ctx utils.Context) error {
 	log = ctx.Logger("pusher")
 	context = ctx
 
-	// 初始化并启动发送队列
-	queueList = make([]chan speaker.QueueData, config.SendRoutinesMax)
-	for i := range queueList {
-		queueList[i] = make(chan speaker.QueueData, config.SendQueueSize)
-		go pushRoutine(queueList[i])
-	}
+	bus.Register("speaker format changed", func(a ...any) error {
+		sp := a[0].(*speaker.Speaker)
 
+		refreshPushQueue(sp, sp.EqualizerEle.Delay())
+		return nil
+	})
+	bus.Register("speaker online", func(a ...any) error {
+		sp := a[0].(*speaker.Speaker)
+		Disconnect(sp)
+		Connect(sp)
+		return nil
+	}).ASync()
+	bus.Register("speaker detected", func(a ...any) error {
+		sp := a[0].(*speaker.Speaker)
+		Connect(sp)
+		return nil
+	}).ASync()
 	receiveQueue = make(chan speaker.QueueData, config.ReadQueueSize)
 
 	initTrigger()

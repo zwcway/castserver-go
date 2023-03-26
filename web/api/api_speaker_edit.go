@@ -5,7 +5,6 @@ import (
 
 	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/speaker"
-	"github.com/zwcway/castserver-go/control"
 	"github.com/zwcway/castserver-go/web/websockets"
 	"go.uber.org/zap"
 )
@@ -13,6 +12,7 @@ import (
 type requestSpeakerSetChannel struct {
 	ID      uint32 `jp:"id"`
 	Name    string `jp:"name,omitempty"`
+	Line    int8   `jp:"line,omitempty"`
 	Channel int8   `jp:"ch,omitempty"`
 	Volume  *uint8 `jp:"vol,omitempty"`
 	Mute    *bool  `jp:"mute,omitempty"`
@@ -24,7 +24,7 @@ func apiSpeakerEdit(c *websockets.WSConnection, req Requester, log *zap.Logger) 
 	if err != nil {
 		return nil, err
 	}
-	sp := speaker.FindSpeakerByID(speaker.ID(p.ID))
+	sp := speaker.FindSpeakerByID(speaker.SpeakerID(p.ID))
 	if sp == nil {
 		return nil, &Error{4, fmt.Errorf("speaker[%d] not exists", p.ID)}
 	}
@@ -33,14 +33,23 @@ func apiSpeakerEdit(c *websockets.WSConnection, req Requester, log *zap.Logger) 
 	}
 	if p.Channel > 0 {
 		ch := audio.Channel(p.Channel)
-		sp.ChangeChannel(ch)
+		sp.SetChannel(ch)
 	} else if p.Channel == -1 {
-		sp.ChangeChannel(0)
+		sp.SetChannel(0)
 	}
 	if p.Volume != nil {
-		control.ControlSpeakerVolume(sp, float64(*p.Volume)/100, sp.Volume.Mute())
+		sp.SetVolume(*p.Volume, sp.Mute)
 	} else if p.Mute != nil {
-		control.ControlSpeakerVolume(sp, sp.Volume.Volume(), *p.Mute)
+		sp.SetVolume(sp.Volume, *p.Mute)
+	}
+	if p.Line > 0 {
+		nl := speaker.FindLineByID(uint8(p.Line))
+		if nl == nil {
+			return nil, &speaker.UnknownLineError{Line: uint8(p.Line)}
+		}
+		sp.SetLine(nl)
+	} else if p.Line == -1 {
+		sp.SetLine(nil)
 	}
 
 	return true, nil

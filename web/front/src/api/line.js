@@ -18,15 +18,19 @@ export function setVolume(id, vol) {
   return socket.send('lineVolume', data);
 }
 
-export function setEqualizer(id, freq, gain) {
-  return socket.send('setLineEQ', { id, freq, gain });
+export function setEqualizer(id, seg, freq, gain) {
+  return socket.send('setLineEQ', { id, seg, freq, gain });
 }
 export function setEnableEqualizer(id, enable) {
   return socket.send('enableLineEQ', { id, enable });
 }
 
-export function clearEqualizer(id) {
-  return socket.send('clearLineEQ', { id });
+export function clearEqualizer(id, seg) {
+  return socket.send('clearLineEQ', { id, seg });
+}
+
+export function removelistenAll() {
+  socket.removeEvent([]);
 }
 
 let listEvts = [Event.Line_Created, Event.Line_Deleted, Event.Line_Edited];

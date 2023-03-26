@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestMarshal(t *testing.T) {
@@ -37,6 +38,8 @@ func TestMarshal(t *testing.T) {
 		{"string3", args{"123"}, []byte{49, 3, '1', '2', '3'}, false},
 		{"string safe", args{"abc\x00abc"}, []byte{0x31, 0x07, 'a', 'b', 'c', 0, 'a', 'b', 'c'}, false},
 		{"string256", args{str256}, bytes256, false},
+
+		{"null", args{nil}, []byte{}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -46,7 +49,7 @@ func TestMarshal(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Marshal() = %v, want %v", got, tt.want)
+				t.Errorf("Marshal() = %0X, want %0X", got, tt.want)
 			}
 		})
 	}
@@ -58,7 +61,7 @@ func TestMarshal(t *testing.T) {
 		m := ms{"val"}
 		got, _ := Marshal(m)
 		if !reflect.DeepEqual(got, []byte("\x51\x01\x31\x03key\x31\x03val")) {
-			t.Errorf("Marshal() = %v", got)
+			t.Errorf("Marshal() = %0X", got)
 		}
 	})
 	t.Run("map map", func(t *testing.T) {
@@ -70,7 +73,7 @@ func TestMarshal(t *testing.T) {
 		m := ms{struct{ z int32 }{1}}
 		got, _ := Marshal(m)
 		if !reflect.DeepEqual(got, []byte("\x51\x01\x31\x03key\x51\x01\x31\x01z\x11\x01")) {
-			t.Errorf("Marshal() = %v", got)
+			t.Errorf("Marshal() = %0X", got)
 		}
 	})
 	t.Run("map rename", func(t *testing.T) {
@@ -80,7 +83,27 @@ func TestMarshal(t *testing.T) {
 		m := ms{"val"}
 		got, _ := Marshal(m)
 		if !reflect.DeepEqual(got, []byte("\x51\x01\x31\x03kfy\x31\x03val")) {
-			t.Errorf("Marshal() = %v", got)
+			t.Errorf("Marshal() = %0X", got)
+		}
+	})
+	t.Run("map null", func(t *testing.T) {
+		type ms struct {
+			key *string
+		}
+		m := ms{nil}
+		got, _ := Marshal(m)
+		if !reflect.DeepEqual(got, []byte("\x51\x01\x31\x03key\x70")) {
+			t.Errorf("Marshal() = %0X", got)
+		}
+	})
+	t.Run("map time", func(t *testing.T) {
+		type ms struct {
+			key time.Duration
+		}
+		m := ms{0}
+		got, _ := Marshal(m)
+		if !reflect.DeepEqual(got, []byte("\x51\x01\x31\x03key\x11\x00")) {
+			t.Errorf("Marshal() = %0X", got)
 		}
 	})
 }
@@ -330,7 +353,30 @@ func TestUnmarshal(t *testing.T) {
 		var val reqSubscribe
 		want := reqSubscribe{2, true, 0}
 		wantErr := false
-		err := Unmarshal([]byte("Q\x021\x03evt\x11\x021\x03act!"), &val)
+		err := Unmarshal([]byte("\x51\x02\x31\x03evt\x11\x02\x31\x03act\x21"), &val)
+		if (err != nil) != wantErr {
+			t.Errorf("Marshal() error = %v, wantErr %v", err, wantErr)
+			return
+		}
+		if !reflect.DeepEqual(val, want) {
+			t.Errorf("Marshal() = %v, want %v", val, want)
+		}
+	})
+	t.Run("struct null", func(t *testing.T) {
+		type reqSubscribe struct {
+			Evt int   `jp:"evt"`
+			Act *bool `jp:"act"`
+			Sub *int  `jp:"sub,omitempty"`
+			Cmd *int  `jp:"cmd"`
+		}
+		var (
+			val reqSubscribe
+			i   int = 1
+		)
+
+		want := reqSubscribe{2, nil, nil, &i}
+		wantErr := false
+		err := Unmarshal([]byte("\x51\x03\x31\x03evt\x11\x02\x31\x03act\x70\x31\x03cmd\x11\x01"), &val)
 		if (err != nil) != wantErr {
 			t.Errorf("Marshal() error = %v, wantErr %v", err, wantErr)
 			return

@@ -27,7 +27,7 @@ func apiLinePipeLineInfo(c *websockets.WSConnection, req Requester, log *zap.Log
 
 	nl := speaker.FindLineByID(speaker.LineID(p.ID))
 	if nl == nil {
-		return nil, fmt.Errorf("add new line faild")
+		return nil, fmt.Errorf("line %d not exists", p.ID)
 	}
 
 	pl, ok := nl.Input.PipeLine.(*pipeline.PipeLine)

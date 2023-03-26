@@ -5,16 +5,14 @@ import (
 	"time"
 
 	"github.com/zwcway/castserver-go/common/bus"
+	"github.com/zwcway/castserver-go/common/config"
 	"github.com/zwcway/castserver-go/common/protocol"
 	"github.com/zwcway/castserver-go/common/speaker"
-	config "github.com/zwcway/castserver-go/config"
-	utils "github.com/zwcway/castserver-go/utils"
+	"github.com/zwcway/castserver-go/common/utils"
 	"go.uber.org/zap"
 )
 
-var queueList []chan speaker.QueueData
-var queueIndex int = 0
-
+// 创建数据连接
 func Connect(sp *speaker.Speaker) error {
 	if sp.Conn != nil {
 		return nil
@@ -39,16 +37,11 @@ func Connect(sp *speaker.Speaker) error {
 	sp.ConnTime = time.Now()
 	log.Info("connect speaker success", zap.Time("conn", sp.ConnTime))
 
-	// 将设备添加到发送队列中
-	if len(queueList) == queueIndex {
-		queueIndex = 0
-	}
-	sp.Queue = queueList[queueIndex]
-	queueIndex++
+	refreshPushQueue(sp, 0)
 
 	go receiveSpeakerRoutine(sp)
 
-	bus.Trigger("speaker connected", sp)
+	bus.Dispatch("speaker connected", sp)
 
 	return nil
 }
@@ -57,13 +50,13 @@ func Disconnect(sp *speaker.Speaker) error {
 	if sp == nil || sp.Conn == nil {
 		return nil
 	}
-
+	close(sp.Queue)
 	sp.Queue = nil
 	// 关闭连接
 	sp.Conn.Close()
 	sp.Conn = nil
 
-	bus.Trigger("speaker disconnected", sp)
+	bus.Dispatch("speaker disconnected", sp)
 
 	return nil
 }

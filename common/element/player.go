@@ -3,7 +3,7 @@ package element
 import (
 	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/stream"
-	"github.com/zwcway/castserver-go/utils"
+	"github.com/zwcway/castserver-go/common/utils"
 )
 
 type playerStreamer struct {

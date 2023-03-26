@@ -1,12 +1,13 @@
 package detector
 
 import (
+	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/bus"
+	"github.com/zwcway/castserver-go/common/config"
 	"github.com/zwcway/castserver-go/common/speaker"
-	"github.com/zwcway/castserver-go/config"
+	"github.com/zwcway/castserver-go/common/utils"
 	"github.com/zwcway/castserver-go/control"
 	"github.com/zwcway/castserver-go/pusher"
-	"github.com/zwcway/castserver-go/utils"
 
 	"go.uber.org/zap"
 )
@@ -15,14 +16,17 @@ func initSpeaker(sp *speaker.Speaker, res *SpeakerResponse) {
 	sp.Name = res.MAC.String()
 	sp.Config.RateMask = res.RateMask
 	sp.Config.BitsMask = res.BitsMask
-	sp.Config.Dport = res.DataPort
-	sp.Config.MAC = res.MAC
-	sp.Config.SetIP(res.Addr)
 	sp.Config.AbsoluteVol = res.AbsoluteVol
 	sp.Config.PowerSave = res.PowerSave
-	sp.Rate = control.DefaultRate()
-	sp.Bits = control.DefaultBits()
+	sp.Dport = res.DataPort
+	sp.Mac = res.MAC.String()
+	sp.SetIP(res.Addr)
+	sp.SetFormat(audio.Format{
+		SampleRate: control.DefaultRate(),
+		SampleBits: control.DefaultBits(),
+	})
 	sp.ConnTime = utils.ZeroTime
+	sp.Save()
 }
 
 func isSupport(res *SpeakerResponse) bool {
@@ -46,7 +50,6 @@ func updateSpeaker(sp *speaker.Speaker, support bool, res *SpeakerResponse, isFi
 	}
 
 	sp.CheckOnline()
-	pusher.Connect(sp)
 
 	if isFirstConn {
 		if !support {
@@ -56,7 +59,6 @@ func updateSpeaker(sp *speaker.Speaker, support bool, res *SpeakerResponse, isFi
 		ResponseServerInfo(sp)
 	}
 
-	control.ControlSample(sp)
 	return nil
 }
 
@@ -78,7 +80,7 @@ func CheckSpeaker(res *SpeakerResponse) (err error) {
 		err := updateSpeaker(sp, support, res, isFirstConn)
 
 		if !isOnline {
-			bus.Trigger("speaker online", sp)
+			bus.Dispatch("speaker online", sp)
 		}
 
 		return err
@@ -93,7 +95,7 @@ func CheckSpeaker(res *SpeakerResponse) (err error) {
 	err = updateSpeaker(sp, support, res, true)
 	log.Info("found a new speaker " + sp.String())
 
-	bus.Trigger("speaker detected", sp)
+	bus.Dispatch("speaker detected", sp)
 
 	if err != nil {
 		return err

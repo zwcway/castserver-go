@@ -8,7 +8,8 @@ import (
 	"path/filepath"
 
 	"github.com/zwcway/castserver-go/common/audio"
-	"github.com/zwcway/fasthttp-upnp/utils"
+	upnputils "github.com/zwcway/fasthttp-upnp/utils"
+	"gorm.io/gorm"
 )
 
 type Interface struct {
@@ -39,7 +40,7 @@ var (
 		AddrPort: netip.AddrPortFrom(netip.MustParseAddr("0.0.0.0"), MulticastPort),
 	}
 
-	SpeakerDir string = "speakers/"
+	DB *gorm.DB
 
 	ReadBufferSize  int = 1024
 	ReadQueueSize   int = 512
@@ -116,7 +117,7 @@ func TemporayFile(file string) string {
 	// }
 	ext := filepath.Ext(file)
 
-	return filepath.Join(ReceiveTempDir, utils.MakeUUID(file)+ext)
+	return filepath.Join(ReceiveTempDir, upnputils.MakeUUID(file)+ext)
 }
 
 const (

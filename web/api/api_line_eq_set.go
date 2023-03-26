@@ -12,6 +12,7 @@ import (
 
 type requestLineEQ struct {
 	ID        uint8   `jp:"id"`
+	Seg       uint8   `jp:"seg"`
 	Frequency int     `jp:"freq"`
 	Gain      float32 `jp:"gain"`
 }
@@ -25,31 +26,32 @@ func apiLineSetEqualizer(c *websockets.WSConnection, req Requester, log *zap.Log
 	if !dsp.IsFrequencyValid(p.Frequency) {
 		return nil, fmt.Errorf("frequency invalid")
 	}
+	if p.Seg > dsp.FEQ_MAX_SIZE {
+		return nil, fmt.Errorf("seg invalid")
+	}
 
 	nl := speaker.FindLineByID(speaker.LineID(p.ID))
 	if nl == nil {
 		return nil, fmt.Errorf("line[%d] not exists", p.ID)
 	}
 
-	eqs := nl.Equalizer.Equalizer()
-	changed := false
-	for i := 0; i < len(eqs); i++ {
-		if eqs[i].Frequency == int(p.Frequency) {
-			eqs[i].Gain = float64(p.Gain)
-			changed = true
-			break
-		}
+	eq := nl.Equalizer()
+
+	if len(eq.FEQ) != int(p.Seg) {
+		eq.Clear(p.Seg)
 	}
-	if changed {
-		nl.Equalizer.SetEqualizer(eqs)
-	} else {
-		nl.Equalizer.Add(p.Frequency, float64(p.Gain), 0)
+
+	eq.AddFIR(p.Frequency, float64(p.Gain), 0)
+
+	if err = nl.SetEqualizer(eq); err != nil {
+		return nil, err
 	}
-	on := nl.Equalizer.IsOn()
-	nl.Equalizer.On()
+
+	on := nl.EqualizerEle.IsOn()
+	nl.EqualizerEle.On()
 
 	if !on {
-		bus.Trigger("line equalizer power", nl, true)
+		bus.Dispatch("line eq power", nl, true)
 	}
 
 	return websockets.NewResponseEqualizer(nl), nil

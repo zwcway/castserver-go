@@ -1,18 +1,18 @@
 package speaker
 
-type LineID uint8
+type LineID = uint8
 
 const LineID_MAX LineID = (1 << 8) - 1
 
-type ID uint32
+type SpeakerID = uint32
 
-const ID_MAX ID = (1 << 32) - 1
+const SpeakerID_MAX SpeakerID = (1 << 32) - 1
 
-var DefaultLineID LineID = 0
-var maxLineID LineID = 0
-var maxSpeakerID ID = 1
+var DefaultLineID LineID = 1
+var maxLineID LineID = 1
+var maxSpeakerID SpeakerID = 1
 
-type Model uint8
+type Model = uint8
 
 const (
 	Model_UNICAST   Model = 0
@@ -29,10 +29,6 @@ const (
 	State_DELETED    State = 0x80000000
 )
 
-func (id *ID) IsValid() bool {
-	return true
-}
-
 type Statistic struct {
 	Queue uint32 // 队列中数据量
 	Spend uint64 // 已经发送的数据量
@@ -40,4 +36,4 @@ type Statistic struct {
 	Error uint32
 }
 
-type PowerState uint8
+type PowerState = uint8

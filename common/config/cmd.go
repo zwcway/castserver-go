@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	utils "github.com/zwcway/castserver-go/utils"
+	utils "github.com/zwcway/castserver-go/common/utils"
 
 	"github.com/jedib0t/go-pretty/table"
 	gap "github.com/muesli/go-app-paths"
