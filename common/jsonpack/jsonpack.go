@@ -5,11 +5,11 @@ import (
 )
 
 func Marshal(v any) ([]byte, error) {
-	e := Encoder{}
+	e := Encoder{buf: make([]byte, 512)}
 
 	err := e.reflectValue(reflect.ValueOf(v), "")
 
-	return e, err
+	return e.buf[:e.pos], err
 }
 
 func Unmarshal(b []byte, v any) error {

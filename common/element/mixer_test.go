@@ -26,6 +26,8 @@ func (m *mixer1) Stream(samples *stream.Samples) {
 }
 
 func TestMixer(t *testing.T) {
+	t.Parallel()
+
 	format := audio.Format{
 		SampleRate: audio.AudioRate_44100,
 		Layout:     audio.ChannelLayout10,

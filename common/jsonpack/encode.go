@@ -7,16 +7,43 @@ import (
 	"strings"
 )
 
-type Encoder []byte
+type Encoder struct {
+	buf []byte
+	pos int
+}
+
+func (j *Encoder) write(bytes ...byte) {
+	j.writeBytes(bytes)
+}
+
+func (j *Encoder) writeBytes(bytes []byte) {
+	l := j.pos + len(bytes) - len(j.buf)
+	if l > 0 {
+		ob := j.buf
+		j.buf = make([]byte, len(j.buf)*2+l)
+		copy(j.buf, ob)
+	}
+	for _, b := range bytes {
+		j.buf[j.pos] = b
+		j.pos++
+	}
+}
 
 func (j *Encoder) intSize(val uint64) uint8 {
+	// 对于 number 类型，第4位表示负数，因此最多7个字节
 	if val <= 0xff {
 		return 1
-	} else if val <= 0xffff {
+	} else if val <= 0xff_ff {
 		return 2
-	} else if val <= 0xffffffff {
+	} else if val <= 0xff_ff_ff {
+		return 3
+	} else if val <= 0xff_ff_ff_ff {
 		return 4
-	} else if val <= 0xffffffffffffff {
+	} else if val <= 0xff_ff_ff_ff_ff {
+		return 5
+	} else if val <= 0xff_ff_ff_ff_ff_ff {
+		return 6
+	} else if val <= 0xff_ff_ff_ff_ff_ff_ff {
 		return 7
 	} else {
 		return 0
@@ -24,19 +51,22 @@ func (j *Encoder) intSize(val uint64) uint8 {
 }
 
 func (j *Encoder) writeType(t uint8, size uint8) {
-	*j = append(*j, byte((t<<4)&0xF0|size&0x0F))
+	j.write(byte((t<<4)&0xF0 | size&0x0F))
 }
 
 func (j *Encoder) writeInteger(v uint32, size uint8) {
 	switch size & 0x07 {
 	case 1:
-		*j = append(*j, byte(v))
+		j.write(byte(v))
 	case 2:
-		*j = append(*j, byte(v), byte(v>>8))
+		j.write(byte(v), byte(v>>8))
+	case 3:
+		j.write(byte(v), byte(v>>8), byte(v>>16))
 	case 4:
-		*j = append(*j, byte(v), byte(v>>8), byte(v>>16), byte(v>>24))
+		j.write(byte(v), byte(v>>8), byte(v>>16), byte(v>>24))
 	}
 }
+
 func (j *Encoder) writeFloat(t float32) {
 	bits := math.Float32bits(t)
 	j.writeInteger(bits, 4)
@@ -131,7 +161,7 @@ func (j *Encoder) EncodeBinary(val []byte) {
 	size := j.intSize(uint64(len))
 	j.writeType(JSONPACK_STRING, size)
 	j.writeInteger(len, size)
-	*j = append(*j, val...)
+	j.writeBytes(val)
 }
 
 func (j *Encoder) EncodeArray(len uint32) {

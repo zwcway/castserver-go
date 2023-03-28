@@ -2,8 +2,9 @@
   "recursive": true,
   "extension": ["js"],
   "require": [
-    "esm",
     "@babel/register",
+    "tests/mocha.env.js",
+    "esm",
     "jsdom"
   ],
   "reporter": "mocha-junit-reporter",

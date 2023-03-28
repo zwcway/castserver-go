@@ -1,22 +1,20 @@
 package config
 
 import (
-	"net"
 	"testing"
 
 	"github.com/go-ini/ini"
 	"github.com/zwcway/castserver-go/common/audio"
+	"github.com/zwcway/castserver-go/common/utils"
 	"go.uber.org/zap"
 )
 
 func TestSetKey(t *testing.T) {
+	t.Parallel()
+
 	log := zap.NewNop()
 
-	ifaces, err := net.Interfaces()
-	if err != nil || len(ifaces) == 0 {
-		t.Error(err)
-		return
-	}
+	iface := utils.DefaultInterface()
 
 	tests := []struct {
 		name    string
@@ -24,17 +22,17 @@ func TestSetKey(t *testing.T) {
 		test    func() bool
 		wantErr bool
 	}{
-		{"detect listen interface", "[detect]\nlisten: " + ifaces[0].Name, func() bool {
-			return ServerListen.Iface != nil && ServerListen.Iface.Name == ifaces[0].Name
+		{"detect listen interface", "[detect]\nlisten: " + iface.Name, func() bool {
+			return ServerListen.Iface != nil && ServerListen.Iface.Name == iface.Name
 		}, false},
-		{"http listen interface", "[http]\nlisten: " + ifaces[0].Name, func() bool {
-			return HTTPListen.Iface != nil && HTTPListen.Iface.Name == ifaces[0].Name
+		{"http listen interface", "[http]\nlisten: " + iface.Name, func() bool {
+			return HTTPListen.Iface != nil && HTTPListen.Iface.Name == iface.Name
 		}, false},
-		{"receive listen interface", "[receive]\nlisten: " + ifaces[0].Name, func() bool {
-			return ReceiveListen.Iface != nil && ReceiveListen.Iface.Name == ifaces[0].Name
+		{"receive listen interface", "[receive]\nlisten: " + iface.Name, func() bool {
+			return ReceiveListen.Iface != nil && ReceiveListen.Iface.Name == iface.Name
 		}, false},
-		{"dlna listen interface", "[dlna]\nlisten: " + ifaces[0].Name, func() bool {
-			return DLNAListen.Iface != nil && DLNAListen.Iface.Name == ifaces[0].Name
+		{"dlna listen interface", "[dlna]\nlisten: " + iface.Name, func() bool {
+			return DLNAListen.Iface != nil && DLNAListen.Iface.Name == iface.Name
 		}, false},
 		{"detect listen addr", "[detect]\nlisten: 0.0.0.0", func() bool {
 			return ServerListen.Iface == nil && ServerListen.AddrPort.String() == "0.0.0.0:4414"

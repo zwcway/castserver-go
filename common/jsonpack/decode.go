@@ -35,7 +35,7 @@ func (d *Decoder) readType() (uint8, uint8, error) {
 	return t, s, err
 }
 func (d *Decoder) readInt32(s uint8) (uint32, error) {
-	if len(d.d) < int(d.pos)+1 {
+	if len(d.d) < int(d.pos)+int(s) {
 		return 0, &endError{}
 	}
 	s &= 0x07
@@ -48,8 +48,10 @@ func (d *Decoder) readInt32(s uint8) (uint32, error) {
 		return uint32(i[0]), nil
 	case 2:
 		return (uint32(i[0])) | (uint32(i[1]) << 8), nil
+	case 3:
+		return (uint32(i[0])) | (uint32(i[1]) << 8) | (uint32(i[2]) << 16), nil
 	case 4:
-		return (uint32(i[0])) | (uint32(i[1]) << 8) | (uint32(i[2]) << 16) | (uint32(i[3]) << 24), nil
+		return (uint32(i[0])) | (uint32(i[1]) << 8) | (uint32(i[3]) << 24), nil
 	}
 
 	return 0, &InvalidJsonPackError{d.pos - 1, byte(s), []byte{1, 2, 4}}
@@ -151,11 +153,11 @@ func (d *Decoder) decodeInt64(r reflect.Value, s uint8, f string, skip bool) err
 		neg  bool  = s&0x08 > 0
 	)
 	if size > 4 {
-		il, err := d.readInt32(size)
+		il, err := d.readInt32(4)
 		if err != nil {
 			return err
 		}
-		ih, err := d.readInt32(size)
+		ih, err := d.readInt32(size - 4)
 		if err != nil {
 			return err
 		}
@@ -171,21 +173,63 @@ func (d *Decoder) decodeInt64(r reflect.Value, s uint8, f string, skip bool) err
 		return nil
 	}
 	switch r.Kind() {
-	case reflect.Int8, reflect.Int, reflect.Int16, reflect.Int32, reflect.Int64:
+	case reflect.Int8:
+		if neg {
+			r.SetInt(int64(int8(-i)))
+		} else {
+			r.SetInt(int64(int8(i)))
+		}
+	case reflect.Int, reflect.Int32:
+		if neg {
+			r.SetInt(int64(int32(-i)))
+		} else {
+			r.SetInt(int64(int32(i)))
+		}
+	case reflect.Int16:
+		if neg {
+			r.SetInt(int64(int16(-i)))
+		} else {
+			r.SetInt(int64(int16(i)))
+		}
+	case reflect.Int64:
 		if neg {
 			r.SetInt(-i)
 		} else {
 			r.SetInt(i)
 		}
-	case reflect.Uint8, reflect.Uint, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+	case reflect.Uint8:
+		if neg {
+			r.SetUint(uint64(uint8(-i)))
+		} else {
+			r.SetUint(uint64(uint8(i)))
+		}
+	case reflect.Uint16:
+		if neg {
+			r.SetUint(uint64(uint16(-i)))
+		} else {
+			r.SetUint(uint64(uint16(i)))
+		}
+	case reflect.Uint, reflect.Uint32:
+		if neg {
+			r.SetUint(uint64(uint32(-i)))
+		} else {
+			r.SetUint(uint64(uint32(i)))
+		}
+	case reflect.Uint64:
 		if neg {
 			r.SetUint(uint64(-i))
 		} else {
 			r.SetUint(uint64(i))
 		}
-	case reflect.Float32, reflect.Float64:
+	case reflect.Float32:
 		if neg {
-			r.SetFloat(-float64(i))
+			r.SetFloat(float64(float32(-i)))
+		} else {
+			r.SetFloat(float64(float32(i)))
+		}
+	case reflect.Float64:
+		if neg {
+			r.SetFloat(float64(-i))
 		} else {
 			r.SetFloat(float64(i))
 		}

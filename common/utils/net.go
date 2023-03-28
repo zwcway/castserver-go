@@ -114,11 +114,12 @@ func DefaultAddr() *netip.Addr {
 		return nil
 	}
 
-	for _, ifi := range ifis {
-		if !CheckInterface(&ifi) {
+	for i := 0; i < len(ifis); i++ {
+		ifi := &ifis[i]
+		if !CheckInterface(ifi) {
 			continue
 		}
-		addrs := InterfaceAddrs(&ifi, nil)
+		addrs := InterfaceAddrs(ifi, nil)
 		if addrs == nil {
 			continue
 		}
@@ -127,6 +128,33 @@ func DefaultAddr() *netip.Addr {
 		}
 	}
 
+	return nil
+}
+
+func DefaultInterface() *net.Interface {
+	ifis, err := net.Interfaces()
+	if err != nil {
+		return nil
+	}
+	addr := DefaultAddr()
+	if addr == nil {
+		return nil
+	}
+	for i := 0; i < len(ifis); i++ {
+		ifi := &ifis[i]
+		if !CheckInterface(ifi) {
+			continue
+		}
+		addrs := InterfaceAddrs(ifi, nil)
+		if addrs == nil {
+			continue
+		}
+		for _, addr := range addrs {
+			if addr.IP.Equal(addr.IP) {
+				return ifi
+			}
+		}
+	}
 	return nil
 }
 
@@ -150,20 +178,20 @@ func Interfaces() []*net.Interface {
 		return list
 	}
 
-	for _, ifi := range ifis {
-		if !CheckInterface(&ifi) {
+	for i := 0; i < len(ifis); i++ {
+		ifi := &ifis[i]
+		if !CheckInterface(ifi) {
 			continue
 		}
-		addrs := InterfaceAddrs(&ifi, nil)
+		addrs := InterfaceAddrs(ifi, nil)
 		if addrs == nil {
 			continue
 		}
-		addrStr := []string{}
-		for _, addr := range addrs {
-			addrStr = append(addrStr, addr.String())
-		}
-		ifiNew := ifi
-		list = append(list, &ifiNew)
+		// addrStr := make([]string, len(addrs))
+		// for i, addr := range addrs {
+		// 	addrStr[i] = addr.String()
+		// }
+		list = append(list, ifi)
 	}
 
 	return list

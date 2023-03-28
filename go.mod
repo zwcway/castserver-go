@@ -10,12 +10,12 @@ require (
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/muesli/go-app-paths v0.2.2
 	github.com/pkg/errors v0.9.1
+	github.com/stretchr/testify v1.8.2
 	github.com/valyala/fasthttp v1.44.0
 	github.com/zwcway/fasthttp-upnp v0.0.0-20230327113116-cfeb3e90ec00
 	go.uber.org/zap v1.24.0
 	golang.org/x/exp v0.0.0-20230303215020-44a13b063f3e
 	golang.org/x/net v0.8.0
-	golang.org/x/text v0.8.0
 	gorm.io/driver/mysql v1.4.7
 	gorm.io/driver/postgres v1.5.0
 	gorm.io/driver/sqlite v1.4.4
@@ -26,6 +26,7 @@ require (
 require (
 	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20200907205600-7a23bdc65eef // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-openapi/errors v0.20.2 // indirect
 	github.com/go-openapi/strfmt v0.21.3 // indirect
 	github.com/go-sql-driver/mysql v1.7.0 // indirect
@@ -43,6 +44,7 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.3.3 // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/savsgio/gotils v0.0.0-20220530130905-52f3993e8d6d // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	go.mongodb.org/mongo-driver v1.10.0 // indirect
@@ -50,6 +52,8 @@ require (
 	go.uber.org/multierr v1.6.0 // indirect
 	golang.org/x/crypto v0.7.0 // indirect
 	golang.org/x/sys v0.6.0 // indirect
+	golang.org/x/text v0.8.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
 replace github.com/zwcway/castserver-go => ./
