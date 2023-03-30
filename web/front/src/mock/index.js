@@ -64,7 +64,7 @@ Socket.addBeforeSend('speakerInfo', params => {
       name: "@ctitle",
     },
     'rateList|0-5': [44100, 48000, 96000],
-    'bitsList|0-5': [8, 16, 24, 32],
+    'bitsList|0-5': ['8', '16', '24', '32'],
   });
 });
 Socket.addBeforeSend('speakerVolume', params => { });
@@ -78,7 +78,7 @@ Socket.addBeforeSend('linePlayer', params => { return {} });
 Socket.addBeforeSend('lineList', function () {
   return nomarlTpl(
     {
-      'id|+1': 0,
+      'id|+1': 1,
       name: '@ctitle',
       vol: '@integer(0,100)',
       mute: '@boolean',
@@ -123,6 +123,10 @@ Socket.addBeforeSend('lineInfo', function (params) {
 Socket.addBeforeSend('debugStatus', (p) => {
   return mock.mock({
     local: '@boolean',
+    eles:[],
+    fplay: '@boolean',
+    furl: '@path',
+    sl: '@boolean',
   })
 })
 function splevelmeter(receiver) {

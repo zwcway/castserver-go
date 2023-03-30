@@ -3,7 +3,6 @@ package config
 import (
 	"fmt"
 	"io"
-	"net"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -132,10 +131,10 @@ func parseRates(cfg reflect.Value, k *ini.Key, ck *CfgKey) {
 }
 
 func parsePath(cfg reflect.Value, k *ini.Key, ck *CfgKey) {
-	path := ""
-	if k != nil {
-		path = k.String()
+	if k == nil {
+		return
 	}
+	path := k.String()
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		log.Error("path not exists", lg.String("path", path), lg.String("key", ck.Key))
 	} else {
@@ -215,7 +214,7 @@ func FromContent(ctx utils.Context, data []byte) error {
 		section := c.Section(cs.Name)
 
 		for _, ck := range cs.Keys {
-			setKey(section, &ck)
+			ck.setKey(section)
 		}
 	}
 
@@ -227,179 +226,6 @@ func FromContent(ctx utils.Context, data []byte) error {
 	MulticastPort = 4414
 
 	return nil
-}
-
-func setKey(section *ini.Section, ck *CfgKey) {
-	key, _ := section.GetKey(ck.Key)
-
-	isNil := ck.Cfg == nil
-
-	cfgrv := reflect.ValueOf(ck.Cfg)
-
-	if !isNil && cfgrv.Kind() != reflect.Pointer {
-		panic(fmt.Errorf("the '%s' must be a pointer", reflect.TypeOf(ck.Cfg).Name()))
-	}
-
-	if !isNil {
-		cfgrv = cfgrv.Elem()
-	}
-
-	// Clear(cfgrv)
-
-	if ck.cb != nil {
-		ck.cb(cfgrv, key, ck)
-		return
-	}
-
-	if isNil {
-		return
-	}
-
-	switch cfgrv.Kind() {
-	case reflect.String:
-		setReflectString(key, cfgrv, ck)
-	case reflect.Int32, reflect.Int, reflect.Int16, reflect.Int8, reflect.Int64:
-		setReflectInt(key, cfgrv, ck)
-	case reflect.Uint, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint8:
-		setReflectUInt(key, cfgrv, ck)
-	case reflect.Bool:
-		setReflectBool(key, cfgrv, ck)
-	case reflect.Struct:
-		setReflectStruct(key, cfgrv, ck)
-	case reflect.Slice:
-		setReflectSlice(key, cfgrv, ck)
-	}
-}
-
-func setReflectString(key *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
-	if key != nil {
-		i := key.String()
-		if key == nil || len(key.String()) == 0 {
-			log.Error("value empty", lg.String("key", ck.Key), lg.String("val", key.String()))
-			return
-		}
-		cfgrv.SetString(i)
-	}
-}
-
-func setReflectInt(key *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
-	if key != nil {
-		if len(key.String()) == 0 {
-			log.Error("value empty", lg.String("key", ck.Key), lg.String("val", key.String()))
-		} else if ki, err := key.Int(); err != nil {
-			log.Error("value invalid", lg.String("key", ck.Key), lg.String("val", key.String()))
-			cfgrv.SetInt(int64(ki))
-		}
-	}
-}
-
-func setReflectUInt(key *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
-	if key != nil {
-		if len(key.String()) == 0 {
-			log.Error("value empty", lg.String("key", ck.Key), lg.String("val", key.String()))
-		} else if ki, err := key.Uint(); err != nil {
-			log.Error("value invalid", lg.String("key", ck.Key), lg.String("val", key.String()))
-			cfgrv.SetUint(uint64(ki))
-		}
-	}
-}
-
-func setReflectBool(key *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
-	if key != nil {
-		if len(key.String()) == 0 {
-			log.Error("value empty", lg.String("key", ck.Key), lg.String("val", key.String()))
-		} else if ki, err := key.Bool(); err != nil {
-			log.Error("value invalid", lg.String("key", ck.Key), lg.String("val", key.String()))
-			cfgrv.SetBool(ki)
-		}
-	}
-}
-
-func setReflectStruct(key *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
-	var keyV string
-	isEmpty := key != nil && len(key.String()) == 0
-
-	if key != nil {
-		keyV = key.String()
-	}
-	if isEmpty {
-		log.Error("value empty", lg.String("key", ck.Key), lg.String("val", key.String()))
-	}
-
-	if cfgrv.Kind() == reflect.Pointer {
-		cfgrv = cfgrv.Elem()
-	}
-
-	as := cfgrv.Type().AssignableTo
-
-	if as(reflect.TypeOf((*Interface)(nil)).Elem()) {
-		ls := cfgrv.Interface().(Interface)
-		port := ls.AddrPort.Port()
-		val := ""
-		if key != nil {
-			val = key.String()
-		}
-		parseListen(cfgrv, val, uint16(port))
-	} else if as(reflect.TypeOf((*net.Interface)(nil)).Elem()) {
-		if len(keyV) == 0 {
-			cfgrv.Set(reflect.Zero(cfgrv.Type()))
-			return
-		}
-		ifi := utils.InterfaceByName(keyV)
-		if ifi == nil {
-			log.Error("this is not a interface name", lg.String("name", keyV))
-		}
-		cfgrv.Set(reflect.ValueOf(ifi))
-	}
-}
-
-func setReflectSlice(key *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
-	isEmpty := key != nil && len(key.String()) == 0
-
-	if isEmpty {
-		log.Error("value empty", lg.String("key", ck.Key), lg.String("val", key.String()))
-	}
-	elemRT := cfgrv.Type().Elem()
-	as := elemRT.AssignableTo
-
-	if as(reflect.PointerTo(reflect.TypeOf((*net.IPNet)(nil)).Elem())) {
-		setReflectSliceIPNet(key, cfgrv, ck)
-	}
-}
-
-func setReflectSliceIPNet(key *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
-	var keyV string
-	elemRT := cfgrv.Type().Elem()
-	if key != nil {
-		keyV = key.String()
-	}
-	if len(keyV) == 0 {
-		cfgrv.Set(reflect.Zero(cfgrv.Type()))
-		return
-	}
-	keyList := strings.FieldsFunc(keyV, func(r rune) bool {
-		return r == ' ' || r == SEP
-	})
-	for _, ipstr := range keyList {
-		_, ipnet, err := net.ParseCIDR(ipstr)
-		if err != nil {
-			ip := net.ParseIP(ipstr)
-			if ip == nil {
-				log.Error("ip invalid", lg.String("key", ck.Key), lg.String("val", key.String()))
-				return
-			}
-			var m net.IPMask
-			if strings.ContainsRune(ipstr, '.') {
-				m = net.CIDRMask(32, 8*net.IPv4len)
-			} else {
-				m = net.CIDRMask(128, 8*net.IPv6len)
-			}
-			ipnet = &net.IPNet{IP: ip.Mask(m), Mask: m}
-		}
-		ele := reflect.New(elemRT.Elem())
-		ele.Elem().Set(reflect.ValueOf(ipnet).Elem())
-		cfgrv.Set(reflect.Append(cfgrv, ele))
-	}
 }
 
 func configToString(cr reflect.Value) (val string, tn string) {

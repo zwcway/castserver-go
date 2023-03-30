@@ -1,4 +1,4 @@
-package element
+package decoder
 
 import (
 	"github.com/zwcway/castserver-go/common/audio"
@@ -27,7 +27,7 @@ func (r *Resample) Stream(samples *stream.Samples) {
 	if !r.power || !r.format.IsValid() {
 		return
 	}
-	if samples.Format.Equal(&r.format) {
+	if samples.Format.Equal(r.format) {
 		return
 	}
 

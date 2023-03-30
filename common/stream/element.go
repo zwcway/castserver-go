@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/zwcway/castserver-go/common/audio"
+	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/dsp"
 )
 
@@ -42,13 +43,21 @@ type VolumeElement interface {
 
 type MixerElement interface {
 	Element
+	bus.Eventer
 
 	Len() int
-	Del(Streamer)
-	Has(Streamer) bool
-	Add(...Streamer)
-	PreAdd(...Streamer)
+	Del(SourceStreamer)
+	Has(SourceStreamer) bool
+	Add(...SourceStreamer)
 	Clear()
+
+	// 是否开启转码。
+	// 如果开启转码，SetFormat 将作用于转码器
+	// 否则通知 SourceStreamer 自己转码
+	SetResample(bool)
+
+	SetFormat(audio.Format) // 设置输出格式
+	Format() audio.Format   // 获取输出格式
 
 	Buffer() *Samples
 }
@@ -63,11 +72,10 @@ type ChannelMixerElement interface {
 // 播放临时 pcm 格式
 type RawPlayerElement interface {
 	Element
+	SourceStreamer
 
-	Add(audio.Format, []byte)
-	AddToChannel(audio.Channel, audio.Format, []byte)
-	Len() int
-	IsIdle() bool
+	SetPCM(audio.Format, []byte)
+	SetPCMWithChannel(audio.Channel, audio.Format, []byte)
 }
 
 type ResampleElement interface {

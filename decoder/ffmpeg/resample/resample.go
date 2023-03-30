@@ -26,7 +26,7 @@ type Resample struct {
 }
 
 func (r *Resample) SetIn(ifmt audio.Format) error {
-	if ifmt.Equal(&r.inFormat) {
+	if ifmt.Equal(r.inFormat) {
 		return nil
 	}
 	r.inFormat = ifmt
@@ -35,7 +35,7 @@ func (r *Resample) SetIn(ifmt audio.Format) error {
 }
 
 func (r *Resample) SetOut(ofmt audio.Format) error {
-	if ofmt.Equal(&r.outFormat) {
+	if ofmt.Equal(r.outFormat) {
 		return nil
 	}
 	r.outFormat = ofmt
@@ -53,12 +53,12 @@ func (r *Resample) init() error {
 	if !r.inFormat.IsValid() || !r.outFormat.IsValid() {
 		return errors.New("set format first")
 	}
-	avInLayout := avutil.AVLayoutFromChannelLayout(r.inFormat.Layout)
-	avOutLayout := avutil.AVLayoutFromChannelLayout(r.outFormat.Layout)
+	avInLayout := avutil.AVLayoutFromLayout(r.inFormat.Layout)
+	avOutLayout := avutil.AVLayoutFromLayout(r.outFormat.Layout)
 
 	ret := C.go_swr_init(&r.swrCtx,
-		C.int(r.inFormat.SampleRate.ToInt()), C.int64_t(avInLayout), avutil.AVFormatFromBits(r.inFormat.SampleBits),
-		C.int(r.outFormat.SampleRate.ToInt()), C.int64_t(avOutLayout), avutil.AVFormatFromBits(r.outFormat.SampleBits))
+		C.int(r.inFormat.Rate.ToInt()), C.int64_t(avInLayout), avutil.AVFormatFromBits(r.inFormat.Bits),
+		C.int(r.outFormat.Rate.ToInt()), C.int64_t(avOutLayout), avutil.AVFormatFromBits(r.outFormat.Bits))
 
 	if ret < 0 {
 		r.Close()
@@ -75,7 +75,7 @@ func (r *Resample) Close() {
 }
 
 func bufferSize(samplesPerChannel int, format *audio.Format) int {
-	return format.Layout.Count * samplesPerChannel * format.SampleBits.Size()
+	return int(format.Count) * samplesPerChannel * format.Bits.Size()
 }
 
 func (r *Resample) Stream(samples *stream.Samples) error {
@@ -99,7 +99,7 @@ func (r *Resample) Stream(samples *stream.Samples) error {
 
 	// 复制Go内存至C内存
 	samples.CopyToCBytes(unsafe.Pointer(r.swrCtx.in_buffer), 0,
-		r.inFormat.Layout.Count, samples.LastSamplesSize())
+		int(r.inFormat.Count), samples.LastSamplesSize())
 
 	// inBuffer 与 outBuffer 都是二维数组，uint8_t**
 	ret = C.go_convert(r.swrCtx, C.int(samples.LastNbSamples))
@@ -109,11 +109,13 @@ func (r *Resample) Stream(samples *stream.Samples) error {
 		return samples.LastErr
 	}
 
-	samples.ResizeSamplesOrNot(int(ret), r.outFormat)
+	// 确保有足够空间存储
+	samples.Resize(int(ret), r.outFormat)
 	samples.LastNbSamples = int(ret)
+	samples.Format = r.outFormat
 
 	// 复制C内存至Go内存
-	samples.CopyFromCBytes(unsafe.Pointer(r.swrCtx.out_buffer), r.outFormat.Layout.Count, int(ret), 0, 0)
+	samples.CopyFromCBytes(unsafe.Pointer(r.swrCtx.out_buffer), int(r.outFormat.Count), int(ret), 0, 0)
 
 	return nil
 }

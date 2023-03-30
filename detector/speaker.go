@@ -19,7 +19,7 @@ func initSpeaker(sp *speaker.Speaker, res *SpeakerResponse) {
 	sp.Config.PowerSave = res.PowerSave
 	sp.Dport = res.DataPort
 	sp.Mac = res.MAC.String()
-	// sp.SetFormat(audio.Format{
+	// sp.SetLayout(audio.Format{
 	// 	SampleRate: control.DefaultRate(),
 	// 	SampleBits: control.DefaultBits(),
 	// })

@@ -98,7 +98,7 @@ func TestSetKey(t *testing.T) {
 				return
 			}
 
-			setKey(cSec, ck)
+			ck.setKey(cSec)
 
 			if !tt.test() {
 				t.Errorf("setKey() error")

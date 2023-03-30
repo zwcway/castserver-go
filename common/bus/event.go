@@ -10,19 +10,19 @@ import (
 )
 
 var log lg.Logger
-var list = make(map[string][]*handlerData)
-var queue = make(chan *handlerData, 10)
+var list = make(map[string][]*HandlerData)
+var queue = make(chan *HandlerData, 10)
 
-func Register(e string, c Handler) (hd *handlerData) {
+func Register(e string, c Handler) (hd *HandlerData) {
 	if c == nil {
 		panic(fmt.Errorf("callback can not nil for event(%s)", e))
 	}
 
 	if _, ok := list[e]; !ok {
-		list[e] = make([]*handlerData, 0)
+		list[e] = make([]*HandlerData, 0)
 	}
 
-	hd = &handlerData{
+	hd = &HandlerData{
 		e:  e,
 		h:  c,
 		hr: reflect.ValueOf(c).Pointer(),
@@ -32,24 +32,56 @@ func Register(e string, c Handler) (hd *handlerData) {
 	return hd
 }
 
-func Registers(c Handler, es ...string) {
-	for i := 0; i < len(es); i++ {
-		Register(es[i], c)
+func RegisterObj(obj any, e string, c Handler) (hd *HandlerData) {
+	hd = Register(e, c)
+	hd.obj = obj
+	return
+}
+
+func Unregister(e string, c Handler) {
+	if ll, ok := list[e]; ok {
+		cr := reflect.ValueOf(c).Pointer()
+		for _, hd := range ll {
+			if hd.hr == cr {
+				removeHandler(hd)
+				return
+			}
+		}
+	}
+}
+
+func UnregisterObj(obj any) {
+	if obj == nil {
+		return
+	}
+	for e, ll := range list {
+		nl := []*HandlerData{}
+		for _, hd := range ll {
+			if hd.obj != obj {
+				nl = append(nl, hd)
+			}
+		}
+		if len(nl) == 0 {
+			delete(list, e)
+		} else if len(nl) != len(ll) {
+			list[e] = nl
+		}
 	}
 }
 
 func Dispatch(e string, args ...any) error {
-	var err error
+	var (
+		err   error
+		count int = 0
+	)
 
 	if ll, ok := list[e]; ok {
-
-		if len(args) > 0 {
-			log.Debug("dispatch", lg.String("event", e), lg.Int("count", int64(len(ll))), lg.Any("param", args[0]))
-		} else {
-			log.Debug("dispatch", lg.String("event", e), lg.Int("count", int64(len(ll))))
-		}
+		count = len(ll)
 
 		for _, hd := range ll {
+			if hd.obj != nil && len(args) > 0 && hd.obj != args[0] {
+				continue
+			}
 
 			if hd.async {
 				hd = hd.clone()
@@ -74,12 +106,21 @@ func Dispatch(e string, args ...any) error {
 			}
 		}
 	}
+
+	if len(args) > 0 {
+		if s, ok := args[0].(fmt.Stringer); ok {
+			log.Debug("dispatch", lg.String("event", e), lg.Int("count", int64(count)), lg.String("param", s.String()))
+			return err
+		}
+	}
+	log.Debug("dispatch", lg.String("event", e), lg.Int("count", int64(count)))
+
 	return err
 }
 
 // 异步执行
 func eventBusRoutine(ctx utils.Context) {
-	var hd *handlerData
+	var hd *HandlerData
 	for {
 		select {
 		case <-ctx.Done():
@@ -101,7 +142,7 @@ func eventBusRoutine(ctx utils.Context) {
 	}
 }
 
-func removeHandler(h *handlerData) {
+func removeHandler(h *HandlerData) {
 	if h == nil {
 		return
 	}
@@ -110,7 +151,11 @@ func removeHandler(h *handlerData) {
 		if sp.hr == h.hr {
 			s := list[h.e]
 			utils.SliceQuickRemove(&s, i)
-			list[h.e] = s
+			if len(s) == 0 {
+				delete(list, h.e)
+			} else {
+				list[h.e] = s
+			}
 			return
 		}
 	}

@@ -4,6 +4,7 @@
       <SpeakerRow :speaker="sp" :class="sp.__class ? sp.__class : ''" />
     </div>
     <div class="notification is-primary is-light" v-if="speakers.length === 0">
+      <a-empty />
       当前还没有连接任何的扬声器。
     </div>
   </div>

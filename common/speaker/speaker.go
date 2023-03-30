@@ -46,7 +46,6 @@ type Speaker struct {
 
 	Config SpeakerConfig `gorm:"foreignKey:ID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 
-	ConnTime  time.Time
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
@@ -58,14 +57,13 @@ type Speaker struct {
 
 	PipeLine     stream.PipeLiner        `gorm:"-"`
 	MixerEle     stream.MixerElement     `gorm:"-"`
-	PlayerEle    stream.RawPlayerElement `gorm:"-"`
 	VolumeEle    stream.VolumeElement    `gorm:"-"` // 音量
 	SpectrumEle  stream.SpectrumElement  `gorm:"-"`
 	EqualizerEle stream.EqualizerElement `gorm:"-"`
-	ResampleEle  stream.ResampleElement  `gorm:"-"`
 
-	Conn  *net.UDPConn   `gorm:"-"`
-	Queue chan QueueData `gorm:"-"`
+	ConnTime time.Time      `gorm:"-"`
+	Conn     *net.UDPConn   `gorm:"-"`
+	Queue    chan QueueData `gorm:"-"`
 
 	Timeout   int       `gorm:"-"` // 超时计数
 	Statistic Statistic `gorm:"-"`
@@ -77,32 +75,40 @@ func (sp *Speaker) String() string {
 	return fmt.Sprintf("%s(%s/%s)", sp.Name, sp.Ip, sp.Mac)
 }
 
+func (sp *Speaker) SetName(n string) {
+	sp.Name = n
+	bus.Dispatch("speaker edited", sp, "name", n)
+	bus.Dispatch("speaker name changed", sp)
+}
+
 func (sp *Speaker) SetIP(ip netip.Addr) {
 	sp.Ip = ip.String()
 }
 
 func (sp *Speaker) Format() audio.Format {
 	return audio.Format{
-		SampleRate: sp.SampleRate(),
-		SampleBits: sp.SampleBits(),
-		Layout:     sp.Layout(),
+		Sample: audio.Sample{
+			Rate: sp.SampleRate(),
+			Bits: sp.SampleBits(),
+		},
+		Layout: sp.Layout(),
 	}
 }
 func (sp *Speaker) SampleRate() audio.Rate {
-	return audio.NewAudioRate(int(sp.Rate))
+	return audio.Rate(sp.Rate)
 }
 
 func (sp *Speaker) SampleBits() audio.Bits {
-	return audio.NewAudioBits(int(sp.Bits))
+	return audio.Bits(sp.Bits)
 }
 
-func (sp *Speaker) Layout() audio.ChannelLayout {
-	return audio.NewChannelLayout(sp.SampleChannel())
+func (sp *Speaker) Layout() audio.Layout {
+	return audio.NewLayout(sp.SampleChannel())
 }
 
-func (sp *Speaker) SetFormat(f audio.Format) {
-	sp.Rate = uint8(f.SampleRate)
-	sp.Bits = uint8(f.SampleBits)
+func (sp *Speaker) SetSample(f audio.Sample) {
+	sp.Rate = uint8(f.Rate)
+	sp.Bits = uint8(f.Bits)
 	bus.Dispatch("speaker edited", sp, "rate", sp.Rate, "bits", sp.Bits)
 	bus.Dispatch("speaker format changed", sp)
 }
@@ -168,7 +174,8 @@ func (sp *Speaker) UDPAddr() *net.UDPAddr {
 
 func (sp *Speaker) WriteUDP(d []byte) error {
 	if sp.Conn == nil {
-		return fmt.Errorf("speaker %d not connected", sp.ID)
+		// return fmt.Errorf("speaker %d not connected", sp.ID)
+		return nil
 	}
 	n, err := sp.Conn.Write(d)
 	if err != nil {
@@ -219,19 +226,25 @@ func (sp *Speaker) Save() {
 }
 
 func (sp *Speaker) init() {
-	sp.PlayerEle = element.NewPlayer()
-	sp.MixerEle = element.NewMixer(sp.PlayerEle)
+	sp.MixerEle = element.NewMixer()
 	sp.VolumeEle = element.NewVolume(float64(sp.Volume) / 100)
 	sp.SpectrumEle = element.NewSpectrum()
 	sp.EqualizerEle = element.NewEqualizer(nil)
-	sp.ResampleEle = element.NewResample(sp.Format())
 	sp.PipeLine = pipeline.NewPipeLine(sp.Format(),
 		sp.MixerEle,
 		sp.EqualizerEle,
 		sp.SpectrumEle,
 		sp.VolumeEle,
-		sp.ResampleEle,
 	)
+}
+
+func (sp *Speaker) Dispatch(e string, args ...any) error {
+	args = append([]any{sp}, args...)
+	return bus.Dispatch(e, args...)
+}
+
+func (sp *Speaker) Register(e string, c func(a ...any) error) *bus.HandlerData {
+	return bus.RegisterObj(sp, e, c)
 }
 
 func CountSpeaker() int {
@@ -298,6 +311,13 @@ func DelSpeaker(id SpeakerID) error {
 	sp.PipeLine.Close()
 
 	bus.Dispatch("speaker deleted", sp)
+
+	bus.UnregisterObj(sp)
+	bus.UnregisterObj(sp.MixerEle)
+	bus.UnregisterObj(sp.EqualizerEle)
+	bus.UnregisterObj(sp.VolumeEle)
+	bus.UnregisterObj(sp.SpectrumEle)
+	bus.UnregisterObj(sp.PipeLine)
 
 	return nil
 }

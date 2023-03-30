@@ -17,28 +17,38 @@ func (m *mixer1) Stream(samples *stream.Samples) {
 		samples.Data[0][i] = float64(m.i)
 		m.i++
 	}
-	samples.SetFormat(audio.Format{
-		SampleRate: audio.AudioRate_44100,
-		Layout:     audio.ChannelLayout10,
-		SampleBits: audio.Bits_DEFAULT,
-	})
 	samples.LastNbSamples = 8
 }
+func (m mixer1) Close() error { return nil }
+func (m mixer1) AudioFormat() audio.Format {
+	return audio.Format{
+		Sample: audio.Sample{
+			Rate: audio.AudioRate_44100,
+			Bits: audio.Bits_DEFAULT,
+		},
+		Layout: audio.Layout10,
+	}
+}
+func (m mixer1) SetOutFormat(f audio.Format) error { return nil }
+func (m mixer1) CanRemove() bool                   { return false }
+func (m mixer1) IsPlaying() bool                   { return true }
 
 func TestMixer(t *testing.T) {
 	t.Parallel()
 
 	format := audio.Format{
-		SampleRate: audio.AudioRate_44100,
-		Layout:     audio.ChannelLayout10,
-		SampleBits: audio.Bits_DEFAULT,
+		Sample: audio.Sample{
+			Rate: audio.AudioRate_44100,
+			Bits: audio.Bits_DEFAULT,
+		},
+		Layout: audio.Layout10,
 	}
 	result := []float64{0, 2, 4, 6, 8, 10, 12, 14}
 	t.Run("mix size 512 for 8", func(t *testing.T) {
 		mixer := NewMixer(&mixer1{}, &mixer1{})
 		samples := stream.NewSamples(8, format)
 		mixer.Stream(samples)
-		if !slices.Equal(samples.Data[0], result) {
+		if !slices.Equal(samples.Data[0][:8], result) {
 			t.Errorf("mix same error = \n%v\n, want \n%v\n", samples.Data[0], result)
 		}
 	})
@@ -46,7 +56,7 @@ func TestMixer(t *testing.T) {
 		mixer := NewMixer(&mixer1{}, &mixer1{}).(*Mixer)
 		samples := stream.NewSamples(8, format)
 		mixer.Stream(samples)
-		if !slices.Equal(samples.Data[0], result) {
+		if !slices.Equal(samples.Data[0][:8], result) {
 			t.Errorf("mix same error = \n%v\n, want \n%v\n", samples.Data[0], result)
 		}
 	})
@@ -54,7 +64,7 @@ func TestMixer(t *testing.T) {
 		mixer := NewMixer(&mixer1{}, &mixer1{}).(*Mixer)
 		samples := stream.NewSamples(8, format)
 		mixer.Stream(samples)
-		if !slices.Equal(samples.Data[0], result) {
+		if !slices.Equal(samples.Data[0][:8], result) {
 			t.Errorf("mix same error = \n%v\n, want \n%v\n", samples.Data[0], result)
 		}
 	})

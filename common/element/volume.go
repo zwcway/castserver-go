@@ -26,7 +26,7 @@ func (v *Volume) Stream(samples *stream.Samples) {
 	if !v.power || v.gain == 1 {
 		return
 	}
-	for ch := 0; ch < samples.Format.Layout.Count; ch++ {
+	for ch := 0; ch < int(samples.Format.Count); ch++ {
 		for i := 0; i < samples.LastNbSamples; i++ {
 			samples.Data[ch][i] *= v.gain
 		}

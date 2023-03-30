@@ -16,6 +16,7 @@ import (
 	"github.com/zwcway/castserver-go/common/pipeline"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/common/stream"
+	"github.com/zwcway/castserver-go/control"
 	"github.com/zwcway/castserver-go/decoder"
 	"github.com/zwcway/castserver-go/decoder/localspeaker"
 	"github.com/zwcway/castserver-go/detector"
@@ -70,6 +71,7 @@ func ApiDispatchDevel(ctx *fasthttp.RequestCtx) bool {
 func initDebug() {
 	apiRouterList["addSpeaker"] = apiRouter{apiSpeakerCreate}
 	apiRouterList["spReconnect"] = apiRouter{apiReconnect}
+	apiRouterList["spSample"] = apiRouter{apiControlSpeakerFormat}
 	apiRouterList["sendServerInfo"] = apiRouter{apiSendServerInfo}
 	apiRouterList["eventDebug"] = apiRouter{apiEventDebug}
 	apiRouterList["localSpeaker"] = apiRouter{apiLocalSpeaker}
@@ -137,7 +139,7 @@ func apiReconnect(c *websockets.WSConnection, req Requester, log lg.Logger) (any
 	}
 	pusher.Disconnect(s)
 	pusher.Connect(s)
-	return nil, nil
+	return true, nil
 }
 
 func apiSendServerInfo(c *websockets.WSConnection, req Requester, log lg.Logger) (any, error) {
@@ -153,7 +155,23 @@ func apiSendServerInfo(c *websockets.WSConnection, req Requester, log lg.Logger)
 	}
 	detector.ResponseServerInfo(sp)
 
-	return nil, nil
+	return true, nil
+}
+
+func apiControlSpeakerFormat(c *websockets.WSConnection, req Requester, log lg.Logger) (any, error) {
+	var spId uint32
+	err := req.Unmarshal(&spId)
+	if err != nil {
+		return nil, err
+	}
+
+	sp := speaker.FindSpeakerByID(speaker.SpeakerID(spId))
+	if sp == nil {
+		return nil, nil
+	}
+	control.ControlSample(sp)
+
+	return true, nil
 }
 
 func apiEventDebug(c *websockets.WSConnection, req Requester, log lg.Logger) (ret any, err error) {

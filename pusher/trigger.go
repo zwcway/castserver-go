@@ -47,7 +47,9 @@ func TriggerReceiverIn(b bool) {
 }
 
 func TriggerAddLine(line *speaker.Line) {
-	line.Input.PipeLine.Append(NewElement(line))
+	e := NewElement(line)
+	line.Input.PipeLine.Append(e)
+	e.On()
 
 	TimerAddLine(line)
 }

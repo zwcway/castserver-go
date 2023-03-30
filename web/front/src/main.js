@@ -1,11 +1,12 @@
 import Vue from 'vue';
 import Router from 'vue-router';
 import Antd from 'ant-design-vue';
-import Vue2TouchEvents from 'vue2-touch-events'
+import Vue2TouchEvents from 'vue2-touch-events';
 
 import App from './App.vue';
 import router from './router';
 import store from './store';
+import * as i18n from '@/locales';
 
 import 'ant-design-vue/dist/antd.css';
 import '@/assets/icons';
@@ -14,6 +15,7 @@ import '@/assets/css/slider.scss';
 import '@/assets/css/ant-design-vue.scss';
 import 'animate.css';
 import 'ionicons';
+import { formatBytes, formatNumber, formatSize } from './common/format';
 
 window.store = store;
 
@@ -50,7 +52,17 @@ Router.prototype.push = function push(location) {
   return originalPush.call(this, location).catch(err => err);
 };
 
+router.beforeEach((to, from, next) => {
+  const lang = store.state.settings.lang || 'zh-cn'
+  i18n.loadLanguageAsync(lang).then(() => next())
+})
+
 Vue.config.productionTip = false;
+
+Vue.filter('bytes', formatBytes)
+Vue.filter('size', formatSize)
+Vue.filter('num', formatNumber)
+// Vue.filter('t', i18n.i18n.t)
 
 Vue.use(Antd);
 Vue.use(Vue2TouchEvents, {
@@ -66,5 +78,6 @@ Vue.use(Vue2TouchEvents, {
 new Vue({
   router,
   store,
+  i18n: i18n.i18n,
   render: h => h(App),
 }).$mount('#app');

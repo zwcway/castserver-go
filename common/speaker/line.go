@@ -38,7 +38,6 @@ type Line struct {
 	VolumeEle    stream.VolumeElement    `gorm:"-"`
 	SpectrumEle  stream.SpectrumElement  `gorm:"-"`
 	EqualizerEle stream.EqualizerElement `gorm:"-"`
-	PlayerEle    stream.RawPlayerElement `gorm:"-"`
 	// ResampleEle  stream.ResampleElement  `gorm:"-"`
 	// PusherEle    stream.SwitchElement    `gorm:"-"`
 
@@ -52,13 +51,13 @@ func (l *Line) String() string {
 	return fmt.Sprintf("%s(%d)", l.Name, l.ID)
 }
 
-func (l *Line) Layout() audio.ChannelLayout {
+func (l *Line) Layout() audio.Layout {
 	return l.Output.Layout
 }
 
 // 如果返回值不空，就表示有speaker
 func (l *Line) Channels() []audio.Channel {
-	return l.Output.Layout.Mask.Slice()
+	return l.Output.Channels()
 }
 
 func (l *Line) ChannelRoute(dst audio.Channel) []audio.Channel {
@@ -173,13 +172,13 @@ func (l *Line) RemoveSpeaker(sp *Speaker) {
 }
 
 func (l *Line) SetOutput(f audio.Format) {
-	if l.Output.Equal(&f) {
+	if l.Output.Equal(f) {
 		return
 	}
 
 	l.Output = f
 	for _, sp := range l.speakers {
-		sp.SetFormat(f)
+		sp.SetSample(f.Sample)
 	}
 
 	bus.Dispatch("line output changed", l)
@@ -215,8 +214,8 @@ func (l *Line) refresh() {
 	}
 
 	format := audio.Format{}
-	format.SampleRate, format.SampleBits = l.decideOutputFormat()
-	format.Layout = audio.NewChannelLayout(channels...)
+	format.Rate, format.Bits = l.decideOutputFormat()
+	format.Layout = audio.NewLayout(channels...)
 	l.SetOutput(format)
 
 	bus.Dispatch("line refresh", l)
@@ -237,11 +236,11 @@ func (l *Line) decideOutputFormat() (r audio.Rate, b audio.Bits) {
 	r = rm.Max()
 	b = bm.Max()
 
-	if rm.Isset(l.Input.Format.SampleRate) {
-		r = l.Input.Format.SampleRate
+	if rm.Isset(l.Input.Format.Rate) {
+		r = l.Input.Format.Rate
 	}
-	if bm.Isset(l.Input.Format.SampleBits) {
-		b = l.Input.Format.SampleBits
+	if bm.Isset(l.Input.Format.Bits) {
+		b = l.Input.Format.Bits
 	}
 
 	return
@@ -251,7 +250,6 @@ func (l *Line) Elements() []stream.Element {
 	return []stream.Element{
 		l.MixerEle,
 		l.EqualizerEle,
-		l.PlayerEle,
 		l.SpectrumEle,
 		l.VolumeEle,
 	}
@@ -265,29 +263,25 @@ func (l *Line) ApplyInput(ss stream.SourceStreamer) {
 	l.Input.ApplySource(ss)
 	bus.Dispatch("line input changed", l, ss)
 
-	bus.Register("audiofile opened", func(a ...any) error {
-		tfs := a[0].(stream.FileStreamer)
-		if tfs != ss {
-			return nil
-		}
-		inFormat := a[1].(audio.Format)
-		outFormat := a[2].(audio.Format)
-		l.onInputChanged(ss, inFormat, outFormat)
+	bus.RegisterObj(ss, "source format changed", func(a ...any) error {
+		tfs := a[0].(stream.SourceStreamer)
+		l.onInputChanged(tfs)
 		return nil
 	})
 }
 
-func (l *Line) onInputChanged(ss stream.SourceStreamer, inFormat, outFormat audio.Format) {
+func (l *Line) onInputChanged(ss stream.SourceStreamer) {
+	inFormat := ss.AudioFormat()
 	if fs, ok := ss.(stream.FileStreamer); ok {
 		format := audio.InternalFormat()
 		format.InitFrom(inFormat)
 		fs.SetOutFormat(format)
 	}
-	if !l.Input.Format.Equal(&inFormat) {
+	if l.Input.Format != inFormat {
 		l.Input.Format = inFormat
 		l.refresh()
 	}
-	bus.Dispatch("line audiofile opened", l, ss, inFormat, outFormat)
+	bus.Dispatch("line source format changed", l, ss)
 }
 
 func (l *Line) Save() {
@@ -299,26 +293,26 @@ func (line *Line) init() {
 
 	line.SetOutput(audio.DefaultFormat())
 
-	line.PlayerEle = element.NewPlayer()
 	line.VolumeEle = element.NewVolume(float64(line.Volume) / 100)
-	line.MixerEle = element.NewEmptyMixer()
+	line.MixerEle = element.NewMixer()
 	line.SpectrumEle = element.NewSpectrum()
 	line.EqualizerEle = element.NewEqualizer(line.EQ.Eq)
-	// line.ResampleEle = element.NewResample(line.Output)
 
 	line.Input.Mixer = line.MixerEle
-	line.Input.PipeLine = pipeline.NewPipeLine(line.Output,
-		line.MixerEle,
-		line.EqualizerEle,
-		line.PlayerEle,
-		line.SpectrumEle,
-		line.VolumeEle,
-		//line.Pusher, Resample 放到 pusher 中处理，否则声道路由功能不方便实现
-	)
+	line.Input.PipeLine = pipeline.NewPipeLine(line.Output, line.Elements()...)
 
 	line.syncEqualizer()
 	line.syncRoute()
 
+}
+
+func (l *Line) Dispatch(e string, args ...any) error {
+	args = append([]any{l}, args...)
+	return bus.Dispatch(e, args...)
+}
+
+func (l *Line) Register(e string, c func(a ...any) error) *bus.HandlerData {
+	return bus.RegisterObj(l, e, c)
 }
 
 func LineList() []*Line {
@@ -397,6 +391,13 @@ func DelLine(id LineID, move LineID) error {
 	src.isDeleted = true
 
 	bus.Dispatch("line deleted", src, dst)
+
+	bus.UnregisterObj(src)
+	bus.UnregisterObj(src.MixerEle)
+	bus.UnregisterObj(src.EqualizerEle)
+	bus.UnregisterObj(src.VolumeEle)
+	bus.UnregisterObj(src.SpectrumEle)
+	bus.UnregisterObj(src.Input.PipeLine)
 
 	return nil
 }

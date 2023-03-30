@@ -60,7 +60,7 @@ func (r *Spectrum) Stream(samples *stream.Samples) {
 		rms  float64
 		sums float64 // 频谱求和
 		// 不同采样率下保证fft的频率宽度约小于20hz，大于20hz的采样率下求平均，模拟转码
-		c     int = 20 / (samples.Format.SampleRate.ToInt() / samples.LastNbSamples)
+		c     int = 20 / (samples.Format.Rate.ToInt() / samples.LastNbSamples)
 		i, ch int
 	)
 	r.hasData = true
@@ -71,7 +71,7 @@ func (r *Spectrum) Stream(samples *stream.Samples) {
 	for i = 0; i < samples.LastNbSamples && r.pos < r.n; i += c {
 		frac = 0
 		sums = 0
-		for ch = 0; ch < samples.Format.Layout.Count; ch++ {
+		for ch = 0; ch < int(samples.Format.Count); ch++ {
 			// for j = 0; j < c; j++ {
 			sam = samples.Data[ch][i]
 			sums += sam
@@ -82,9 +82,9 @@ func (r *Spectrum) Stream(samples *stream.Samples) {
 			}
 			// }
 		}
-		frac = frac / float64(samples.Format.Layout.Count)
+		frac = frac / float64(samples.Format.Count)
 
-		r.s[r.pos] = sums / float64(samples.Format.Layout.Count)
+		r.s[r.pos] = sums / float64(samples.Format.Count)
 		// 加汉宁窗
 		r.s[r.pos] *= (1 - math.Cos(2*dsp.Pi*float64(r.pos)/float64(r.n-1)))
 		r.pos++
@@ -98,7 +98,7 @@ func (r *Spectrum) Stream(samples *stream.Samples) {
 
 	if r.pos >= r.n-1 {
 		r.pos = 0
-		i = dsp.FFTN(r.s, r.n, samples.Format.SampleRate.ToInt(), r.logAxis)
+		i = dsp.FFTN(r.s, r.n, samples.Format.Rate.ToInt(), r.logAxis)
 		if len(r.spectrum) != i {
 			r.spectrum = make([]float64, i)
 		}

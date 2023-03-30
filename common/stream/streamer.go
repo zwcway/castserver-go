@@ -23,23 +23,24 @@ type StreamSeekCloser interface {
 }
 
 type SourceStreamer interface {
-	StreamSeekCloser
-	AudioFormat() audio.Format // 当前音频文件格式
-	OutFormat() audio.Format   // 音频输出格式
+	StreamCloser
+	AudioFormat() audio.Format       // 获取输入的音频格式
+	SetOutFormat(audio.Format) error // 设置音频输出格式
 	IsPlaying() bool
+	CanRemove() bool // 是否可以自动移除
 }
 
 type FormatChangedHandler func(stream SourceStreamer, inFormat, outFormat audio.Format)
 
 type FileStreamer interface {
 	SourceStreamer
+	StreamSeekCloser
 	OpenFile(string) error
 	CurrentFile() string
-	SetOutFormat(audio.Format) error // 设置音频输出格式
-	Duration() time.Duration         // 当前时长
-	TotalDuration() time.Duration    // 总时长
-	SetPause(bool)                   // 暂停解码
-	IsPaused() bool                  // 是否暂停
+	Duration() time.Duration      // 当前时长
+	TotalDuration() time.Duration // 总时长
+	SetPause(bool)                // 暂停解码
+	IsPaused() bool               // 是否暂停
 }
 
 type ReceiverStreamer interface {

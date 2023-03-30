@@ -116,12 +116,14 @@ func readUDP(p *recvData) {
 
 }
 
-func readChanRoutine(ctx utils.Context) {
+func readChanRoutine(ctx utils.Context, done <-chan struct{}) {
 	var d *recvData
 
 	for {
 		select {
 		case <-ctx.Done():
+			return
+		case <-done:
 			return
 		case d = <-recvMessage:
 		}
@@ -177,27 +179,29 @@ func listenUDP(ctx utils.Context) error {
 
 	MulicastServerInfo(ST_Start)
 
-	wg.Go(func() {
+	wg.Go(func(<-chan struct{}) {
 		readUDPRoutine(config.ReadBufferSize)
 	})
 
-	wg.Go(func() {
-		readChanRoutine(ctx)
+	wg.Go(func(done <-chan struct{}) {
+		readChanRoutine(ctx, done)
 	})
 
 	return nil
 }
 
-func onlineCheckRoutine(ctx utils.Context) {
+func onlineCheckRoutine(ctx utils.Context, done <-chan struct{}) {
 	ticker := time.NewTicker(time.Duration(config.ReadBufferSize) * time.Second)
 
 	defer ticker.Stop()
 
 	for {
 		select {
-		case <-ticker.C:
 		case <-ctx.Done():
 			return
+		case <-done:
+			return
+		case <-ticker.C:
 		}
 
 		speaker.All(func(sp *speaker.Speaker) {
@@ -240,8 +244,8 @@ func (detectModule) Start() error {
 		return err
 	}
 
-	wg.Go(func() {
-		onlineCheckRoutine(ctx)
+	wg.Go(func(done <-chan struct{}) {
+		onlineCheckRoutine(ctx, done)
 	})
 
 	return nil

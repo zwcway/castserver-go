@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/zwcway/castserver-go/common/audio"
+	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/stream"
 )
 
@@ -76,6 +77,18 @@ func (p *PipeLine) Append(s ...stream.Element) {
 		// } else if ss.Type() == stream.ET_WholeSamples {
 		p.wholeStreams = append(p.wholeStreams, ps)
 		// }
+
+		if sc, ok := ss.(stream.MixerElement); ok {
+			bus.Register("mixer format changed", func(a ...any) error {
+				m := a[0].(stream.MixerElement)
+				if m == sc {
+					p.format = *(a[1].(*audio.Format))
+
+					bus.Dispatch("source format changed", p)
+				}
+				return nil
+			})
+		}
 	}
 }
 
@@ -84,8 +97,20 @@ func (p *PipeLine) Clear() {
 	p.oneStreams = p.oneStreams[:0]
 }
 
-func (p *PipeLine) Format() audio.Format {
+func (p *PipeLine) AudioFormat() audio.Format {
 	return p.format
+}
+
+func (p *PipeLine) SetOutFormat(f audio.Format) error {
+	return nil
+}
+
+func (p *PipeLine) IsPlaying() bool {
+	return true
+}
+
+func (p *PipeLine) CanRemove() bool {
+	return false
 }
 
 func (p *PipeLine) Close() error {
@@ -93,8 +118,9 @@ func (p *PipeLine) Close() error {
 		if sc, ok := s.stream.(stream.StreamCloser); ok {
 			sc.Close()
 		}
+		bus.UnregisterObj(s)
 	}
-	p.wholeStreams = nil
+	p.Clear()
 	return nil
 }
 

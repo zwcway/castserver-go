@@ -2,6 +2,7 @@ package api
 
 import (
 	"github.com/zwcway/castserver-go/common/audio"
+	"github.com/zwcway/castserver-go/common/element"
 	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/common/sounds"
 	"github.com/zwcway/castserver-go/common/speaker"
@@ -53,17 +54,15 @@ func apiTestSound(c *websockets.WSConnection, req Requester, log lg.Logger) (ret
 		default:
 			return true, nil
 		}
-		format := sounds.Format()
-		format.Layout = audio.NewChannelLayout(ch)
-		nl.PlayerEle.AddToChannel(ch, format, chsound)
+		player := element.NewPlayerChannel(ch, sounds.Format(), chsound)
+		nl.MixerEle.Add(player)
 	}
 
 	if p.Speaker != nil {
 		sp := speaker.FindSpeakerByID(speaker.SpeakerID(*p.Speaker))
 		if sp != nil {
-			format := sounds.Format()
-			format.Layout = sp.Layout()
-			sp.PlayerEle.Add(format, sounds.Here())
+			player := element.NewPlayerChannel(sp.SampleChannel(), sounds.Format(), sounds.Here())
+			sp.MixerEle.Add(player)
 		}
 	}
 

@@ -36,12 +36,12 @@ func (e *Equalizer) Stream(samples *stream.Samples) {
 	}
 	defer e.locker.Unlock()
 
-	if !e.format.Equal(&samples.Format) {
+	if !e.format.Equal(samples.Format) {
 		e.format = samples.Format
 		e.init()
 	}
 
-	for ch := 0; ch < samples.Format.Layout.Count; ch++ {
+	for ch := 0; ch < int(samples.Format.Layout.Count); ch++ {
 		for f := 0; f < len(e.filters[ch]); f++ {
 			if e.filters[ch][f] == nil {
 				continue

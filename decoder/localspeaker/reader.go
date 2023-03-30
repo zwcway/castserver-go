@@ -15,6 +15,7 @@ type reader struct {
 
 func (r *reader) Read(p []byte) (n int, err error) {
 	var (
+		// r.samples 有可能异步被改变，使用变更之前的对象
 		samples = r.samples
 		ch      int
 		t       = time.Now()
@@ -33,13 +34,15 @@ func (r *reader) Read(p []byte) (n int, err error) {
 
 			mixer.Stream(samples)
 
-			if slient {
+			if slient || samples.LastNbSamples == 0 {
 				goto __slient__
 			}
 
-			r.resample.Stream(samples)
+			if r.resample != nil {
+				r.resample.Stream(samples)
+			}
 
-			if samples.LastNbSamples == 0 {
+			if samples.LastNbSamples == 0 || samples.Format != format {
 				// err = samples.LastErr
 				goto __slient__
 			}
@@ -50,7 +53,7 @@ func (r *reader) Read(p []byte) (n int, err error) {
 		}
 
 		for ; r.bufPos < r.bufSize-1 && n < len(p)-1; r.bufPos += 2 {
-			for ch = 0; ch < samples.Format.Layout.Count; ch++ {
+			for ch = 0; ch < int(samples.Format.Count); ch++ {
 				p[n+0] = samples.RawData[ch][r.bufPos+0]
 				p[n+1] = samples.RawData[ch][r.bufPos+1]
 				n += 2
@@ -63,14 +66,14 @@ func (r *reader) Read(p []byte) (n int, err error) {
 	return
 
 __slient__:
-	zeroBuf(p)
+	zeroBuf(p, n)
 	n = len(p)
 	return
 
 }
 
-func zeroBuf(p []byte) {
-	for i := 0; i < len(p); i++ {
+func zeroBuf(p []byte, offset int) {
+	for i := offset; i < len(p); i++ {
 		p[i] = 0
 	}
 }

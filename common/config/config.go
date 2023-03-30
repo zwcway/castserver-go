@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/netip"
 	"path/filepath"
+	"time"
 
 	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/lg"
@@ -66,8 +67,8 @@ var (
 		audio.AudioRate_192000,
 	}
 
-	// 0 表示动态自动判断
-	AudioBuferSize int = 0
+	// 缓冲长度（单位ms），0 表示动态自动判断
+	AudioBuferMSDuration MilliDuration = 10 * time.Millisecond
 
 	SpeakerOfflineTimeout       int = 5
 	SpeakerOfflineCheckInterval int = 5

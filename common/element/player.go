@@ -2,19 +2,18 @@ package element
 
 import (
 	"github.com/zwcway/castserver-go/common/audio"
+	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/stream"
-	"github.com/zwcway/castserver-go/common/utils"
 )
-
-type playerStreamer struct {
-	pos     int
-	layout  audio.ChannelLayout
-	samples *stream.Samples
-}
 
 type Player struct {
 	resample stream.ResampleElement
-	pcm      []playerStreamer
+
+	pos     int
+	layout  audio.Layout
+	samples *stream.Samples
+
+	resampled bool
 }
 
 func (v *Player) Name() string {
@@ -25,91 +24,128 @@ func (v *Player) Type() stream.ElementType {
 	return stream.ET_WholeSamples
 }
 
-func (v *Player) Stream(samples *stream.Samples) {
-	if len(v.pcm) == 0 || v.resample == nil {
+func (p *Player) Stream(samples *stream.Samples) {
+	if p.CanRemove() {
 		return
 	}
-	format := samples.Format
+	if !p.resampled {
+		// 等待转码完成
+		return
+	}
+
 	mixed := 0
-	i := 0
 
-	for s := 0; s < len(v.pcm); s++ {
-		pcm := &v.pcm[s]
-
-		if !pcm.samples.Format.SampleEqual(&format) {
-			// 不改变播放源的声道布局
-			if pcm.layout.IsValid() {
-				format.Layout = pcm.layout
-			} else {
-				format.Layout = pcm.samples.Format.Layout
-			}
-			v.resample.SetFormat(format)
-			// 转码程序会操作所有样本数据
-			// 转码过后 pcm.samples.Format 会被赋值为 format
-			// 因此只会被执行一次
-			v.resample.Stream(pcm.samples)
-		}
-		if pcm.layout.IsValid() {
-			i = pcm.samples.MixChannels(samples, pcm.layout.Channels(), 0, pcm.pos)
-		} else {
-			i = pcm.samples.MixChannelMap(samples, 0, pcm.pos)
-		}
-		pcm.pos += i
-		if mixed < i {
-			mixed = i
-		}
-
-		if i == 0 || pcm.pos >= pcm.samples.NbSamples {
-			// 混合失败 或者 播放完毕，移除
-			if utils.SliceQuickRemove(&v.pcm, s) {
-				s--
-			}
-		}
+	if p.layout.IsValid() {
+		// 混合至指定声道
+		mixed = p.samples.MixChannels(samples, p.layout.Channels(), 0, p.pos)
+	} else {
+		// 按默认规则混合
+		mixed = p.samples.MixChannelMap(samples, 0, p.pos)
 	}
-	if mixed > samples.LastNbSamples && mixed <= samples.NbSamples {
-		samples.LastNbSamples = mixed
+	p.pos += mixed
+
+	if mixed == 0 || !p.IsPlaying() {
+		// 混合失败 或者 播放完毕
 	}
+	samples.LastNbSamples = mixed
+	samples.Format = p.resample.Format()
 }
 
 func (v *Player) Sample(sample *float64, ch int, n int) {}
 
-func (p *Player) IsIdle() bool {
-	return len(p.pcm) == 0
+func (p *Player) IsPlaying() bool {
+	return p.pos < p.samples.RequestNbSamples
 }
 
-func (p *Player) Len() (c int) {
-	return len(p.pcm)
+func (p *Player) CanRemove() bool {
+	return p.samples == nil || !p.IsPlaying()
 }
 
-func (p *Player) AddToChannel(ch audio.Channel, f audio.Format, pcm []byte) {
+func (p *Player) AudioFormat() audio.Format {
+	return p.resample.Format()
+}
+
+func (p *Player) SetOutFormat(f audio.Format) error {
+	if p.samples == nil {
+		return nil
+	}
+
+	if p.layout.IsValid() {
+		// 不改变播放源的声道布局
+		f.Layout = p.layout
+	}
+	if p.samples.Format == f {
+		p.resampled = true
+		return nil
+	}
+	if p.resample == nil {
+		p.samples = nil
+		return nil
+	}
+
+	f.InitFrom(p.samples.Format)
+
+	p.resample.SetFormat(f)
+	// 预先全部转码
+	p.resample.Stream(p.samples)
+
+	p.resampled = true
+
+	return nil
+}
+
+func (p *Player) SetPCMWithChannel(ch audio.Channel, f audio.Format, pcm []byte) {
 	if len(pcm) == 0 {
+		p.samples = nil
 		return
 	}
-	samples := stream.NewSamplesCopy(pcm, f)
-	//
-	p.pcm = append(p.pcm, playerStreamer{
-		layout:  audio.NewChannelLayout(ch),
-		samples: samples,
-	})
+	f.Layout = audio.NewLayout(ch)
+	p.samples = stream.NewFromBytes(pcm, f)
+	p.layout = f.Layout
 }
 
-func (p *Player) Add(f audio.Format, pcm []byte) {
-	p.AddToChannel(audio.Channel_NONE, f, pcm)
+func (p *Player) SetPCM(f audio.Format, pcm []byte) {
+	if len(pcm) == 0 {
+		p.samples = nil
+		return
+	}
+	p.samples = stream.NewFromBytes(pcm, f)
+	p.layout = audio.NewLayout(audio.Channel_NONE)
 }
 
 func (p *Player) Close() (err error) {
-	p.resample.Off()
-	err = p.resample.Close()
-	p.pcm = p.pcm[:0]
+	if p.resample != nil {
+		p.resample.Off()
+		err = p.resample.Close()
+	}
 	return
 }
 
-func NewPlayer() stream.RawPlayerElement {
-	resample := NewResample(audio.DefaultFormat())
-	resample.On()
+func newPlayer(f audio.Format, pcm []byte) stream.RawPlayerElement {
+	var resample stream.ResampleElement
 
-	return &Player{
-		resample: resample,
-		pcm:      make([]playerStreamer, 0),
+	p := &Player{}
+
+	bus.Dispatch("get resample element", p, &resample, audio.DefaultFormat())
+
+	if resample != nil {
+		resample.On()
 	}
+
+	p.resample = resample
+	return p
+}
+
+func NewPlayerChannel(ch audio.Channel, f audio.Format, pcm []byte) stream.RawPlayerElement {
+	p := newPlayer(f, pcm)
+
+	p.SetPCMWithChannel(ch, f, pcm)
+	return p
+}
+
+func NewPlayer(f audio.Format, pcm []byte) stream.RawPlayerElement {
+	p := newPlayer(f, pcm)
+
+	p.SetPCM(f, pcm)
+	return p
 }

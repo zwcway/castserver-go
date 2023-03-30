@@ -22,7 +22,7 @@ func LoadData() error {
 
 func initLine() error {
 	lineList = lineList[:0]
-	err := bus.Dispatch("get lines", &lineList)
+	err := BusGetLines.Dispatch(&lineList)
 	if err != nil {
 		return err
 	}

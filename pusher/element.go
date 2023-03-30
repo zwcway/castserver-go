@@ -5,7 +5,6 @@ import (
 
 	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/bus"
-	"github.com/zwcway/castserver-go/common/element"
 	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/common/stream"
@@ -52,9 +51,9 @@ func (e *Element) initBuf(samples int, format audio.Format) {
 	if e.buffer == nil {
 		e.buffer = stream.NewSamples(samples, format)
 	} else {
-		e.buffer.ResizeSamplesOrNot(samples, format)
+		e.buffer.Resize(samples, format)
 	}
-
+	e.buffer.Format = format
 	e.resetData()
 }
 
@@ -64,11 +63,22 @@ func (e *Element) resetData() {
 		e.chBuf[i] = nil
 	}
 	for i, ch := range e.buffer.Format.Channels() {
-		e.chBuf[i] = e.buffer.ChannelSamples(ch)
+		samples := e.chBuf[i]
+		if samples == nil {
+			e.chBuf[i] = e.buffer.ChannelSamples(ch)
+		} else {
+			e.chBuf[i] = e.buffer.ChannelSamples(ch)
+		}
 	}
 }
 
 func (e *Element) Stream(samples *stream.Samples) {
+	if !e.power || !samples.Format.IsValid() || !e.line.Layout().IsValid() {
+		return
+	}
+	if samples.LastNbSamples == 0 {
+		return
+	}
 	var (
 		chList = e.line.Channels()
 		i      int
@@ -76,23 +86,11 @@ func (e *Element) Stream(samples *stream.Samples) {
 		ch     audio.Channel
 		from   []audio.Channel
 		buf    *stream.Samples
+		format = samples.Format
 	)
-	if !e.power || !samples.Format.IsValid() || !e.line.Layout().IsValid() {
-		return
-	}
-	if samples.LastNbSamples == 0 {
-		return
-	}
-	format := samples.Format
 	format.Layout = e.line.Layout()
 
-	if e.buffer == nil || e.buffer.NbSamples < samples.NbSamples || !e.buffer.Format.Layout.Equal(e.line.Layout()) {
-		e.initBuf(samples.NbSamples, format)
-	} else {
-		e.buffer.Format.Layout = format.Layout
-		e.buffer.Format.SampleRate = format.SampleRate
-		e.resetData()
-	}
+	e.initBuf(samples.RequestNbSamples, format)
 
 	for i = 0; i < len(chList); i++ {
 		ch = chList[i]
@@ -114,10 +112,10 @@ func (e *Element) Stream(samples *stream.Samples) {
 			continue
 		}
 		buf.LastNbSamples = c
-		buf.Format.SampleRate = samples.Format.SampleRate
+		buf.Format.Rate = samples.Format.Rate
 
 		e.buffer.LastNbSamples = c
-		e.buffer.Format.SampleRate = samples.Format.SampleRate
+		e.buffer.Format.Rate = samples.Format.Rate
 
 		for _, sp := range e.line.SpeakersByChannel(ch) {
 			sp.PipeLine.Stream(buf)
@@ -137,8 +135,7 @@ func (e *Element) Stream(samples *stream.Samples) {
 		if buf == nil || buf.LastNbSamples == 0 {
 			continue
 		}
-		buf.Format.SampleRate = e.buffer.Format.SampleRate
-		buf.Format.SampleBits = e.buffer.Format.SampleBits
+		buf.Format.Sample = e.buffer.Format.Sample
 
 		for _, sp := range e.line.SpeakersByChannel(ch) {
 			// TODO 为防止转码耗时过长，克隆新的缓存，并放置后台转码和推送
@@ -149,7 +146,7 @@ func (e *Element) Stream(samples *stream.Samples) {
 
 func (e *Element) PushSpeaker(sp *speaker.Speaker, samples *stream.Samples) {
 	queue := sp.Queue
-	if queue == nil {
+	if queue == nil || sp.Conn == nil {
 		// log.Error("speaker not connected", lg.String("speaker", sp.String()))
 		return
 	}
@@ -163,8 +160,8 @@ func (e *Element) PushSpeaker(sp *speaker.Speaker, samples *stream.Samples) {
 	buf := ServerPush{
 		Ver:      1,
 		Compress: 0,
-		Rate:     samples.Format.SampleRate,
-		Bits:     samples.Format.SampleBits,
+		Rate:     samples.Format.Rate,
+		Bits:     samples.Format.Bits,
 		Time:     uint16(delay) + 1,
 		Samples:  samples.ChannelBytes(0),
 	}
@@ -192,19 +189,24 @@ func (e *Element) PushSpeaker(sp *speaker.Speaker, samples *stream.Samples) {
 func (e *Element) Sample(*float64, int, int) {}
 
 func bufSizeWithDelay(delay time.Duration, f audio.Format) int {
-	return int((delay * time.Duration(f.SampleRate.ToInt()*f.SampleBits.Size()) * time.Second) / (time.Microsecond * 100))
+	return int((delay * time.Duration(f.Rate.ToInt()*f.Bits.Size()) * time.Second) / (time.Microsecond * 100))
 }
 
 func NewElement(line *speaker.Line) stream.SwitchElement {
 	e := &Element{
-		line:     line,
-		resample: element.NewResample(line.Output),
+		line: line,
 	}
-	bus.Register("line output changed", func(a ...any) error {
+	var resample stream.ResampleElement
+	bus.Dispatch("get resample element", e, &resample, line.Output)
+	if resample == nil {
+		return nil
+	}
+
+	e.resample = resample
+
+	bus.RegisterObj(line, "line output changed", func(a ...any) error {
 		l := a[0].(*speaker.Line)
-		if l == e.line {
-			e.resample.SetFormat(l.Output)
-		}
+		e.resample.SetFormat(l.Output)
 		return nil
 	})
 	return e

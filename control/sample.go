@@ -16,7 +16,7 @@ type Sample struct {
 
 func (s *Sample) Pack() (p *protocol.Package, err error) {
 	p, _ = s.f.Pack()
-	p.WriteUint8(uint8(s.bit) << 4 & uint8(s.rate))
+	p.WriteUint8((uint8(s.bit) << 4) | uint8(s.rate))
 	p.WriteUint8(uint8(s.channel))
 
 	return

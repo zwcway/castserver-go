@@ -1,26 +1,31 @@
 package ffmpeg
 
 import (
-	"bytes"
+	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/zwcway/castserver-go/common/audio"
+	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/playlist"
 	"github.com/zwcway/castserver-go/common/stream"
+	"github.com/zwcway/castserver-go/common/utils"
 )
 
 func TestAVFormatContext_Stream(t *testing.T) {
 
-	t.Run("decode mp3 44100/fltp/stereo", func(t *testing.T) {
+	t.Run("decode mp3 44100/fltp/mono", func(t *testing.T) {
 		f := audio.Format{
-			SampleRate: audio.AudioRate_44100,
-			SampleBits: audio.Bits_DEFAULT,
-			Layout:     audio.ChannelLayoutMono,
+			Sample: audio.Sample{
+				Rate: audio.AudioRate_44100,
+				Bits: audio.Bits_DEFAULT,
+			},
+			Layout: audio.LayoutMono,
 		}
 		fs := New(f)
 		defer fs.Close()
 
-		err := fs.OpenFile("./test/test_44100_fltp_stereo.mp3")
+		err := fs.OpenFile("./test/test_44100_fltp_mono.mp3")
 		if err != nil {
 			t.Errorf("open error %v", err)
 			return
@@ -29,7 +34,7 @@ func TestAVFormatContext_Stream(t *testing.T) {
 		fs.SetPause(false)
 		fs.Stream(samples)
 
-		if samples.LastNbSamples != 10 {
+		if samples.LastNbSamples != samples.RequestNbSamples {
 			t.Errorf("decoded length error %d", samples.LastNbSamples)
 			return
 		}
@@ -41,10 +46,7 @@ func TestAVFormatContext_Stream(t *testing.T) {
 			0x00, 0x00, 0x00, 0xE0, 0x12, 0xC6, 0x85, 0xBD, 0x00, 0x00, 0x00, 0xC0, 0x24, 0xD1, 0x84, 0xBD,
 			0x00, 0x00, 0x00, 0x80, 0x84, 0x39, 0x82, 0xBD, 0x00, 0x00, 0x00, 0xC0, 0x3E, 0xA1, 0x7B, 0xBD,
 		}
-		if !bytes.Equal(samples.RawData[0], want) {
-			t.Errorf("reader.Read() = \n%v\n, want \n%v\n", samples.RawData[0], want)
-			return
-		}
+		assert.Equal(t, samples.RawData[0], want)
 	})
 
 }
@@ -62,4 +64,10 @@ func TestAudioInfo(t *testing.T) {
 		t.Logf("%s", ai.Title)
 		t.Logf("%s", ai.Artist)
 	})
+}
+
+func TestMain(m *testing.M) {
+	bus.Init(utils.NewEmptyContext())
+	code := m.Run()
+	os.Exit(code)
 }

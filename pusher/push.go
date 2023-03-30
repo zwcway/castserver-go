@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/zwcway/castserver-go/common/config"
-	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/common/utils"
 )
@@ -18,7 +17,7 @@ type spQueueCtrl struct {
 var spQueueCtrlList map[*speaker.Speaker]spQueueCtrl = make(map[*speaker.Speaker]spQueueCtrl)
 var wg = utils.WaitGroup{}
 
-func pushRoutine(queue spQueueCtrl) {
+func pushRoutine(queue spQueueCtrl, done <-chan struct{}) {
 	var d speaker.QueueData
 	for {
 		select {
@@ -26,7 +25,7 @@ func pushRoutine(queue spQueueCtrl) {
 			Disconnect(queue.sp)
 			close(queue.exitC)
 			return
-		case <-queue.exitC:
+		case <-done:
 			return
 		case d = <-queue.sp.Queue:
 		}
@@ -40,7 +39,7 @@ func pushRoutine(queue spQueueCtrl) {
 
 		err := d.Speaker.WriteUDP(d.Data)
 		if err != nil {
-			log.Error("push to speaker error", lg.Error(err))
+			// log.Error("push to speaker error", lg.Error(err))
 			continue
 		}
 	}
@@ -65,15 +64,15 @@ func refreshPushQueue(sp *speaker.Speaker, delay time.Duration) {
 		spQueueCtrlList[sp] = ctrl
 	}
 
+	wg.ExitAndWait()
+
 	if sp.Queue != nil {
-		ctrl.exitC <- struct{}{}
-		wg.Wait()
 		close(sp.Queue)
 	}
 
 	sp.Queue = make(chan speaker.QueueData, config.ReadQueueSize+bufSizeWithDelay(delay, sp.Format()))
 
-	wg.Go(func() {
-		pushRoutine(ctrl)
+	wg.Go(func(done <-chan struct{}) {
+		pushRoutine(ctrl, done)
 	})
 }

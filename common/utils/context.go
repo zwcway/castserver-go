@@ -60,7 +60,7 @@ func NewContext() *cContext {
 	return &cc
 }
 
-func NewEmptyContext() *cContext {
+func NewEmptyContext() Context {
 	cc := cContext{context.Background()}
 	cc.WithLogger(lg.NewMemroy())
 	return &cc

@@ -25,7 +25,7 @@ func Init(ctx utils.Context, d *gorm.DB) {
 		&speaker.Speaker{},
 	)
 
-	bus.Register("get lines", getLines)
+	speaker.BusGetLines.Register(getLines)
 	bus.Register("get line", getLine)
 	bus.Register("save line", saveLine).ASync()
 	bus.Register("line deleted", deleteLine).ASync()
@@ -62,8 +62,7 @@ func Init(ctx utils.Context, d *gorm.DB) {
 	}).ASync()
 }
 
-func getLines(a ...any) error {
-	lineList := a[0].(*[]*speaker.Line)
+func getLines(lineList *[]*speaker.Line) error {
 	lines := []speaker.Line{}
 	result := db.Find(&lines)
 	if result.RowsAffected > 0 {

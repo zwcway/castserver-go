@@ -2,11 +2,15 @@ package localspeaker
 
 import (
 	"bytes"
+	"os"
 	"testing"
 
 	"github.com/zwcway/castserver-go/common/audio"
+	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/element"
 	"github.com/zwcway/castserver-go/common/stream"
+	"github.com/zwcway/castserver-go/common/utils"
+	"github.com/zwcway/castserver-go/decoder"
 )
 
 func Test_reader_Read(t *testing.T) {
@@ -22,32 +26,33 @@ func Test_reader_Read(t *testing.T) {
 		0x00, 0x00, 0x00, 0xA0, 0x71, 0xCE, 0xCA, 0x3F, 0x00, 0x00, 0x00, 0xA0, 0xB0, 0x1B, 0xC6, 0x3F,
 		0x00, 0x00, 0x00, 0xE0, 0x73, 0x26, 0xC1, 0x3F, 0x00, 0x00, 0x00, 0x60, 0x05, 0x0F, 0xB8, 0x3F,
 	}
-	player := element.NewPlayer()
-	mixer = element.NewEmptyMixer()
+	mixer = element.NewMixer()
 	t.Run("44100/s16le/2=>44100/s16le/2", func(t *testing.T) {
+		inFormat := audio.Format{
+			Sample: audio.Sample{
+				Rate: audio.AudioRate_44100,
+				Bits: audio.Bits_64LEF,
+			},
+			Layout: audio.Layout10,
+		}
+		player := element.NewPlayerChannel(audio.Channel_FRONT_CENTER, inFormat, data)
 
+		// 输出格式
+		format = audio.Format{
+			Sample: audio.Sample{
+				Rate: audio.AudioRate_44100,
+				Bits: audio.Bits_S16LE,
+			},
+			Layout: audio.Layout10,
+		}
 		r := reader{
-			samples: stream.NewSamples(512, audio.Format{
-				SampleRate: audio.AudioRate_44100,
-				SampleBits: audio.Bits_64LEF,
-				Layout:     audio.ChannelLayout10,
-			}),
-			resample: element.NewResample(audio.Format{
-				SampleRate: audio.AudioRate_44100,
-				SampleBits: audio.Bits_S16LE,
-				Layout:     audio.ChannelLayout10,
-			}),
+			samples:  stream.NewSamples(512, inFormat),
+			resample: decoder.NewResample(format),
 		}
 		r.resample.On()
 
 		mixer.Clear()
 		mixer.Add(player)
-
-		player.Add(audio.Format{
-			SampleRate: audio.AudioRate_44100,
-			SampleBits: audio.Bits_64LEF,
-			Layout:     audio.ChannelLayout10,
-		}, data)
 
 		p := make([]byte, 40)
 
@@ -69,4 +74,12 @@ func Test_reader_Read(t *testing.T) {
 		}
 	})
 
+}
+
+func TestMain(m *testing.M) {
+	ctx := utils.NewEmptyContext()
+	bus.Init(ctx)
+	decoder.Module.Init(ctx)
+	m.Run()
+	os.Exit(0)
 }

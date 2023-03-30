@@ -8,7 +8,7 @@ import (
 type ResponseSpeakerInfo struct {
 	ResponseSpeakerList
 
-	Statistic speaker.Statistic `jp:"statisitc"`
+	Statistic speaker.Statistic `jp:"statistic"`
 }
 
 func NewResponseSpeakerInfo(sp *speaker.Speaker) *ResponseSpeakerInfo {
@@ -83,9 +83,9 @@ func NewResponseLineSource(line *speaker.Line) *ResponseLineSource {
 		return nil
 	}
 	return &ResponseLineSource{
-		Rate:     line.Input.Format.SampleRate.ToInt(),
-		Bits:     line.Input.Format.SampleBits.String(),
-		Channels: line.Input.Format.Layout.Mask.SliceInt(),
+		Rate:     line.Input.Format.Rate.ToInt(),
+		Bits:     line.Input.Format.Bits.String(),
+		Channels: line.Input.Format.Layout.SliceInt(),
 		Layout:   line.Input.Format.Layout.String(),
 		Type:     int(line.Input.From),
 		Duration: int(line.Input.Duration().Seconds()),
@@ -157,7 +157,7 @@ func NewResponseLineInfo(line *speaker.Line) *ResponseLineInfo {
 	info := &ResponseLineInfo{
 		ResponseLineList: *NewResponseLineList(line),
 
-		Channels:   line.Layout().Mask.SliceInt(),
+		Channels:   line.Layout().SliceInt(),
 		Layout:     line.Layout().String(),
 		Speakers:   make([]*ResponseSpeakerList, line.SpeakerCount()),
 		Input:      NewResponseLineSource(line),

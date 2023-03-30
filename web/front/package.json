@@ -29,7 +29,7 @@
     "svg-sprite-loader": "^6.0.11",
     "timers-browserify": "~2.0.12",
     "vue": "^2.7.14",
-    "vue-i18n": "^9.2.2",
+    "vue-i18n": "^8.28.2",
     "vue-router": "^3.6.5",
     "vue-slider-component": "^3.2.20",
     "vue2-touch-events": "^3.2.2",

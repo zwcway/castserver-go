@@ -52,10 +52,12 @@ func AudioInfo(f string, ai *playlist.AudioInfo) (err error) {
 
 	bit := avutil.BitsFromAVFormat(format)
 	ai.Format = audio.Format{
-		SampleRate: audio.NewAudioRate(int(rate)),
-		Layout:     avutil.ChannelsFromLayout(uint64(ctx.codecCtx.channel_layout)),
-		SampleBits: bit,
+		Sample: audio.Sample{
+			Rate: audio.NewAudioRate(int(rate)),
+			Bits: bit,
+		},
 	}
+	ai.Format.Layout, _ = avutil.ChannelsFromLayout(uint64(ctx.codecCtx.channel_layout))
 
 	ai.Url = f
 	ai.Duration = time.Duration(ctx.formatCtx.duration) * time.Microsecond
@@ -84,9 +86,11 @@ type AVFormatContext struct {
 	pause    bool
 	finished bool
 
-	ctx           *C.GOAVDecoder
-	outputFmt     audio.Format
-	outBufferSize int //
+	ctx                *C.GOAVDecoder
+	channelIndex       [audio.Channel_MAX]int
+	outputFmt          audio.Format
+	outBufferSize      int //
+	outBufferNbSamples int
 
 	lastDecodeNbSamples int
 	posDecodeNbSamples  int // 每次读取后，buffer中还剩下的每声道的samples数量
@@ -124,10 +128,12 @@ func (c *AVFormatContext) OpenFile(fileName string) (err error) {
 
 	bit := avutil.BitsFromAVFormat(format)
 	c.format = audio.Format{
-		SampleRate: audio.NewAudioRate(int(rate)),
-		Layout:     avutil.ChannelsFromLayout(uint64(c.ctx.codecCtx.channel_layout)),
-		SampleBits: bit,
+		Sample: audio.Sample{
+			Rate: audio.NewAudioRate(int(rate)),
+			Bits: bit,
+		},
 	}
+	c.format.Layout, c.channelIndex = avutil.ChannelsFromLayout(uint64(c.ctx.codecCtx.channel_layout))
 
 	if !c.format.IsValid() {
 		return fmt.Errorf("file format invalid: %s", c.format.String())
@@ -142,7 +148,7 @@ func (c *AVFormatContext) OpenFile(fileName string) (err error) {
 		return err
 	}
 
-	bus.Dispatch("audiofile opened", c, c.format, c.outputFmt, fileName)
+	bus.Dispatch("source format changed", c, &c.channelIndex)
 
 	return nil
 }
@@ -167,12 +173,10 @@ func (c *AVFormatContext) SetOutFormat(f audio.Format) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	// 不改变声道数量
-	f.Layout = c.format.Layout
+	f.InitFrom(c.format)
 
-	if !f.IsValid() {
-		return nil
-	}
+	// 不改变声道数量
+	// f.Layout = c.format.Layout
 
 	c.outputFmt = f
 
@@ -185,9 +189,9 @@ func (c *AVFormatContext) SetOutFormat(f audio.Format) error {
 }
 
 func (c *AVFormatContext) initOutputFormat() error {
-	outputFmt := avutil.AVFormatFromBits(c.outputFmt.SampleBits)
-	rate := C.int(c.outputFmt.SampleRate.ToInt())
-	chs_layout := avutil.AVLayoutFromChannelLayout(c.outputFmt.Layout)
+	outputFmt := avutil.AVFormatFromBits(c.outputFmt.Bits)
+	rate := C.int(c.outputFmt.Rate.ToInt())
+	chs_layout := avutil.AVLayoutFromLayout(c.outputFmt.Layout)
 
 	ret := C.go_init_resample(c.ctx, rate, C.int64_t(chs_layout), outputFmt)
 	if ret < 0 {
@@ -216,6 +220,10 @@ func (c *AVFormatContext) TotalDuration() time.Duration {
 
 func (c *AVFormatContext) IsPlaying() bool {
 	return !c.pause && !c.finished
+}
+
+func (c *AVFormatContext) CanRemove() bool {
+	return false
 }
 
 func (c *AVFormatContext) Len() int {
@@ -250,6 +258,7 @@ func (c *AVFormatContext) decode() (n int, err error) {
 		n = int(ret)
 	}
 	c.outBufferSize = int(c.ctx.swrCtx.out_buf_size)
+	c.outBufferNbSamples = int(c.ctx.nb_samples)
 	return
 }
 
@@ -259,8 +268,7 @@ func (c *AVFormatContext) Stream(samples *stream.Samples) {
 	}
 	nbSamples := 0
 	var (
-		chs = c.format.Layout.Count
-		i   int
+		chs = int(c.format.Count)
 		err error
 	)
 
@@ -274,7 +282,8 @@ func (c *AVFormatContext) Stream(samples *stream.Samples) {
 	}
 
 	// 强制同步格式
-	samples.ResizeSamplesOrNot(samples.NbSamples, c.outputFmt)
+	// samples.Resize(samples.RequestNbSamples, c.outputFmt)
+	samples.Format = c.outputFmt
 
 	if c.pause || c.finished {
 		// samples.BeZero()
@@ -284,7 +293,7 @@ func (c *AVFormatContext) Stream(samples *stream.Samples) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	for nbSamples < samples.NbSamples {
+	for nbSamples < samples.RequestNbSamples {
 		if c.posDecodeNbSamples >= c.lastDecodeNbSamples {
 			if c.lastDecodeNbSamples, err = c.decode(); err != nil {
 				if c.ctx.finished > C.int(0) {
@@ -292,13 +301,14 @@ func (c *AVFormatContext) Stream(samples *stream.Samples) {
 					c.pause = true
 				}
 				// 余下数据置零
-				samples.BeZeroLeft(i)
+				samples.BeZeroLeft(samples.RequestNbSamples - nbSamples)
 				return
 			}
 			c.posDecodeNbSamples = 0
 		}
 
-		copied := samples.CopyFromCBytes(unsafe.Pointer(c.ctx.buffer), chs, c.lastDecodeNbSamples, nbSamples, c.posDecodeNbSamples)
+		copied := samples.CopyFromCBytes(unsafe.Pointer(c.ctx.buffer), chs, c.outBufferNbSamples,
+			nbSamples, c.posDecodeNbSamples)
 
 		copied = samples.Format.SamplesCount(copied)
 
@@ -311,7 +321,7 @@ func (c *AVFormatContext) Seek(p time.Duration) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	pos := p * time.Duration(c.format.SampleRate) / time.Second
+	pos := p * time.Duration(c.format.Rate) / time.Second
 	ret := C.go_seek(c.ctx, C.int(pos))
 	if ret < 0 {
 		return fmt.Errorf("seek to '%d' failed", pos)

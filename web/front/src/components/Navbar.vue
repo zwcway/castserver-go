@@ -14,7 +14,7 @@
               <a class="link-state button is-normal is-none is-inverted" :class="{
                 'is-danger': !wsConnected,
                 'is-primary': wsConnected,
-              }" :title="wsConnected ? '服务器已连接' : '服务器已断开'">
+              }" :title="wsConnected ? $t('server connected') : $t('server disconnected')">
                 <svg-icon :icon-class="wsConnected ? 'link' : 'unlink'" :size="0" />
               </a>
             </div>
@@ -22,10 +22,12 @@
         </div>
         <ul class="navbar-list">
           <li class="navbar-item" :class="{ 'is-active': $route.name === 'speakers' }">
+            <a-badge count="5">
             <a :href="$router.resolve({ name: 'speakers' }).href" @click="reload">
               <svg-icon icon-class="speakers" class="icon" :size="0" />
-              <span>扬声器</span>
+              <span>{{ $t('speaker') }}</span>
             </a>
+          </a-badge>
           </li>
           <li class="navbar-item" v-for="(line, i) in lines" :key="line.id"
             :class="{ 'is-active': isLineRoute(line.id) }">
@@ -42,7 +44,7 @@
           <li class="navbar-item">
             <a v-on:click="newLineClick" class="newline">
               <svg-icon icon-class="speakers" class="icon" :size="0" />
-              <span v-show="!newLine">新增</span>
+              <span v-show="!newLine">{{ $t('new') }}</span>
               <input type="text" id="newline-input-name" class="line-name" maxlength="10" v-show="newLine"
                 v-model="newLineName" :class="{
                   'animate__animated animate__headShake': newLineNameError,
@@ -55,7 +57,7 @@
           <div class="navbar-item" :class="{ 'is-active': $route.name === 'settings' }">
             <div class="buttons">
               <router-link to="/settings" class="button is-primary is-normal"
-                :class="{ 'is-outlined': $route.name !== 'settings' }" title="设置">
+                :class="{ 'is-outlined': $route.name !== 'settings' }" :title="$t('settings')">
                 <svg-icon :icon-class="'settings'" :size="32" />
               </router-link>
             </div>

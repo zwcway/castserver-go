@@ -29,9 +29,9 @@ func LineFormatChanged(line *speaker.Line) {
 	}
 	pl.SetBuffer(stream.NewSamples(2048, line.Output))
 
-	nbSamples := pl.Buffer().NbSamples
+	nbSamples := pl.Buffer().RequestNbSamples
 
-	rate := time.Duration(line.Output.SampleRate.ToInt())
+	rate := time.Duration(line.Output.Rate.ToInt())
 	t := time.Duration(nbSamples) * time.Second / rate
 
 	lineList[line] = lineTimer{

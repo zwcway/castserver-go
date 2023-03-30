@@ -12,7 +12,7 @@ import (
 	"github.com/zwcway/castserver-go/common/element"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/common/stream"
-	"github.com/zwcway/castserver-go/common/utils"
+	"github.com/zwcway/castserver-go/decoder"
 )
 
 var (
@@ -23,11 +23,17 @@ var (
 
 	slient bool = false
 
-	sampleSize int = 2048
-	mixer      stream.MixerElement
+	mixer stream.MixerElement
 
-	cost  time.Duration
-	lines []*speaker.Line
+	cost time.Duration
+
+	format = audio.Format{
+		Sample: audio.Sample{
+			Rate: audio.AudioRate_44100,
+			Bits: audio.Bits_S16LE,
+		},
+		Layout: audio.LayoutStereo,
+	}
 )
 
 func Init() error {
@@ -37,27 +43,20 @@ func Init() error {
 		return nil
 	}
 
-	format := audio.Format{
-		SampleRate: audio.AudioRate_44100,
-		Layout:     audio.ChannelLayoutStereo,
-		SampleBits: audio.Bits_S16LE,
-	}
-
 	var err error
-	sampleSize = config.AudioBuferSize
 	bufSize := format.AllSamplesSize(1024)
 
 	if sampleReader == nil {
-		resample := element.NewResample(format)
+		resample := decoder.NewResample(format)
 		sampleReader = &reader{resample: resample}
 		resample.On()
 	}
 	if mixer == nil {
-		mixer = element.NewEmptyMixer()
+		mixer = element.NewMixer()
 	}
 	var readyChan chan struct{}
 
-	context, readyChan, err = oto.NewContext(format.SampleRate.ToInt(), format.Layout.Count, 2)
+	context, readyChan, err = oto.NewContext(format.Rate.ToInt(), int(format.Count), 2)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize speaker")
 	}
@@ -83,40 +82,32 @@ func registerEventBus() {
 		RemoveLine(a[0].(*speaker.Line))
 		return nil
 	})
+	bus.RegisterObj(mixer, "mixer format changed", func(a ...any) error {
+		// m := a[0].(stream.MixerElement)
+		f := a[1].(*audio.Format)
+		if sampleReader.samples == nil {
+			sampleReader.samples = stream.NewSamplesDuration(config.AudioBuferMSDuration, *f)
+		} else {
+			sampleReader.samples.ResizeDuration(config.AudioBuferMSDuration, *f)
+		}
+		return nil
+	})
 }
 
 func AddLine(line *speaker.Line) {
-	if mixer == nil {
+	ss := line.Input.PipeLine.(stream.SourceStreamer)
+	if mixer.Has(ss) {
 		return
 	}
-	for _, l := range lines {
-		if l == line {
-			return
-		}
-	}
-	format := audio.DefaultFormat()
-	format.Layout = audio.ChannelLayoutStereo
-
-	mixer.Add(line.Input.PipeLine)
-	lines = append(lines, line)
-
-	// TODO 每个 Line 很有可能格式不一致
-	if sampleReader.samples == nil || sampleReader.samples.Format.Size() < format.Size() {
-		sampleReader.samples = stream.NewSamples(sampleSize, format)
-	}
+	mixer.Add(ss)
 }
 
 func RemoveLine(line *speaker.Line) {
-	if mixer == nil {
+	ss := line.Input.PipeLine.(stream.SourceStreamer)
+	if mixer.Has(ss) {
 		return
 	}
-	for i, l := range lines {
-		if l == line {
-			mixer.Del(line.Input.PipeLine)
-			utils.SliceQuickRemove(&lines, i)
-			return
-		}
-	}
+	mixer.Del(ss)
 }
 
 func IsOpened() bool {

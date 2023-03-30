@@ -61,18 +61,12 @@ func (a Bits) ToInt() int {
 	switch a {
 	case Bits_S8, Bits_U8:
 		return 8
-	case Bits_S16LE, Bits_U16LE:
+	case Bits_S16LE, Bits_U16LE, Bits_16LEF:
 		return 16
-	case Bits_S24LE, Bits_U24LE:
+	case Bits_S24LE, Bits_U24LE, Bits_24LEF:
 		return 24
-	case Bits_S32LE, Bits_U32LE:
+	case Bits_S32LE, Bits_U32LE, Bits_32LEF:
 		return 32
-	case Bits_32LEF:
-		return 32
-	case Bits_16LEF:
-		return 16
-	case Bits_24LEF:
-		return 24
 	case Bits_64LEF:
 		return 64
 	default:
@@ -142,6 +136,10 @@ func (a Bits) String() string {
 	}
 }
 
+func (a Bits) IsFloat() bool {
+	return a == Bits_16LEF || a == Bits_24LEF || a == Bits_32LEF || a == Bits_64LEF
+}
+
 func (a Bits) Bits() int {
 	return a.ToInt()
 }
@@ -151,7 +149,7 @@ func (a Bits) LessThan(r Bits) bool {
 }
 
 func (a Bits) Size() int {
-	return int(a.ToInt() / 8)
+	return a.ToInt() / 8
 }
 
 func (a Bits) IsValid() bool {

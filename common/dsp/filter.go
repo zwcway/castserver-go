@@ -54,7 +54,7 @@ func (e *Filter) Init(format *audio.Format) {
 
 func (e *Filter) initLowPass(format *audio.Format) {
 	q := e.EQ.Q
-	w0 := 2.0 * Pi * float64(e.EQ.Frequency) / float64(format.SampleRate.ToInt())
+	w0 := 2.0 * Pi * float64(e.EQ.Frequency) / float64(format.Rate.ToInt())
 	alpha := math.Sin(w0) / (2.0 * q)
 
 	e.a0 = 1.0 + alpha
@@ -67,7 +67,7 @@ func (e *Filter) initLowPass(format *audio.Format) {
 
 func (e *Filter) initHighPass(format *audio.Format) {
 	q := e.EQ.Q
-	w0 := 2.0 * Pi * float64(e.EQ.Frequency) / float64(format.SampleRate.ToInt())
+	w0 := 2.0 * Pi * float64(e.EQ.Frequency) / float64(format.Rate.ToInt())
 	alpha := math.Sin(w0) / (2.0 * q)
 
 	e.a0 = 1.0 + alpha
@@ -80,7 +80,7 @@ func (e *Filter) initHighPass(format *audio.Format) {
 
 func (e *Filter) initPeaking(format *audio.Format) {
 	width := 0.5
-	w0 := 2.0 * Pi * float64(e.EQ.Frequency) / float64(format.SampleRate.ToInt())
+	w0 := 2.0 * Pi * float64(e.EQ.Frequency) / float64(format.Rate.ToInt())
 	alpha := math.Sin(w0) * math.Sinh(math.Log(2.0)/2.0*width*w0/math.Sin(w0))
 	a := math.Pow(10.0, (e.EQ.Gain / 40.0))
 

@@ -2,7 +2,17 @@
   <div class="container">
     <div class="card">
       <div class="volume">
-        <span>{{ speaker.name }}</span>
+        <div class="speaker-name">
+          <span v-if="!isSpeakerNameEdit">{{ speaker.name }}</span>
+          <a-input v-else :value="speaker.name" placeholder="名称" :max-width="6"
+            @change="speaker.newName = $event.target.value" @blur="onNameChange" @keyup.enter="onNameChange" />
+          <a-button v-if="!isSpeakerNameEdit" type="link" @click.stop.prevent="isSpeakerNameEdit = true">
+            <a-icon type="edit" />
+          </a-button>
+          <a-button v-else type="link" @click.stop.prevent="onNameChange">
+            <i class="codicon codicon-check"></i>
+          </a-button>
+        </div>
         <vue-slider v-model="volume" :min="0" :max="100" :process="volumeLevelProcess" :tooltip-placement="'bottom'"
           ref="volumeSlider" @change="volumeChanged" @drag-end="volumeChanged('finally')" />
         <div> </div>
@@ -15,45 +25,41 @@
           <span>{{ speaker.mac }}</span>
         </div>
         <div class="column">
-          <label>位置</label>
+          <label>{{ $t('position') }}</label>
           <span>
-            <a-select size="small" v-model="line" :options="lineListOptions" placeholder="选择线路"
+            <a-select size="small" v-model="line" :options="lineListOptions" :placeholder="$t('select line')"
               :dropdownMatchSelectWidth="false" />
-            <a-select size="small" v-model="channel" :options="channelListOptions" placeholder="选择声道"
+            <a-select size="small" v-model="channel" :options="channelListOptions" :placeholder="$t('select channel')"
               :dropdownMatchSelectWidth="false" />
           </span>
         </div>
         <div class="column">
-          <label>连接状态</label>
-          <span>{{ speaker.cTime ? '已连接' : '未连接' }}</span>
+          <label>{{ $t('connection state')}}</label>
+          <span :class="speaker.cTime ? 'success' : 'warn'">{{ speaker.cTime ? $t('connected') : $t('disconnected') }}</span>
         </div>
         <div class="column block">
-          <label>支持的采样率</label>
+          <label>{{ $t('sample rates supported') }}</label>
           <span class="tags">
-            <span class="tag" v-for="rate in speaker.rateList" :key="rate">
-              {{ rate }}
-            </span>
+            <a-tag class="tag" v-for="(rate, i) in speaker.rateList" :key="i"> {{ rate | num }}Hz </a-tag>
           </span>
         </div>
         <div class="column block">
-          <label>支持的位宽</label>
+          <label>{{ $t('sample bits supported') }}</label>
           <span class="tags">
-            <span class="tag" v-for="bit in speaker.bitsList" :key="bit">
-              {{ bit }}bit
-            </span>
+            <a-tag class="tag" v-for="(bit, i) in speaker.bitList" :key="i"> {{ bit }} </a-tag>
           </span>
         </div>
         <div class="column">
-          <label>队列中</label>
-          <span>{{ speaker.statistic ? speaker.statistic.queue : 0 }}B</span>
+          <label>{{ $t('queued size') }}</label>
+          <span>{{ speaker.statistic ? speaker.statistic.q : 0 | bytes }}</span>
         </div>
         <div class="column">
-          <label>已发送</label>
-          <span>{{ speaker.statistic ? speaker.statistic.send : 0 }}B</span>
+          <label>{{ $t('sended size') }}</label>
+          <span>{{ speaker.statistic ? speaker.statistic.s : 0 | bytes }}</span>
         </div>
         <div class="column">
-          <label>已丢弃</label>
-          <span>{{ speaker.statistic ? speaker.statistic.drop : 0 }}B</span>
+          <label>{{ $t('droped size') }}</label>
+          <span>{{ speaker.statistic ? speaker.statistic.d : 0 | bytes }}</span>
         </div>
       </div>
     </div>
@@ -83,6 +89,7 @@ export default {
       id: 0,
       speaker: {},
       lineList: [],
+      isSpeakerNameEdit: false,
       volumeLevelProcess(dotsPos) {
         return [[0, 0, { backgroundColor: 'pink' }]];
       },
@@ -108,7 +115,7 @@ export default {
       }
     },
     channelListOptions() {
-      let opts = [{key: '-1', label: '选择声道'}]
+      let opts = [{ key: '-1', label: '选择声道' }]
       for (let i in ApiLine.channelList) {
         opts.push({
           key: i + '',
@@ -118,7 +125,7 @@ export default {
       return opts
     },
     lineListOptions() {
-      let opts = [{key: '-1', label: '选择线路'}]
+      let opts = [{ key: '-1', label: '选择线路' }]
       for (let i in this.lineList) {
         opts.push({
           key: this.lineList[i].id + '',
@@ -168,6 +175,22 @@ export default {
       if (v === 'finally') return throttleTimer.finally();
       throttleTimer(v);
     },
+    onNameChange() {
+      if (!this.speaker.newName || this.speaker.name === this.speaker.newName || this.speaker.newName.length === 0) {
+        this.isSpeakerNameEdit = false;
+        return;
+      }
+      ApiSpeaker.setSpeaker(this.speaker.id, 'name', this.speaker.newName)
+        .then(() => {
+          this.speaker.name = this.speaker.newName;
+        })
+        .catch(() => {
+          this.speaker.newName = this.speaker.name;
+        })
+        .finally(() => {
+          this.isSpeakerNameEdit = false;
+        });
+    },
   },
 };
 </script>
@@ -176,6 +199,29 @@ export default {
 .container {
   margin: 1rem 2rem;
 }
+
+.speaker-name {
+  width: auto;
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+
+  >input,
+  >span {
+    max-width: 8rem;
+    padding: 0 4px;
+    height: 1.5rem;
+    line-height: 1.5rem;
+    width: auto;
+  }
+
+  >button {
+    width: 1rem;
+    padding-left: 0;
+  }
+}
+
 
 .volume {
   padding: 1rem 6rem;
@@ -196,7 +242,7 @@ export default {
   .column {
     flex: 2 1 auto;
     background-color: var(--color-secondary-bg);
-    color: var(--color-secondary);
+    color: var(--color-text);
     margin: 0.75rem;
     padding: 0.2rem 0.5rem;
     border-radius: 2px;
@@ -214,10 +260,12 @@ export default {
       display: flex;
 
       .tag {
-        padding: 0 0.5rem;
-        margin: 0 0.2rem;
-        line-height: 0.5rem;
-        height: 1rem;
+        // padding: 1px 3px;
+        // margin: 0 0.2rem;
+        // line-height: 1.1rem;
+        // height: 1rem;
+        border-radius: 0.2rem;
+        background-color: var(--color-secondary-bg-for-transparent);
       }
     }
   }

@@ -95,8 +95,10 @@ func appends(a ...[]byte) []byte {
 
 func Format() audio.Format {
 	return audio.Format{
-		SampleRate: audio.AudioRate_44100,
-		Layout:     audio.ChannelLayout10,
-		SampleBits: audio.Bits_S16LE,
+		Sample: audio.Sample{
+			Rate: audio.AudioRate_44100,
+			Bits: audio.Bits_S16LE,
+		},
+		Layout: audio.Layout10,
 	}
 }

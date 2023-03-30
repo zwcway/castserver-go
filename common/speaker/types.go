@@ -30,10 +30,10 @@ const (
 )
 
 type Statistic struct {
-	Queue uint32 // 队列中数据量
-	Spend uint64 // 已经发送的数据量
-	Drop  uint32 // 被丢弃的数据量
-	Error uint32
+	Queue uint32 `jp:"q"` // 队列中数据量
+	Spend uint64 `jp:"s"` // 已经发送的数据量
+	Drop  uint32 `jp:"d"` // 被丢弃的数据量
+	Error uint32 `jp:"e"`
 }
 
 type PowerState = uint8

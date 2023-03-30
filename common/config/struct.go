@@ -10,7 +10,7 @@ var ConfigStruct = []CfgSection{
 	{"audio", []CfgKey{
 		{&SupportAudioBits, "support bits", "", parseBits},
 		{&SupportAudioRates, "support rates", "", parseRates},
-		{&AudioBuferSize, "buffer size", "", nil},
+		{&AudioBuferMSDuration, "buffer duration", "", nil},
 	}},
 	{"detect", []CfgKey{
 		{&ServerListen, "listen", "", nil},

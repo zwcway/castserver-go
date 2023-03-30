@@ -38,6 +38,8 @@ function formatIP(ip) {
   return '';
 }
 
+
+
 const ipv6Regex = /(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))/gi;
 const ipv4Regex = /^(25[0-5]|2[0-4][0-9]|1?[0-9][0-9]{1,2})(\.(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})){3}$/;
 const numRegex = /^\d+$/;
@@ -188,11 +190,30 @@ export function formatLayout(channels) {
 
 export function formatDuration(seconds) {
   seconds = parseInt(seconds)
-  if (!(seconds >= 0)) 
+  if (!(seconds >= 0))
     return '00:00:00'
 
   const hour = (seconds / 3600).toFixed(0).padStart(2, '0')
   const min = (seconds / 60).toFixed(0).padStart(2, '0')
   const sec = (seconds % 60).toFixed(0).padStart(2, '0')
   return hour + ':' + min + ':' + sec
+}
+
+export function formatBytes(bytes, decimals = 2) {
+  return formatSize(bytes, decimals) + 'B'
+}
+
+export function formatNumber(bytes, decimals = 2) {
+  return formatSize(bytes, decimals, 1000)
+}
+
+export function formatSize(bytes, decimals = 2, k = 1024) {
+  if (!+bytes) return '0'
+
+  const dm = decimals < 0 ? 0 : decimals
+  const sizes = ['', 'K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y']
+
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + sizes[i]
 }

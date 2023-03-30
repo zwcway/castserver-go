@@ -24,6 +24,7 @@ static int go_averror_is_eof(int code)
     return code == AVERROR_EOF;
 }
 
+#define CHANNEL_MAX 32
 typedef struct GOAVDecoder
 {
     AVCodecContext *codecCtx;
@@ -39,6 +40,11 @@ typedef struct GOAVDecoder
      * 
      */
     uint8_t *buffer;
+    /**
+     * @brief 一次解码的样本数量
+     * 
+     */
+    int nb_samples;
     enum AVSampleFormat outputFmt;
     int debug;
     int finished;
@@ -47,6 +53,11 @@ typedef struct GOAVDecoder
     int64_t next_pts;
     AVRational next_pts_tb;
 
+    /**
+     * @brief 声道映射关系
+     * 
+     */
+    int channel_index[CHANNEL_MAX];
 } GOAVDecoder;
 
 static const int go_init_resample(GOAVDecoder *ctx, int rate, int64_t channel_layout, enum AVSampleFormat fmt)
@@ -64,13 +75,10 @@ static const int go_init_resample(GOAVDecoder *ctx, int rate, int64_t channel_la
     }
     ctx->outputFmt = fmt;
 
-    if (ctx->swrCtx == NULL)
-    {
-        // 初始化转码器
-        ret = go_swr_init(&ctx->swrCtx,
-                          ctx->codecCtx->sample_rate, ctx->codecCtx->channel_layout, ctx->codecCtx->sample_fmt,
-                          rate, channel_layout, fmt);
-    }
+    // 初始化转码器
+    ret = go_swr_init(&ctx->swrCtx,
+                        ctx->codecCtx->sample_rate, ctx->codecCtx->channel_layout, ctx->codecCtx->sample_fmt,
+                        rate, channel_layout, fmt);
 
     return ret;
 }
@@ -202,6 +210,12 @@ static const int go_init(GOAVDecoder **ctxp, const char *fileName,
         ctx->codecCtx->channel_layout = av_get_default_channel_layout(ctx->codecCtx->channels);
     }
     
+    for (ret = 0; ret < CHANNEL_MAX; ret ++)
+        ctx->channel_index[ret] = -1;
+    
+    for (ret = 0; ret < ctx->codecCtx->channels; ret ++)
+        ctx->channel_index[ret] = av_channel_layout_extract_channel(ctx->codecCtx->channel_layout, ret);
+    
     *channels = ctx->codecCtx->channels;
     *rate = ctx->codecCtx->sample_rate;
     *fmt = ctx->codecCtx->sample_fmt;
@@ -327,6 +341,8 @@ static const int go_decode(GOAVDecoder *ctx)
     }
 
     ctx->swrCtx->in_buffer = (uint8_t*)ctx->avFrame->extended_data;
+
+    ctx->nb_samples = ctx->avFrame->nb_samples;
 
     ret = go_convert(ctx->swrCtx, ctx->avFrame->nb_samples);
 

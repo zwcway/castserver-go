@@ -179,132 +179,132 @@ func (m ChannelMask) IsValid() bool {
 }
 
 func (m ChannelMask) Slice() []Channel {
-	s := []Channel{}
-	for i := 0; i < 32; i++ {
+	s := make([]Channel, Channel_MAX)
+	j := 0
+	for i := 0; i < int(Channel_MAX); i++ {
 		if (m>>i)&0x01 == 1 {
-			b := Channel(i + 1)
-			s = append(s, b)
+			s[j] = Channel(i + 1)
+			j++
 		}
 	}
-	return s
+	return s[:j]
 }
 
 func (m ChannelMask) SliceInt() []int {
-	s := m.Slice()
-	si := make([]int, len(s))
-	for i, ss := range s {
-		si[i] = ss.ToInt()
+	s := make([]int, Channel_MAX)
+	j := 0
+	for i := 0; i < int(Channel_MAX); i++ {
+		if (m>>i)&0x01 == 1 {
+			s[j] = i + 1
+			j++
+		}
 	}
-	return si
+	return s[:j]
 }
 
 var (
-	ChannelLayout10  = NewChannelLayout(Channel_FRONT_CENTER)                                         // 前中
-	ChannelLayout20  = NewChannelLayout(Channel_FRONT_LEFT, Channel_FRONT_RIGHT)                      // 前左、前右
-	ChannelLayout21  = extendLayout(ChannelLayout20, Channel_LOW_FREQUENCY)                           // 前左、前右，低音
-	ChannelLayout22  = extendLayout(ChannelLayout20, Channel_SIDE_LEFT, Channel_SIDE_RIGHT)           // 前左、前右，环左、环右
-	ChannelLayout30  = extendLayout(ChannelLayout20, Channel_FRONT_CENTER)                            // 前左、前右、前中
-	ChannelLayout31  = extendLayout(ChannelLayout30, Channel_LOW_FREQUENCY)                           // 前左、前右、前中，低音
-	ChannelLayout40  = extendLayout(ChannelLayout30, Channel_BACK_CENTER)                             // 前左、前右、前中、后中
-	ChannelLayout41  = extendLayout(ChannelLayout40, Channel_LOW_FREQUENCY)                           // 前左、前右、前中、后中，低音
-	ChannelLayout50  = extendLayout(ChannelLayout30, Channel_SIDE_LEFT, Channel_SIDE_RIGHT)           // 前左、前右、前中、环左、环右
-	ChannelLayout51  = extendLayout(ChannelLayout50, Channel_LOW_FREQUENCY)                           // 前左、前右、前中、环左、环右，低音
-	ChannelLayout5B0 = extendLayout(ChannelLayout30, Channel_BACK_LEFT, Channel_BACK_RIGHT)           // 前左、前右、前中、后左、后右
-	ChannelLayout5B1 = extendLayout(ChannelLayout5B0, Channel_LOW_FREQUENCY)                          // 前左、前右、前中、后左、后右，低音
-	ChannelLayout60  = extendLayout(ChannelLayout50, Channel_BACK_CENTER)                             // 前左、前右、前中、环左、环右、后中
-	ChannelLayout61  = extendLayout(ChannelLayout51, Channel_BACK_CENTER)                             // 前左、前右、前中、环左、环右、后中，低音
-	ChannelLayout70  = extendLayout(ChannelLayout50, Channel_BACK_LEFT, Channel_BACK_RIGHT)           // 前左、前右、前中、环左、环右、后左、后右
-	ChannelLayout71  = extendLayout(ChannelLayout70, Channel_LOW_FREQUENCY)                           // 前左、前右、前中、环左、环右、后左、后右，低音
-	ChannelLayout702 = extendLayout(ChannelLayout70, Channel_TOP_FRONT_LEFT, Channel_TOP_FRONT_RIGHT) // 前左、前右、前中、环左、环右、后左、后右，上前左、上前右
-	ChannelLayout712 = extendLayout(ChannelLayout71, Channel_TOP_FRONT_LEFT, Channel_TOP_FRONT_RIGHT) // 前左、前右、前中、环左、环右、后左、后右，低音，上前左、上前右
-	ChannelLayout714 = extendLayout(ChannelLayout712, Channel_TOP_BACK_LEFT, Channel_TOP_BACK_RIGHT)  // 前左、前右、前中、环左、环右、后左、后右，低音，上前左、上前右、上后左、上后右
+	Layout10  = NewLayout(Channel_FRONT_CENTER)                                         // 前中
+	Layout20  = NewLayout(Channel_FRONT_LEFT, Channel_FRONT_RIGHT)                      // 前左、前右
+	Layout21  = extendLayout(Layout20, Channel_LOW_FREQUENCY)                           // 前左、前右，低音
+	Layout22  = extendLayout(Layout20, Channel_SIDE_LEFT, Channel_SIDE_RIGHT)           // 前左、前右，环左、环右
+	Layout30  = extendLayout(Layout20, Channel_FRONT_CENTER)                            // 前左、前右、前中
+	Layout31  = extendLayout(Layout30, Channel_LOW_FREQUENCY)                           // 前左、前右、前中，低音
+	Layout40  = extendLayout(Layout30, Channel_BACK_CENTER)                             // 前左、前右、前中、后中
+	Layout41  = extendLayout(Layout40, Channel_LOW_FREQUENCY)                           // 前左、前右、前中、后中，低音
+	Layout50  = extendLayout(Layout30, Channel_SIDE_LEFT, Channel_SIDE_RIGHT)           // 前左、前右、前中、环左、环右
+	Layout51  = extendLayout(Layout50, Channel_LOW_FREQUENCY)                           // 前左、前右、前中、环左、环右，低音
+	Layout5B0 = extendLayout(Layout30, Channel_BACK_LEFT, Channel_BACK_RIGHT)           // 前左、前右、前中、后左、后右
+	Layout5B1 = extendLayout(Layout5B0, Channel_LOW_FREQUENCY)                          // 前左、前右、前中、后左、后右，低音
+	Layout60  = extendLayout(Layout50, Channel_BACK_CENTER)                             // 前左、前右、前中、环左、环右、后中
+	Layout61  = extendLayout(Layout51, Channel_BACK_CENTER)                             // 前左、前右、前中、环左、环右、后中，低音
+	Layout70  = extendLayout(Layout50, Channel_BACK_LEFT, Channel_BACK_RIGHT)           // 前左、前右、前中、环左、环右、后左、后右
+	Layout71  = extendLayout(Layout70, Channel_LOW_FREQUENCY)                           // 前左、前右、前中、环左、环右、后左、后右，低音
+	Layout702 = extendLayout(Layout70, Channel_TOP_FRONT_LEFT, Channel_TOP_FRONT_RIGHT) // 前左、前右、前中、环左、环右、后左、后右，上前左、上前右
+	Layout712 = extendLayout(Layout71, Channel_TOP_FRONT_LEFT, Channel_TOP_FRONT_RIGHT) // 前左、前右、前中、环左、环右、后左、后右，低音，上前左、上前右
+	Layout714 = extendLayout(Layout712, Channel_TOP_BACK_LEFT, Channel_TOP_BACK_RIGHT)  // 前左、前右、前中、环左、环右、后左、后右，低音，上前左、上前右、上后左、上后右
 
-	ChannelLayoutMono   = ChannelLayout10
-	ChannelLayoutStereo = ChannelLayout20
+	LayoutMono   = Layout10
+	LayoutStereo = Layout20
 
 	ChannalLayoutMAX = newMaxLayout()
 )
 
-func newMaxLayout() ChannelLayout {
-	var a ChannelLayout
+func newMaxLayout() Layout {
+	var a Layout
 	for ch := Channel_NONE + 1; ch < Channel_MAX; ch++ {
-		a.Mask.Add(ch)
+		a.ChannelMask.Add(ch)
 	}
-	a.Count = a.Mask.Count()
+	a.Count = uint32(a.ChannelMask.Count())
 	return a
 }
 
-func NewChannelLayout(ch ...Channel) ChannelLayout {
-	var a ChannelLayout
-	a.Mask.FromChannelSlice(ch)
-	a.Count = a.Mask.Count()
+func NewLayout(ch ...Channel) Layout {
+	var a Layout
+	a.ChannelMask.FromChannelSlice(ch)
+	a.Count = uint32(a.ChannelMask.Count())
 	return a
 }
 
-type ChannelLayout struct {
-	Mask  ChannelMask
-	Count int
+type Layout struct {
+	ChannelMask
+	Count uint32
 }
 
-func (l ChannelLayout) String() string {
-	switch l.Mask {
-	case ChannelLayout10.Mask:
+func (l Layout) String() string {
+	switch l.ChannelMask {
+	case Layout10.ChannelMask:
 		return "mono"
-	case ChannelLayout20.Mask:
+	case Layout20.ChannelMask:
 		return "stereo"
-	case ChannelLayout21.Mask:
+	case Layout21.ChannelMask:
 		return "2.1"
-	case ChannelLayout22.Mask:
+	case Layout22.ChannelMask:
 		return "2.2"
-	case ChannelLayout30.Mask:
+	case Layout30.ChannelMask:
 		return "3.0"
-	case ChannelLayout31.Mask:
+	case Layout31.ChannelMask:
 		return "3.1"
-	case ChannelLayout40.Mask:
+	case Layout40.ChannelMask:
 		return "4.0"
-	case ChannelLayout41.Mask:
+	case Layout41.ChannelMask:
 		return "4.1"
-	case ChannelLayout50.Mask:
+	case Layout50.ChannelMask:
 		return "5.0"
-	case ChannelLayout51.Mask:
+	case Layout51.ChannelMask:
 		return "5.1"
-	case ChannelLayout5B0.Mask:
+	case Layout5B0.ChannelMask:
 		return "5.0(back)"
-	case ChannelLayout5B1.Mask:
+	case Layout5B1.ChannelMask:
 		return "5.1(back)"
-	case ChannelLayout60.Mask:
+	case Layout60.ChannelMask:
 		return "6.0"
-	case ChannelLayout61.Mask:
+	case Layout61.ChannelMask:
 		return "6.1"
-	case ChannelLayout70.Mask:
+	case Layout70.ChannelMask:
 		return "7.0"
-	case ChannelLayout71.Mask:
+	case Layout71.ChannelMask:
 		return "7.1"
-	case ChannelLayout702.Mask:
+	case Layout702.ChannelMask:
 		return "7.0.2"
-	case ChannelLayout712.Mask:
+	case Layout712.ChannelMask:
 		return "7.1.2"
-	case ChannelLayout714.Mask:
+	case Layout714.ChannelMask:
 		return "7.1.4"
 	}
 	return ""
 }
 
-func (l ChannelLayout) IsValid() bool {
-	return l.Mask.IsValid() && l.Count == l.Mask.Count()
+func (l Layout) Channels() []Channel {
+	return l.ChannelMask.Slice()
 }
 
-func (l ChannelLayout) Channels() []Channel {
-	return l.Mask.Slice()
+func (l Layout) Equal(r Layout) bool {
+	return l.ChannelMask == r.ChannelMask
 }
 
-func (l ChannelLayout) Equal(r ChannelLayout) bool {
-	return l.Mask == r.Mask
-}
-
-func extendLayout(a ChannelLayout, ch ...Channel) ChannelLayout {
-	a.Mask.FromChannelSlice(append(a.Mask.Slice(), ch...))
-	a.Count = a.Mask.Count()
+func extendLayout(a Layout, ch ...Channel) Layout {
+	a.ChannelMask.FromChannelSlice(append(a.ChannelMask.Slice(), ch...))
+	a.Count = uint32(a.ChannelMask.Count())
 	return a
 }
 

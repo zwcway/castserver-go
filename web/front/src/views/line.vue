@@ -59,7 +59,9 @@
             enabled: channelSpeakers[id] && channelSpeakers[id].length > 0,
             active: ch.show,
           }">
+          <!-- <a-tooltip :title="ch.name"> -->
           <svg-icon v-bind:iconClass="ch.icon" :size="0" />
+          <!-- </a-tooltip> -->
         </div>
       </div>
     </div>
@@ -92,7 +94,7 @@
             </span>
             <a-button type="link" v-if="!sp.ch || (!infomation.channelId && !channelAttr[sp.ch])"
               @click.stop.prevent="onSpecifyChannel(sp.id)">
-              指定声道
+              {{ $t('set channel') }}
             </a-button>
           </div>
           <span class="ip">{{ sp.ip }}</span>
@@ -107,9 +109,10 @@
       <equalizer id="equalizer" :bands="equalizerBands" :eq="line.eq.eqs" ref="equalizer" @change="onEQChange" />
       <template slot="title">
         <div class="eq-toolbar">
-          <span>均衡器</span>
+          <span>{{ $t('equalizer') }}</span>
           <a-button type="danger" shape="circle" icon="rest" @click="onEQClear()"></a-button>
-          <a-switch v-model="line.eq.enable" checked-children="开" un-checked-children="关" @change="onEqEnable" />
+          <a-switch v-model="line.eq.enable" :checked-children="$t('on')" :un-checked-children="$t('off')"
+            @change="onEqEnable" />
           <a-select class="eq-band-select" :options="equalizerBandsList" :value="eqBandsSelected + ''"
             @select="eqBandsSelected = $event">
           </a-select>
@@ -157,17 +160,17 @@ export default {
       isLayout3d: false,
       layout: layoutDefault,
       layoutList: [
-        { key: '1-0', label: '单声道  ', disabled: false },
-        { key: '2-0', label: '立体声  ', disabled: false },
-        { key: '2-1', label: '2.1 声道', disabled: false },
-        { key: '5-0', label: '5.0 声道', disabled: false },
-        { key: '5-0-back-', label: '5.0(后) 声道', disabled: false },
-        { key: '5-1', label: '5.1 声道', disabled: false },
-        { key: '5-1-back-', label: '5.1(后) 声道', disabled: false },
-        { key: '7-0', label: '7.0 声道', disabled: false },
-        { key: '7-1', label: '7.1 声道', disabled: false },
-        { key: '7-1-2', label: '7.1.2 声道', disabled: false },
-        { key: '7-1-4', label: '7.1.4 声道', disabled: false },
+        { key: '1-0', label: this.$t('mono layout'), disabled: false },
+        { key: '2-0', label: this.$t('stereo layout'), disabled: false },
+        { key: '2-1', label: this.$t('2.1 layout'), disabled: false },
+        { key: '5-0', label: this.$t('5.0 layout'), disabled: false },
+        { key: '5-0-back-', label: this.$t('5.0 back layout'), disabled: false },
+        { key: '5-1', label: this.$t('5.1 layout'), disabled: false },
+        { key: '5-1-back-', label: this.$t('5.1 back layout'), disabled: false },
+        { key: '7-0', label: this.$t('7.0 layout'), disabled: false },
+        { key: '7-1', label: this.$t('7.1 layout'), disabled: false },
+        { key: '7-1-2', label: this.$t('7.1.2 layout'), disabled: false },
+        { key: '7-1-4', label: this.$t('7.1.4 layout'), disabled: false },
       ],
       channels: 0,
       channelLayout: 'none',
@@ -207,9 +210,9 @@ export default {
         let bands = [];
         this.$refs.equalizer.bandList().forEach(band => {
           bands.push({
-            label: band + ' 段',
+            label: $t('bands', [band]),
             value: band,
-            key: band + ' 段',
+            key: $t('bands', [band]),
           });
         });
 
@@ -300,10 +303,10 @@ export default {
       this.isLineNameEdit = false;
       this.infomation = {};
       this.$destroyAll();
+      if (this.settings.showSpectrum) {
+        this.initSpectrum();
+      }
       this.$nextTick(function () {
-        if (this.settings.showSpectrum) {
-          this.initSpectrum();
-        }
         document.addEventListener('keyup', this.onDocumentKeyUp);
       });
 
@@ -406,18 +409,20 @@ export default {
     initSpectrum() {
       cancelAnimationFrame(this.specturmCtx.spRequestId);
 
-      this.specturmCtx.SP = document.getElementById('spectrum-' + this.line.id);
-      let bg = this.specturmCtx.SP.nextSibling;
-      this.specturmCtx.SP.width = bg.offsetWidth;
-      this.specturmCtx.SP.height = bg.offsetHeight;
-      this.specturmCtx.ctx = this.specturmCtx.SP.getContext('2d');
+      this.$nextTick(function () {
+        this.specturmCtx.SP = document.getElementById('spectrum-' + this.line.id);
+        let bg = this.specturmCtx.SP.nextSibling;
+        this.specturmCtx.SP.width = bg.offsetWidth;
+        this.specturmCtx.SP.height = bg.offsetHeight;
+        this.specturmCtx.ctx = this.specturmCtx.SP.getContext('2d');
+        this.drawSpectrum();
+      })
       this.specturmCtx.slow = [];
       this.specturmCtx.title = [];
       this.specturmCtx.spdata = [];
       this.specturmCtx.speakerIndex = 0;
       this.specturmCtx.level = new VolumeLevel('200ms');
 
-      this.drawSpectrum();
     },
     onDocumentKeyUp(e) {
       if (e.key === 'Escape') {

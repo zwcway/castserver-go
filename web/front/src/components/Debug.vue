@@ -22,6 +22,7 @@
       <div v-if="speakerId >= 0">
         <a-button size="small" @click="speakerSendServerInfo">发送服务器信息</a-button>
         <a-button size="small" @click="speakerReconnect">重新连接</a-button>
+        <a-button size="small" @click="speakerControlSample">设置音频格式</a-button>
       </div>
       <div v-if="lineId >= 0">
         <p>
@@ -183,6 +184,9 @@ export default {
     },
     speakerReconnect() {
       this.send('spReconnect', this.speakerId);
+    },
+    speakerControlSample() {
+      this.send('spSample', this.speakerId);
     },
     playFile() {
       if (this.audioFile.length < 4) {

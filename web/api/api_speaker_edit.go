@@ -29,7 +29,7 @@ func apiSpeakerEdit(c *websockets.WSConnection, req Requester, log lg.Logger) (a
 		return nil, &Error{4, fmt.Errorf("speaker[%d] not exists", p.ID)}
 	}
 	if len(p.Name) > 0 {
-		sp.Name = p.Name
+		sp.SetName(p.Name)
 	}
 	if p.Channel > 0 {
 		ch := audio.Channel(p.Channel)

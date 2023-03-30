@@ -4,6 +4,7 @@ import (
 	"github.com/zwcway/castserver-go/common"
 	"github.com/zwcway/castserver-go/common/utils"
 	"github.com/zwcway/castserver-go/control"
+	"github.com/zwcway/castserver-go/decoder"
 	"github.com/zwcway/castserver-go/detector"
 	"github.com/zwcway/castserver-go/mutexer"
 	"github.com/zwcway/castserver-go/pusher"
@@ -19,6 +20,7 @@ type Module interface {
 
 var mods = []Module{
 	common.Module,
+	decoder.Module,
 	mutexer.Module,
 	detector.Module,
 	pusher.Module,
