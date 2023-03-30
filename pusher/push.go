@@ -1,13 +1,12 @@
 package pusher
 
 import (
-	"sync"
 	"time"
 
 	"github.com/zwcway/castserver-go/common/config"
+	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/common/speaker"
-
-	"go.uber.org/zap"
+	"github.com/zwcway/castserver-go/common/utils"
 )
 
 type spQueueCtrl struct {
@@ -17,7 +16,7 @@ type spQueueCtrl struct {
 }
 
 var spQueueCtrlList map[*speaker.Speaker]spQueueCtrl = make(map[*speaker.Speaker]spQueueCtrl)
-var refreshLock sync.Mutex
+var wg = utils.WaitGroup{}
 
 func pushRoutine(queue spQueueCtrl) {
 	var d speaker.QueueData
@@ -28,12 +27,10 @@ func pushRoutine(queue spQueueCtrl) {
 			close(queue.exitC)
 			return
 		case <-queue.exitC:
-			close(queue.sp.Queue)
-			close(queue.exitC)
 			return
 		case d = <-queue.sp.Queue:
 		}
-		if d.Speaker.IsDeleted() {
+		if d.Speaker == nil || d.Speaker.IsDeleted() {
 			continue
 		}
 
@@ -43,7 +40,7 @@ func pushRoutine(queue spQueueCtrl) {
 
 		err := d.Speaker.WriteUDP(d.Data)
 		if err != nil {
-			log.Error("push to speaker error", zap.Error(err))
+			log.Error("push to speaker error", lg.Error(err))
 			continue
 		}
 	}
@@ -59,9 +56,6 @@ func delayChanged(sp *speaker.Speaker, delay time.Duration) bool {
 }
 
 func refreshPushQueue(sp *speaker.Speaker, delay time.Duration) {
-	refreshLock.Lock()
-	defer refreshLock.Unlock()
-
 	ctrl, ok := spQueueCtrlList[sp]
 	if !ok {
 		ctrl = spQueueCtrl{
@@ -73,9 +67,13 @@ func refreshPushQueue(sp *speaker.Speaker, delay time.Duration) {
 
 	if sp.Queue != nil {
 		ctrl.exitC <- struct{}{}
+		wg.Wait()
+		close(sp.Queue)
 	}
 
 	sp.Queue = make(chan speaker.QueueData, config.ReadQueueSize+bufSizeWithDelay(delay, sp.Format()))
 
-	go pushRoutine(ctrl)
+	wg.Go(func() {
+		pushRoutine(ctrl)
+	})
 }

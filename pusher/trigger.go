@@ -2,9 +2,9 @@ package pusher
 
 import (
 	"github.com/zwcway/castserver-go/common/bus"
+	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/decoder/localspeaker"
-	"go.uber.org/zap"
 )
 
 const (
@@ -21,7 +21,7 @@ var (
 func initTrigger() {
 	err := localspeaker.Init()
 	if err != nil {
-		log.Error("init local speaker failed. use timer", zap.Error(err))
+		log.Error("init local speaker failed. use timer", lg.Error(err))
 		lastTrigger = trigger_timer
 	} else {
 		localspeaker.Play()
@@ -47,8 +47,7 @@ func TriggerReceiverIn(b bool) {
 }
 
 func TriggerAddLine(line *speaker.Line) {
-	line.PusherEle = NewElement(line)
-	line.Input.PipeLine.Append(line.PusherEle)
+	line.Input.PipeLine.Append(NewElement(line))
 
 	TimerAddLine(line)
 }

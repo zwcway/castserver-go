@@ -2,15 +2,14 @@ package web
 
 import (
 	"github.com/zwcway/castserver-go/common/config"
+	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/common/utils"
 	"github.com/zwcway/castserver-go/web/api"
 	"github.com/zwcway/castserver-go/web/websockets"
-
-	"go.uber.org/zap"
 )
 
 var (
-	log    *zap.Logger
+	log    lg.Logger
 	Module = webModule{}
 )
 
@@ -23,14 +22,15 @@ func (webModule) Init(ctx utils.Context) error {
 	api.Init(ctx)
 	websockets.ApiDispatch = api.ApiDispatch
 
-	err := startStaticServer(&config.HTTPListen, config.HTTPRoot)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
-func (webModule) DeInit() {
+func (webModule) Start() error {
+	err := startServer(&config.HTTPListen, config.HTTPRoot)
 
+	return err
+}
+
+func (webModule) DeInit() {
+	stopServer()
 }

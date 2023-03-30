@@ -6,13 +6,12 @@ import (
 	"github.com/go-ini/ini"
 	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/utils"
-	"go.uber.org/zap"
 )
 
 func TestSetKey(t *testing.T) {
 	t.Parallel()
 
-	log := zap.NewNop()
+	initLogger(utils.NewEmptyContext())
 
 	iface := utils.DefaultInterface()
 
@@ -99,7 +98,7 @@ func TestSetKey(t *testing.T) {
 				return
 			}
 
-			setKey(log, cSec, ck)
+			setKey(cSec, ck)
 
 			if !tt.test() {
 				t.Errorf("setKey() error")
@@ -120,7 +119,7 @@ func TestConfigString(t *testing.T) {
 		want1 string
 	}
 	tests := []test{}
-	FromContent(zap.NewExample(), []byte{})
+	FromContent(utils.NewEmptyContext(), []byte{})
 
 	for i := 0; i < len(ConfigStruct); i++ {
 		for k := 0; k < len(ConfigStruct[i].Keys); k++ {

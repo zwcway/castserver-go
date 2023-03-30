@@ -2,9 +2,9 @@ package api
 
 import (
 	"github.com/fasthttp/websocket"
+	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/common/utils"
 	"github.com/zwcway/castserver-go/web/websockets"
-	"go.uber.org/zap"
 )
 
 var apiRouterList = map[string]apiRouter{
@@ -55,7 +55,7 @@ func ApiDispatch(mt int, msg []byte, conn *websockets.WSConnection) {
 		return
 	}
 	if len(jp.cmd) <= 0 || len(jp.cmd) > 24 {
-		log.Error("command invalid", zap.String("cmd", jp.cmd))
+		log.Error("command invalid", lg.String("cmd", jp.cmd))
 		return
 	}
 	jp.body = msg[idx:]
@@ -74,7 +74,7 @@ func ApiDispatch(mt int, msg []byte, conn *websockets.WSConnection) {
 			writePack(conn, ret, &jp, log)
 		}
 	}
-	// log.Debug("command complete", zap.String("cmd", jp.cmd))
+	// log.Debug("command complete", lg.String("cmd", jp.cmd))
 }
 
 func Init(ctx utils.Context) {

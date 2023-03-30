@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"unicode/utf8"
 
+	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/web/websockets"
-	"go.uber.org/zap"
 )
 
 type requestLineEdit struct {
@@ -15,7 +15,7 @@ type requestLineEdit struct {
 	SpectrumLogAxis *bool   `jp:"sl,omitempty"`
 }
 
-func apiLineEdit(c *websockets.WSConnection, req Requester, log *zap.Logger) (ret any, err error) {
+func apiLineEdit(c *websockets.WSConnection, req Requester, log lg.Logger) (ret any, err error) {
 	var p requestLineEdit
 	err = req.Unmarshal(&p)
 	if err != nil {

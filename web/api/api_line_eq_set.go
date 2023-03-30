@@ -5,9 +5,9 @@ import (
 
 	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/dsp"
+	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/web/websockets"
-	"go.uber.org/zap"
 )
 
 type requestLineEQ struct {
@@ -17,7 +17,7 @@ type requestLineEQ struct {
 	Gain      float32 `jp:"gain"`
 }
 
-func apiLineSetEqualizer(c *websockets.WSConnection, req Requester, log *zap.Logger) (any, error) {
+func apiLineSetEqualizer(c *websockets.WSConnection, req Requester, log lg.Logger) (any, error) {
 	var p requestLineEQ
 	err := req.Unmarshal(&p)
 	if err != nil {

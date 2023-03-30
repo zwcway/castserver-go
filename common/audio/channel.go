@@ -131,24 +131,47 @@ func (m ChannelMask) Count() int {
 	return c
 }
 
-func (m ChannelMask) Isset(a uint8) bool {
-	return maskIsset(uint(m), a)
+func (m ChannelMask) IssetInt(a uint8) bool {
+	return MaskIsset(uint32(m), a)
+}
+
+func (m ChannelMask) Isset(a Channel) bool {
+	return MaskIsset(uint32(m), uint8(a))
 }
 
 func (m ChannelMask) IssetSlice(a []uint8) bool {
-	return maskIssetSlice(uint(m), a)
+	return MaskIssetIntSlice(uint32(m), a)
 }
 
-func (m *ChannelMask) CombineSlice(a []uint8) bool {
-	r := maskCombineSlice(uint(*m), a)
-	*m = ChannelMask(r)
-	return r > 0
+func (m *ChannelMask) IntersectIntSlice(a []uint8) bool {
+	r, err := NewChannelMask(a)
+	if err != nil {
+		return false
+	}
+	*m &= r
+	return m.IsValid()
 }
 
-func (m *ChannelMask) Combine(a []Channel) bool {
-	r := maskCombineSlice(uint(*m), toSlice(a))
-	*m = ChannelMask(r)
-	return r > 0
+// 默认参数合法
+func (m *ChannelMask) IntersectSlice(a []Channel) bool {
+	*m &= ChannelMask(MakeMaskFromSlice(a))
+	return m.IsValid()
+}
+
+func (m *ChannelMask) Intersect(a ChannelMask) bool {
+	*m &= a
+	return m.IsValid()
+}
+
+// 默认参数合法
+func (m *ChannelMask) CombineSlice(a []Channel) bool {
+	*m &= ChannelMask(MakeMaskFromSlice(a))
+	return m.IsValid()
+}
+
+func (m *ChannelMask) Combine(a ChannelMask) bool {
+	*m &= a
+	return m.IsValid()
 }
 
 func (m ChannelMask) IsValid() bool {
@@ -223,7 +246,7 @@ type ChannelLayout struct {
 	Count int
 }
 
-func (l *ChannelLayout) String() string {
+func (l ChannelLayout) String() string {
 	switch l.Mask {
 	case ChannelLayout10.Mask:
 		return "mono"
@@ -267,15 +290,15 @@ func (l *ChannelLayout) String() string {
 	return ""
 }
 
-func (l *ChannelLayout) IsValid() bool {
+func (l ChannelLayout) IsValid() bool {
 	return l.Mask.IsValid() && l.Count == l.Mask.Count()
 }
 
-func (l *ChannelLayout) Channels() []Channel {
+func (l ChannelLayout) Channels() []Channel {
 	return l.Mask.Slice()
 }
 
-func (l *ChannelLayout) Equal(r *ChannelLayout) bool {
+func (l ChannelLayout) Equal(r ChannelLayout) bool {
 	return l.Mask == r.Mask
 }
 

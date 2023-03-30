@@ -45,13 +45,13 @@ func SliceQuickRemoveItem[E comparable](s *[]E, v E) bool {
 	return false
 }
 
-func SliceContains[E comparable](s []E, v E) bool {
+func SliceContains[E comparable](s []E, v E) int {
 	for i := 0; i < len(s); i++ {
 		if s[i] == v {
-			return true
+			return i
 		}
 	}
-	return false
+	return -1
 }
 
 // 向头部插入，预分配大小可减少 GC

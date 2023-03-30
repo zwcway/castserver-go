@@ -3,16 +3,16 @@ package api
 import (
 	"fmt"
 
+	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/web/websockets"
-	"go.uber.org/zap"
 )
 
 type requestLineCreate struct {
 	Name string `jp:"name"`
 }
 
-func apiLineCreate(c *websockets.WSConnection, req Requester, log *zap.Logger) (any, error) {
+func apiLineCreate(c *websockets.WSConnection, req Requester, log lg.Logger) (any, error) {
 	var params requestLineCreate
 	err := req.Unmarshal(&params)
 	if err != nil {

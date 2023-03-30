@@ -1,17 +1,23 @@
 package utils
 
-import "sync"
+import (
+	"sync"
+)
 
 type WaitGroup struct {
-	sync.WaitGroup
+	wg sync.WaitGroup
 }
 
-func (w *WaitGroup) Wrap(cb func()) {
-	w.Add(1)
+func (w *WaitGroup) Wait() {
+	w.wg.Wait()
+}
+
+func (w *WaitGroup) Go(cb func()) {
+	w.wg.Add(1)
 	go w.routine(cb)
 }
 
 func (w *WaitGroup) routine(cb func()) {
 	cb()
-	w.Done()
+	w.wg.Done()
 }

@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/go-ini/ini"
-	"go.uber.org/zap"
+	"github.com/zwcway/castserver-go/common/lg"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
@@ -14,7 +14,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func parseDatabase(log *zap.Logger, cfg reflect.Value, k *ini.Key, ck *CfgKey) {
+func parseDatabase(cfg reflect.Value, k *ini.Key, ck *CfgKey) {
 	var dbstr string
 	if k == nil {
 		dbstr = "sqlite:///file:memdb1?mode=memory&cache=shared"
@@ -22,17 +22,17 @@ func parseDatabase(log *zap.Logger, cfg reflect.Value, k *ini.Key, ck *CfgKey) {
 	} else {
 		dbstr = k.String()
 	}
-	db := openDatabase(log, dbstr)
+	db := openDatabase(dbstr)
 	if db == nil {
 		return
 	}
 	cfg.Set(reflect.ValueOf(db))
 }
 
-func openDatabase(log *zap.Logger, dbstr string) *gorm.DB {
+func openDatabase(dbstr string) *gorm.DB {
 	dbUrl, err := url.Parse(dbstr)
 	if err != nil {
-		log.Panic("database invalid", zap.String("url", dbstr), zap.Error(err))
+		log.Panic("database invalid", lg.String("url", dbstr), lg.Error(err))
 		return nil
 	}
 	scheme := strings.ToLower(dbUrl.Scheme)
@@ -54,9 +54,11 @@ func openDatabase(log *zap.Logger, dbstr string) *gorm.DB {
 		dialector = sqlserver.Open(dbUrl.String())
 	}
 
-	db, err := gorm.Open(dialector, &gorm.Config{})
+	db, err := gorm.Open(dialector, &gorm.Config{
+		Logger: lg.NewDBLog(lg.DebugLevel),
+	})
 	if err != nil {
-		log.Panic("database connect failed", zap.String("url", dbstr), zap.Error(err))
+		log.Panic("database connect failed", lg.String("url", dbstr), lg.Error(err))
 		return nil
 	}
 	return db

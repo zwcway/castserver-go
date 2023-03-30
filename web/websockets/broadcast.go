@@ -89,10 +89,10 @@ func Broadcast(evt uint8, sub uint8, arg int, msg []byte) error {
 	}
 
 	// log.Debug("broadcast event",
-	// 	zap.Uint8("cmd", cmd),
-	// 	zap.Uint8("evt", evt),
-	// 	zap.Int("arg", arg),
-	// 	zap.Int("length", len(msg)),
+	// 	lg.Uint8("cmd", cmd),
+	// 	lg.Uint8("evt", evt),
+	// 	lg.Int("arg", arg),
+	// 	lg.Int("length", len(msg)),
 	// )
 
 	for c, b := range WSHub.broadcast {

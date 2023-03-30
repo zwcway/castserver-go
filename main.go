@@ -3,25 +3,15 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"os/signal"
 	"runtime/debug"
 	"syscall"
 
-	"github.com/zwcway/castserver-go/common"
 	"github.com/zwcway/castserver-go/common/config"
 	"github.com/zwcway/castserver-go/common/database"
+	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/common/utils"
-	"github.com/zwcway/castserver-go/control"
-	"github.com/zwcway/castserver-go/detector"
-	"github.com/zwcway/castserver-go/mutexer"
-	"github.com/zwcway/castserver-go/pusher"
-	"github.com/zwcway/castserver-go/receiver"
-	"github.com/zwcway/castserver-go/web"
-
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 var (
@@ -60,68 +50,20 @@ func exit(code int, usage bool, format string, val ...any) {
 	os.Exit(code)
 }
 
-func initLogger() (log *zap.Logger, close func()) {
-	highPriority := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
-		return lvl >= zapcore.ErrorLevel
-	})
-	lowPriority := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
-		return lvl < zapcore.ErrorLevel
-	})
-
-	topicDebugging := zapcore.AddSync(io.Discard)
-	topicErrors := zapcore.AddSync(io.Discard)
-	consoleDebugging := zapcore.Lock(os.Stdout)
-	consoleErrors := zapcore.Lock(os.Stderr)
-
-	FileEncoder := zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig())
-	consoleEncoder := zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
-
-	cores := []zapcore.Core{}
-
-	if len(logFile) > 0 {
-		// TODO 接收信号重新打开日志文件
-		var (
-			sink zapcore.WriteSyncer
-			err  error
-		)
-		sink, close, err = zap.Open(logFile)
-		if err != nil {
-			close()
-			exit(1, true, "open log file error %v", err)
-		}
-		cores = append(
-			cores,
-			zapcore.NewCore(FileEncoder, sink, highPriority),
-			zapcore.NewCore(FileEncoder, sink, lowPriority),
-		)
-	} else {
-		cores = append(cores,
-			zapcore.NewCore(FileEncoder, topicErrors, highPriority),
-			zapcore.NewCore(FileEncoder, topicDebugging, lowPriority),
-		)
-	}
-
-	if !daemon {
-		cores = append(cores,
-			zapcore.NewCore(consoleEncoder, consoleErrors, highPriority),
-			zapcore.NewCore(consoleEncoder, consoleDebugging, lowPriority),
-		)
-	}
-
-	log = zap.New(zapcore.NewTee(cores...))
-
-	return
-}
-
 func main() {
+	exitCode := 0
+
 	if version {
-		exit(0, false, "Version: %s", config.VERSION)
+		exit(exitCode, false, "Version: %s", config.VERSION)
 	}
 	if help {
-		exit(0, true, "")
+		exit(exitCode, true, "")
 	}
 
-	log, logClose := initLogger()
+	log, logClose, err := lg.NewLogger(logFile, daemon)
+	if err != nil {
+		exit(2, true, err.Error())
+	}
 
 	// 用于通知主程序退出
 	signalChannel := make(chan os.Signal, 2)
@@ -129,7 +71,7 @@ func main() {
 	// 用于通知子协程退出
 	rootCtx, ctxCancel := utils.NewContext().WithSignal(signalChannel).WithLogger(log).WithCancel()
 
-	err := config.FromOptions(log, options)
+	err = config.FromOptions(rootCtx, options)
 	if err != nil {
 		exit(2, false, err.Error())
 	}
@@ -138,25 +80,14 @@ func main() {
 
 	database.Init(rootCtx, config.DB)
 
-	mods := []Module{
-		common.Module,
-		mutexer.Module,
-		detector.Module,
-		pusher.Module,
-		control.Module,
-		receiver.Module,
-		web.Module,
-	}
-
-	for i := 0; i < len(mods); i++ {
-		err = mods[i].Init(rootCtx)
-		if err != nil {
-			exit(255, false, err.Error())
-		}
-	}
-
-	err = common.LoadData()
+	err = initModules(rootCtx)
 	if err != nil {
+		exitCode = 255
+		goto __exit__
+	}
+	err = startModules()
+	if err != nil {
+		exitCode = 254
 		goto __exit__
 	}
 
@@ -176,13 +107,15 @@ func main() {
 	log.Info("exit")
 
 __exit__:
-	for i := len(mods) - 1; i >= 0; i-- {
-		mods[i].DeInit()
+	if err != nil {
+		fmt.Println(err.Error())
 	}
+
+	deinitModules()
 
 	if logClose != nil {
 		logClose()
 	}
 
-	os.Exit(0)
+	os.Exit(exitCode)
 }

@@ -4,18 +4,16 @@ import (
 	"fmt"
 	"net"
 	"strings"
-	"syscall"
 	"time"
 
 	config "github.com/zwcway/castserver-go/common/config"
+	"github.com/zwcway/castserver-go/common/lg"
 	utils "github.com/zwcway/castserver-go/common/utils"
-
-	"go.uber.org/zap"
 )
 
 var (
 	conn   *net.UDPConn
-	log    *zap.Logger
+	log    lg.Logger
 	Module = mutexModule{}
 )
 
@@ -52,7 +50,7 @@ func listenUDP() error {
 
 	str := string(buffer[:numBytes])
 	if str == RSP || str == TAG {
-		log.Error("there are another server running. exiting.", zap.String("addr", src.String()))
+		log.Error("there are another server running. exiting.", lg.String("addr", src.String()))
 		return fmt.Errorf("exiting")
 	}
 
@@ -62,16 +60,11 @@ func listenUDP() error {
 func (mutexModule) Init(ctx utils.Context) error {
 	log = ctx.Logger("mutexer")
 
-	signal := ctx.Signal()
-
-	err := listenUDP()
-
-	if err != nil {
-		signal <- syscall.SIGTERM
-		return err
-	}
-
 	return nil
+}
+
+func (mutexModule) Start() error {
+	return listenUDP()
 }
 
 func (mutexModule) DeInit() {

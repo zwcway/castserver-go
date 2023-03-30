@@ -1,16 +1,16 @@
 package api
 
 import (
+	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/web/websockets"
-	"go.uber.org/zap"
 )
 
 type requestLineInfo struct {
 	ID uint8 `jp:"id"`
 }
 
-func apiLineInfo(c *websockets.WSConnection, req Requester, log *zap.Logger) (any, error) {
+func apiLineInfo(c *websockets.WSConnection, req Requester, log lg.Logger) (any, error) {
 	var params requestLineInfo
 	err := req.Unmarshal(&params)
 	if err != nil {

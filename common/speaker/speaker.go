@@ -17,17 +17,16 @@ import (
 var speakerList []*Speaker = make([]*Speaker, 0)
 
 type SpeakerConfig struct {
-	ID uint `gorm:"primaryKey"`
-
-	RateMask    audio.AudioRateMask // 设备支持的采样率列表
-	BitsMask    audio.BitsMask      // 设备支持的位宽列表
-	AbsoluteVol bool                // 支持绝对音量控制
-	PowerSave   bool                // 是否支持电源控制
+	ID          uint           `gorm:"column:id;primaryKey"`
+	RateMask    audio.RateMask `gorm:"culumn:rate_mask"`    // 设备支持的采样率列表
+	BitsMask    audio.BitsMask `gorm:"culumn:bits_mask"`    // 设备支持的位宽列表
+	AbsoluteVol bool           `gorm:"culumn:absolute_vol"` // 支持绝对音量控制
+	PowerSave   bool           `gorm:"culumn:power_save"`   // 是否支持电源控制
 }
 
 type Speaker struct {
-	ID        SpeakerID `gorm:"primaryKey"`
-	LineId    LineID    `gorm:"index,column:line_id"`
+	ID        SpeakerID `gorm:"column:id;primaryKey"`
+	LineId    LineID    `gorm:"column:line_id;index"`
 	Name      string    `gorm:"column:name"`
 	Supported bool      `gorm:"column:supported"` // 是否兼容
 
@@ -45,7 +44,7 @@ type Speaker struct {
 	Volume uint8 `gorm:"column:volume"`
 	Mute   bool  `gorm:"column:mute"`
 
-	Config SpeakerConfig `gorm:"foreignKey:ID;column:config"`
+	Config SpeakerConfig `gorm:"foreignKey:ID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 
 	ConnTime  time.Time
 	CreatedAt time.Time
@@ -209,6 +208,9 @@ func (sp *Speaker) SetLine(newLine *Line) {
 }
 
 func (l *Speaker) IsDeleted() bool {
+	if l == nil {
+		return true
+	}
 	return l.isDeleted
 }
 
@@ -258,6 +260,7 @@ func NewSpeaker(ip string, line LineID, channel audio.Channel) (*Speaker, error)
 
 	sp.ID = getSpeakerID()
 	sp.LineId = line
+	sp.Ip = ip
 	sp.Channel = uint32(channel)
 	sp.State = State_OFFLINE
 	sp.Volume = 50

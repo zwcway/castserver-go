@@ -12,6 +12,7 @@ import (
 
 	"github.com/valyala/fasthttp"
 	"github.com/zwcway/castserver-go/common/audio"
+	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/common/pipeline"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/common/stream"
@@ -20,7 +21,6 @@ import (
 	"github.com/zwcway/castserver-go/detector"
 	"github.com/zwcway/castserver-go/pusher"
 	"github.com/zwcway/castserver-go/web/websockets"
-	"go.uber.org/zap"
 )
 
 type jsonReqMessage struct {
@@ -90,7 +90,7 @@ type requestSpeakerCreate struct {
 	AVol     bool
 }
 
-func apiSpeakerCreate(c *websockets.WSConnection, req Requester, log *zap.Logger) (any, error) {
+func apiSpeakerCreate(c *websockets.WSConnection, req Requester, log lg.Logger) (any, error) {
 	p := requestSpeakerCreate{}
 	if err := req.Unmarshal(&p); err != nil {
 		return nil, err
@@ -125,7 +125,7 @@ func apiSpeakerCreate(c *websockets.WSConnection, req Requester, log *zap.Logger
 	return true, nil
 }
 
-func apiReconnect(c *websockets.WSConnection, req Requester, log *zap.Logger) (any, error) {
+func apiReconnect(c *websockets.WSConnection, req Requester, log lg.Logger) (any, error) {
 	var sp uint32
 	err := req.Unmarshal(&sp)
 	if err != nil {
@@ -140,7 +140,7 @@ func apiReconnect(c *websockets.WSConnection, req Requester, log *zap.Logger) (a
 	return nil, nil
 }
 
-func apiSendServerInfo(c *websockets.WSConnection, req Requester, log *zap.Logger) (any, error) {
+func apiSendServerInfo(c *websockets.WSConnection, req Requester, log lg.Logger) (any, error) {
 	var spId uint32
 	err := req.Unmarshal(&spId)
 	if err != nil {
@@ -156,7 +156,7 @@ func apiSendServerInfo(c *websockets.WSConnection, req Requester, log *zap.Logge
 	return nil, nil
 }
 
-func apiEventDebug(c *websockets.WSConnection, req Requester, log *zap.Logger) (ret any, err error) {
+func apiEventDebug(c *websockets.WSConnection, req Requester, log lg.Logger) (ret any, err error) {
 	var evt uint8
 
 	err = req.Unmarshal(&evt)
@@ -192,7 +192,7 @@ func apiEventDebug(c *websockets.WSConnection, req Requester, log *zap.Logger) (
 	return
 }
 
-func apiLocalSpeaker(c *websockets.WSConnection, req Requester, log *zap.Logger) (ret any, err error) {
+func apiLocalSpeaker(c *websockets.WSConnection, req Requester, log lg.Logger) (ret any, err error) {
 	var power bool
 	err = req.Unmarshal(&power)
 	if err != nil {
@@ -215,7 +215,7 @@ func apiLocalSpeaker(c *websockets.WSConnection, req Requester, log *zap.Logger)
 	return true, nil
 }
 
-func apiPlayFile(c *websockets.WSConnection, req Requester, log *zap.Logger) (ret any, err error) {
+func apiPlayFile(c *websockets.WSConnection, req Requester, log lg.Logger) (ret any, err error) {
 	var file struct {
 		Line int
 		File string
@@ -241,7 +241,7 @@ func apiPlayFile(c *websockets.WSConnection, req Requester, log *zap.Logger) (re
 	return
 }
 
-func apiPlayPause(c *websockets.WSConnection, req Requester, log *zap.Logger) (ret any, err error) {
+func apiPlayPause(c *websockets.WSConnection, req Requester, log lg.Logger) (ret any, err error) {
 	var p struct {
 		Line  int
 		Pause bool
@@ -260,7 +260,7 @@ func apiPlayPause(c *websockets.WSConnection, req Requester, log *zap.Logger) (r
 	return true, nil
 }
 
-func apiDebugStatus(c *websockets.WSConnection, req Requester, log *zap.Logger) (ret any, err error) {
+func apiDebugStatus(c *websockets.WSConnection, req Requester, log lg.Logger) (ret any, err error) {
 	var p struct {
 		Line *int `jp:"line,omitempty"`
 	}
@@ -328,7 +328,7 @@ func apiDebugStatus(c *websockets.WSConnection, req Requester, log *zap.Logger) 
 	return resp, nil
 }
 
-func apiElementPower(c *websockets.WSConnection, req Requester, log *zap.Logger) (ret any, err error) {
+func apiElementPower(c *websockets.WSConnection, req Requester, log lg.Logger) (ret any, err error) {
 	var p struct {
 		Line    *int   `jp:"line,omitempty"`
 		Speaker *int   `jp:"sp,omitempty"`

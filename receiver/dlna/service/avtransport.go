@@ -5,12 +5,12 @@ import (
 	"strings"
 
 	"github.com/valyala/fasthttp"
+	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/common/utils"
 	"github.com/zwcway/castserver-go/decoder"
 	"github.com/zwcway/castserver-go/decoder/localspeaker"
 	"github.com/zwcway/fasthttp-upnp/avtransport1"
 	"github.com/zwcway/fasthttp-upnp/soap"
-	"go.uber.org/zap"
 )
 
 var playUri string
@@ -27,11 +27,11 @@ func setAVTransportURIHandler(input any, output any, ctx *fasthttp.RequestCtx, u
 
 	var err error
 	if err = audioFS.OpenFile(playUri); err != nil {
-		log.Error("create decoder failed", zap.Error(err))
+		log.Error("create decoder failed", lg.Error(err))
 		return &soap.Error{Code: 500, Desc: err.Error()}
 	}
 
-	log.Info("set uri", zap.String("url", in.CurrentURI), zap.String("format", audioFS.AudioFormat().String()))
+	log.Info("set uri", lg.String("url", in.CurrentURI), lg.String("format", audioFS.AudioFormat().String()))
 
 	return nil
 }
@@ -65,7 +65,7 @@ func avtPlay(input any, output any, ctx *fasthttp.RequestCtx, uuid string) error
 	if audioFS.CurrentFile() == "" { // 重新播放
 		var err error
 		if err = audioFS.OpenFile(playUri); err != nil {
-			log.Error("create decoder failed", zap.Error(err))
+			log.Error("create decoder failed", lg.Error(err))
 			return &soap.Error{Code: 500, Desc: err.Error()}
 		}
 		localspeaker.Init()

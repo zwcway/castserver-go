@@ -1,13 +1,13 @@
 package service
 
 import (
+	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/common/utils"
 	"github.com/zwcway/fasthttp-upnp/avtransport1"
 	"github.com/zwcway/fasthttp-upnp/service"
-	"go.uber.org/zap"
 )
 
-var log *zap.Logger
+var log lg.Logger
 
 func NewServiceList(ctx utils.Context) []*service.Controller {
 	log = ctx.Logger("dlna srv")

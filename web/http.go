@@ -15,10 +15,10 @@ import (
 
 	"github.com/valyala/fasthttp"
 	"github.com/zwcway/castserver-go/common/config"
+	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/common/utils"
 	"github.com/zwcway/castserver-go/web/api"
 	"github.com/zwcway/castserver-go/web/websockets"
-	"go.uber.org/zap"
 )
 
 //go:embed public/*
@@ -28,9 +28,10 @@ var (
 	goWsIPID   = []byte("***Go-WS-IP***")
 	goWsPortID = []byte("***Go-WS-Port***")
 	listenAddr netip.AddrPort
+	conn       net.Listener
 )
 
-func startStaticServer(listen *config.Interface, root string) error {
+func startServer(listen *config.Interface, root string) error {
 	root, err := filepath.Abs(root + "/")
 	if err != nil {
 		return err
@@ -44,28 +45,40 @@ func startStaticServer(listen *config.Interface, root string) error {
 	s := &fasthttp.Server{
 		Handler: requestHandle,
 	}
-	ln, err := net.Listen("tcp", listen.AddrPort.String())
+	conn, err = net.Listen("tcp", listen.AddrPort.String())
 	if err != nil {
-		log.Error("http listen error", zap.Error(err))
+		log.Error("http listen error", lg.Error(err))
 		return err
 	}
-	listenAddr = netip.MustParseAddrPort(ln.Addr().String())
+
+	log.Info("start http on " + conn.Addr().String())
+
+	listenAddr = netip.MustParseAddrPort(conn.Addr().String())
+
 	if listenAddr.Addr().IsUnspecified() {
 		defaultAddr := utils.DefaultAddr()
 		listenAddr = netip.AddrPortFrom(*defaultAddr, listenAddr.Port())
 	}
 
-	log.Info("start http on " + listenAddr.String())
+	log.Info("you can open http://" + listenAddr.String() + " in your web browser.")
 
-	go s.Serve(ln)
+	go s.Serve(conn)
 
 	return nil
+}
+
+func stopServer() error {
+	if conn == nil {
+		return nil
+	}
+
+	return conn.Close()
 }
 
 func requestHandle(ctx *fasthttp.RequestCtx) {
 	uri := string(ctx.Path())
 
-	log.Info("request", zap.String("path", uri), zap.String("src", ctx.RemoteAddr().String()))
+	log.Info("request", lg.String("path", uri), lg.String("src", ctx.RemoteAddr().String()))
 
 	if api.ApiDispatchDevel(ctx) {
 		return

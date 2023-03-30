@@ -7,7 +7,7 @@ type handlerData struct {
 	h     Handler
 	hr    uintptr
 	a     []any
-	once  bool
+	once  uint8
 	async bool
 }
 
@@ -17,7 +17,7 @@ func (h *handlerData) clone() *handlerData {
 }
 
 func (h *handlerData) Once() *handlerData {
-	h.once = true
+	h.once = 1
 	return h
 }
 

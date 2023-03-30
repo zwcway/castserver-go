@@ -17,10 +17,11 @@ func (commonModule) Init(ctx utils.Context) error {
 	return speaker.Init()
 }
 
-func (commonModule) DeInit() {
-
+func (commonModule) Start() error {
+	speaker.LoadData()
+	return nil
 }
 
-func LoadData() error {
-	return speaker.LoadData()
+func (commonModule) DeInit() {
+
 }

@@ -4,9 +4,11 @@ import (
 	"time"
 
 	"github.com/zwcway/castserver-go/common/audio"
+	"github.com/zwcway/castserver-go/common/bus"
+	"github.com/zwcway/castserver-go/common/element"
+	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/common/stream"
-	"go.uber.org/zap"
 )
 
 type Element struct {
@@ -15,6 +17,8 @@ type Element struct {
 	line   *speaker.Line
 	buffer *stream.Samples
 	chBuf  [audio.Channel_MAX]*stream.Samples
+
+	resample stream.ResampleElement
 }
 
 func (e *Element) Name() string {
@@ -27,10 +31,12 @@ func (e *Element) Type() stream.ElementType {
 
 func (e *Element) On() {
 	e.power = true
+	e.resample.On()
 }
 
 func (e *Element) Off() {
 	e.power = false
+	e.resample.Off()
 }
 
 func (e *Element) IsOn() bool {
@@ -43,13 +49,17 @@ func (e *Element) Close() error {
 }
 
 func (e *Element) initBuf(samples int, format audio.Format) {
-	format.Layout = *e.line.Layout()
 	if e.buffer == nil {
 		e.buffer = stream.NewSamples(samples, format)
 	} else {
 		e.buffer.ResizeSamplesOrNot(samples, format)
 	}
 
+	e.resetData()
+}
+
+func (e *Element) resetData() {
+	e.buffer.ResetData()
 	for i := range e.chBuf {
 		e.chBuf[i] = nil
 	}
@@ -59,15 +69,6 @@ func (e *Element) initBuf(samples int, format audio.Format) {
 }
 
 func (e *Element) Stream(samples *stream.Samples) {
-	if !e.power || !samples.Format.IsValid() || !e.line.Layout().IsValid() {
-		return
-	}
-	if samples.LastNbSamples == 0 {
-		return
-	}
-	if e.buffer == nil || e.buffer.NbSamples < samples.NbSamples || !e.buffer.Format.Layout.Equal(e.line.Layout()) {
-		e.initBuf(samples.NbSamples, samples.Format)
-	}
 	var (
 		chList = e.line.Channels()
 		i      int
@@ -76,6 +77,22 @@ func (e *Element) Stream(samples *stream.Samples) {
 		from   []audio.Channel
 		buf    *stream.Samples
 	)
+	if !e.power || !samples.Format.IsValid() || !e.line.Layout().IsValid() {
+		return
+	}
+	if samples.LastNbSamples == 0 {
+		return
+	}
+	format := samples.Format
+	format.Layout = e.line.Layout()
+
+	if e.buffer == nil || e.buffer.NbSamples < samples.NbSamples || !e.buffer.Format.Layout.Equal(e.line.Layout()) {
+		e.initBuf(samples.NbSamples, format)
+	} else {
+		e.buffer.Format.Layout = format.Layout
+		e.buffer.Format.SampleRate = format.SampleRate
+		e.resetData()
+	}
 
 	for i = 0; i < len(chList); i++ {
 		ch = chList[i]
@@ -97,6 +114,10 @@ func (e *Element) Stream(samples *stream.Samples) {
 			continue
 		}
 		buf.LastNbSamples = c
+		buf.Format.SampleRate = samples.Format.SampleRate
+
+		e.buffer.LastNbSamples = c
+		e.buffer.Format.SampleRate = samples.Format.SampleRate
 
 		for _, sp := range e.line.SpeakersByChannel(ch) {
 			sp.PipeLine.Stream(buf)
@@ -106,7 +127,7 @@ func (e *Element) Stream(samples *stream.Samples) {
 	}
 
 	// 由于存在声道路由功能，如果先转码后路由，样本数据可能已经不是float64格式，不方便混合
-	e.line.ResampleEle.Stream(e.buffer)
+	e.resample.Stream(e.buffer)
 
 	for i, ch = range chList {
 		if !ch.IsValid() {
@@ -116,6 +137,9 @@ func (e *Element) Stream(samples *stream.Samples) {
 		if buf == nil || buf.LastNbSamples == 0 {
 			continue
 		}
+		buf.Format.SampleRate = e.buffer.Format.SampleRate
+		buf.Format.SampleBits = e.buffer.Format.SampleBits
+
 		for _, sp := range e.line.SpeakersByChannel(ch) {
 			// TODO 为防止转码耗时过长，克隆新的缓存，并放置后台转码和推送
 			e.PushSpeaker(sp, buf)
@@ -126,11 +150,11 @@ func (e *Element) Stream(samples *stream.Samples) {
 func (e *Element) PushSpeaker(sp *speaker.Speaker, samples *stream.Samples) {
 	queue := sp.Queue
 	if queue == nil {
-		// log.Error("speaker not connected", zap.String("speaker", sp.String()))
+		// log.Error("speaker not connected", lg.String("speaker", sp.String()))
 		return
 	}
 	if len(queue) == cap(queue) {
-		log.Error("send queue full", zap.Uint32("speaker", uint32(sp.ID)), zap.Int("size", len(queue)))
+		log.Error("send queue full", lg.Uint("speaker", uint64(sp.ID)), lg.Int("size", int64(len(queue))))
 		return
 	}
 
@@ -172,7 +196,16 @@ func bufSizeWithDelay(delay time.Duration, f audio.Format) int {
 }
 
 func NewElement(line *speaker.Line) stream.SwitchElement {
-	return &Element{
-		line: line,
+	e := &Element{
+		line:     line,
+		resample: element.NewResample(line.Output),
 	}
+	bus.Register("line output changed", func(a ...any) error {
+		l := a[0].(*speaker.Line)
+		if l == e.line {
+			e.resample.SetFormat(l.Output)
+		}
+		return nil
+	})
+	return e
 }

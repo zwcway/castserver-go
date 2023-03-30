@@ -3,23 +3,20 @@ package bus
 import (
 	"fmt"
 	"reflect"
-	"sync"
 
 	"github.com/pkg/errors"
+	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/common/utils"
 )
 
+var log lg.Logger
 var list = make(map[string][]*handlerData)
 var queue = make(chan *handlerData, 10)
-var lock sync.Mutex
 
 func Register(e string, c Handler) (hd *handlerData) {
 	if c == nil {
 		panic(fmt.Errorf("callback can not nil for event(%s)", e))
 	}
-
-	lock.Lock()
-	defer lock.Unlock()
 
 	if _, ok := list[e]; !ok {
 		list[e] = make([]*handlerData, 0)
@@ -46,17 +43,28 @@ func Dispatch(e string, args ...any) error {
 
 	if ll, ok := list[e]; ok {
 
-		lock.Lock()
-		defer lock.Unlock()
+		if len(args) > 0 {
+			log.Debug("dispatch", lg.String("event", e), lg.Int("count", int64(len(ll))), lg.Any("param", args[0]))
+		} else {
+			log.Debug("dispatch", lg.String("event", e), lg.Int("count", int64(len(ll))))
+		}
 
-		for _, h := range ll {
-			if h.async {
-				h = h.clone()
-				h.a = args
-				queue <- h
+		for _, hd := range ll {
+
+			if hd.async {
+				hd = hd.clone()
+				hd.a = args
+				queue <- hd
 				continue
 			}
-			e := h.h(args...)
+			if hd.once > 1 {
+				continue
+			} else if hd.once == 1 {
+				hd.once = 2
+				removeHandler(hd)
+			}
+
+			e := hd.h(args...)
 			if e != nil {
 				if err != nil {
 					err = errors.Wrap(e, "")
@@ -78,15 +86,17 @@ func eventBusRoutine(ctx utils.Context) {
 			return
 		case hd = <-queue:
 		}
-		if hd.once {
-			lock.Lock()
+		if hd.once > 1 {
+			continue
+		} else if hd.once == 1 {
+			hd.once = 2
 		}
 
 		hd.h(hd.a...)
 
-		if hd.once {
+		if hd.once > 0 {
 			removeHandler(hd)
-			lock.Unlock()
+			hd.once = 3
 		}
 	}
 }
@@ -107,5 +117,6 @@ func removeHandler(h *handlerData) {
 }
 
 func Init(ctx utils.Context) {
+	log = ctx.Logger("bus")
 	go eventBusRoutine(ctx)
 }

@@ -32,9 +32,9 @@ var ConfigStruct = []CfgSection{
 	{"receive", []CfgKey{
 		{&ReceiveListen, "listen", "", nil},
 		{&ReceiveTempDir, "tempdir", "", parseTempDir},
-		{&EnableDLNA, "dlna", "", nil},
 	}},
 	{"dlna", []CfgKey{
+		{&EnableDLNA, "enable", "", nil},
 		{&DLNAListen, "listen", "", nil},
 		{&DLNANotifyInterval, "notify interval", "", nil},
 		{&DLNAAllowIps, "allow ips", "", nil},

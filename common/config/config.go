@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 
 	"github.com/zwcway/castserver-go/common/audio"
+	"github.com/zwcway/castserver-go/common/lg"
+	"github.com/zwcway/castserver-go/common/utils"
 	upnputils "github.com/zwcway/fasthttp-upnp/utils"
 	"gorm.io/gorm"
 )
@@ -26,6 +28,8 @@ func (f Interface) String() string {
 }
 
 var (
+	log lg.Logger
+
 	ConfigFile string = "castserver.conf"
 
 	RuntimeThreads int = 100
@@ -80,7 +84,7 @@ var (
 		AddrPort: netip.MustParseAddrPort("0.0.0.0:4416"),
 	}
 	ReceiveTempDir string = ""
-	EnableDLNA     bool   = true
+	EnableDLNA     bool   = false
 	EnableAirPlay  bool   = false
 
 	// tcp
@@ -118,6 +122,12 @@ func TemporayFile(file string) string {
 	ext := filepath.Ext(file)
 
 	return filepath.Join(ReceiveTempDir, upnputils.MakeUUID(file)+ext)
+}
+
+func initLogger(ctx utils.Context) {
+	if log == nil {
+		log = ctx.Logger("config")
+	}
 }
 
 const (

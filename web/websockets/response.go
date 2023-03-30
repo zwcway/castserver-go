@@ -53,7 +53,7 @@ func NewResponseSpeakerList(sp *speaker.Speaker) *ResponseSpeakerList {
 		MAC:         sp.Mac,
 		Channel:     sp.Channel,
 		Line:        NewResponseLineList(sp.Line),
-		BitList:     sp.Config.BitsMask.Slice(),
+		BitList:     sp.Config.BitsMask.StringSlice(),
 		RateList:    sp.Config.RateMask.Slice(),
 		Rate:        sp.SampleRate().ToInt(),
 		Bits:        sp.SampleBits().String(),

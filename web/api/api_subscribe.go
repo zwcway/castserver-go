@@ -1,8 +1,8 @@
 package api
 
 import (
+	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/web/websockets"
-	"go.uber.org/zap"
 )
 
 type reqSubscribe struct {
@@ -15,7 +15,7 @@ type reqSubscribe struct {
 var SubscribeFunction func(c *websockets.WSConnection, evt int)
 var UnsubscribeFunction func(c *websockets.WSConnection, evt int)
 
-func apiSubscribe(c *websockets.WSConnection, req Requester, log *zap.Logger) (any, error) {
+func apiSubscribe(c *websockets.WSConnection, req Requester, log lg.Logger) (any, error) {
 	if c == nil {
 		return nil, nil
 	}

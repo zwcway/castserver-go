@@ -2,22 +2,28 @@ package database
 
 import (
 	"github.com/zwcway/castserver-go/common/bus"
+	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/common/utils"
-	"go.uber.org/zap"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var (
-	log *zap.Logger
+	log lg.Logger
 	db  *gorm.DB
 )
 
 func Init(ctx utils.Context, d *gorm.DB) {
 	log = ctx.Logger("database")
+	// db = d.Debug()
 	db = d
 
-	db.AutoMigrate(&speaker.Line{}, &speaker.Speaker{}, &speaker.SpeakerConfig{})
+	db.AutoMigrate(
+		&speaker.Line{},
+		&speaker.SpeakerConfig{},
+		&speaker.Speaker{},
+	)
 
 	bus.Register("get lines", getLines)
 	bus.Register("get line", getLine)
@@ -31,7 +37,7 @@ func Init(ctx utils.Context, d *gorm.DB) {
 		}
 		result := db.Model(line).UpdateColumns(um)
 		if result.Error != nil {
-			log.Fatal("save line error", zap.Error(result.Error))
+			log.Fatal("save line error", lg.Error(result.Error))
 			return result.Error
 		}
 		return nil
@@ -49,7 +55,7 @@ func Init(ctx utils.Context, d *gorm.DB) {
 		}
 		result := db.Model(sp).UpdateColumns(um)
 		if result.Error != nil {
-			log.Fatal("save speaker error", zap.Error(result.Error))
+			log.Fatal("save speaker error", lg.Error(result.Error))
 			return result.Error
 		}
 		return nil
@@ -67,7 +73,7 @@ func getLines(a ...any) error {
 		return nil
 	}
 	if result.Error != nil {
-		log.Fatal("read all lines error", zap.Error(result.Error))
+		log.Fatal("read all lines error", lg.Error(result.Error))
 	}
 	return result.Error
 }
@@ -76,7 +82,7 @@ func getLine(a ...any) error {
 	line := a[0].(*speaker.Line)
 	result := db.Take(line)
 	if result.Error != nil {
-		log.Fatal("read line error", zap.Uint8("line", line.ID), zap.Error(result.Error))
+		log.Fatal("read line error", lg.Uint("line", uint64(line.ID)), lg.Error(result.Error))
 	}
 	return result.Error
 }
@@ -86,7 +92,7 @@ func saveLine(a ...any) error {
 	result := db.Save(line)
 
 	if result.Error != nil {
-		log.Fatal("save line error", zap.Uint8("line", line.ID), zap.Error(result.Error))
+		log.Fatal("save line error", lg.Uint("line", uint64(line.ID)), lg.Error(result.Error))
 	}
 	return result.Error
 }
@@ -95,7 +101,7 @@ func deleteLine(a ...any) error {
 	line := a[0].(*speaker.Line)
 	result := db.Delete(line)
 	if result.Error != nil {
-		log.Fatal("delete line error", zap.Uint8("line", line.ID), zap.Error(result.Error))
+		log.Fatal("delete line error", lg.Uint("line", uint64(line.ID)), lg.Error(result.Error))
 	}
 	return result.Error
 }
@@ -103,7 +109,7 @@ func deleteLine(a ...any) error {
 func getSpeakers(a ...any) error {
 	spList := a[0].(*[]*speaker.Speaker)
 	sps := []speaker.Speaker{}
-	result := db.Find(&sps)
+	result := db.Preload(clause.Associations).Find(&sps)
 	if result.RowsAffected > 0 {
 		for i := 0; i < len(sps); i++ {
 			*spList = append(*spList, &sps[i])
@@ -111,7 +117,7 @@ func getSpeakers(a ...any) error {
 		return nil
 	}
 	if result.Error != nil {
-		log.Fatal("read all lines error", zap.Error(result.Error))
+		log.Fatal("read all lines error", lg.Error(result.Error))
 	}
 	return result.Error
 }
@@ -120,16 +126,16 @@ func getSpeaker(a ...any) error {
 	sp := a[0].(*speaker.Speaker)
 	result := db.Take(sp)
 	if result.Error != nil {
-		log.Fatal("read speaker error", zap.Uint32("speaker", sp.ID), zap.Error(result.Error))
+		log.Fatal("read speaker error", lg.Uint("speaker", uint64(sp.ID)), lg.Error(result.Error))
 	}
 	return result.Error
 }
 
 func saveSpeaker(a ...any) error {
 	sp := a[0].(*speaker.Speaker)
-	result := db.Save(sp)
+	result := db.Session(&gorm.Session{FullSaveAssociations: true}).Save(sp)
 	if result.Error != nil {
-		log.Fatal("save speaker error", zap.Uint32("speaker", sp.ID), zap.Error(result.Error))
+		log.Fatal("save speaker error", lg.Uint("speaker", uint64(sp.ID)), lg.Error(result.Error))
 	}
 	return result.Error
 }
@@ -138,7 +144,7 @@ func deleteSpeaker(a ...any) error {
 	sp := a[0].(*speaker.Speaker)
 	result := db.Delete(sp)
 	if result.Error != nil {
-		log.Fatal("delete speaker error", zap.Uint32("speaker", sp.ID), zap.Error(result.Error))
+		log.Fatal("delete speaker error", lg.Uint("speaker", uint64(sp.ID)), lg.Error(result.Error))
 	}
 	return result.Error
 }

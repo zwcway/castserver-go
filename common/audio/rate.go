@@ -81,6 +81,10 @@ func (a Rate) String() string {
 	return fmt.Sprintf("%d", a.ToInt())
 }
 
+func (a Rate) LessThan(r Rate) bool {
+	return a.ToInt() < r.ToInt()
+}
+
 func (a Rate) IsValid() bool {
 	return a > AudioRate_NONE && a < AudioRate_MAX
 }
@@ -89,15 +93,15 @@ func (a Rate) ResampleTo(r Rate, s int) int {
 	return a.ToInt() / r.ToInt() * s
 }
 
-type AudioRateMask uint16
+type RateMask uint16
 
-func NewAudioRateMask(arr []uint8) (AudioRateMask, error) {
-	var a AudioRateMask
+func NewAudioRateMask(arr []uint8) (RateMask, error) {
+	var a RateMask
 	err := a.FromSlice(arr)
 	return a, err
 }
 
-func (m *AudioRateMask) FromSlice(arr []uint8) error {
+func (m *RateMask) FromSlice(arr []uint8) error {
 	if len(arr) > 16 {
 		return errors.New("rates too large")
 	}
@@ -107,37 +111,83 @@ func (m *AudioRateMask) FromSlice(arr []uint8) error {
 	return nil
 }
 
-func (m AudioRateMask) Isset(a uint8) bool {
-	return maskIsset(uint(m), a)
+func (m RateMask) IssetInt(a uint8) bool {
+	return MaskIsset(uint32(m), a)
 }
 
-func (m AudioRateMask) IssetSlice(a []uint8) bool {
-	return maskIssetSlice(uint(m), a)
+func (m RateMask) Isset(a Rate) bool {
+	return MaskIsset(uint32(m), uint8(a))
 }
 
-func (m *AudioRateMask) CombineSlice(a []uint8) bool {
-	r := maskCombineSlice(uint(*m), a)
-	*m = AudioRateMask(r)
-	return r > 0
+func (m RateMask) IssetSlice(a []uint8) bool {
+	return MaskIssetIntSlice(uint32(m), a)
 }
 
-func (m *AudioRateMask) Combine(a []Rate) bool {
-	r := maskCombineSlice(uint(*m), toSlice(a))
-	*m = AudioRateMask(r)
-	return r > 0
+func (m *RateMask) IntersectIntSlice(a []uint8) bool {
+	n, err := NewAudioRateMask(a)
+	if err != nil {
+		return false
+	}
+
+	*m &= n
+	return m.IsValid()
 }
 
-func (m AudioRateMask) IsValid() bool {
+// 默认参数是合法的
+func (m *RateMask) IntersectSlice(a []Rate) bool {
+	*m &= RateMask(MakeMaskFromSlice(a))
+	return m.IsValid()
+}
+
+func (m *RateMask) Intersect(a RateMask) bool {
+	*m &= a
+	return m.IsValid()
+}
+
+// 默认参数是合法的
+func (m *RateMask) CombineSlice(a []Rate) bool {
+	*m |= RateMask(MakeMaskFromSlice(a))
+	return m.IsValid()
+}
+
+func (m *RateMask) Combine(a RateMask) bool {
+	*m |= a
+	return m.IsValid()
+}
+
+func (m RateMask) Max() (max Rate) {
+	for _, r := range m.RateSlice() {
+		if max.LessThan(r) {
+			max = r
+		}
+	}
+	return
+}
+
+func (m RateMask) IsValid() bool {
 	return m > 0 && ((m)>>(AudioRate_MAX-1)) == 0
 }
 
-func (m AudioRateMask) Slice() []int {
-	s := []int{}
+func (m RateMask) Slice() []int {
+	s := make([]int, 16)
+	j := 0
 	for i := 0; i < 16; i++ {
 		if (m>>i)&0x01 == 1 {
-			b := Rate(i + 1)
-			s = append(s, b.ToInt())
+			s[j] = Rate(i + 1).ToInt()
+			j++
 		}
 	}
-	return s
+	return s[:j]
+}
+
+func (m RateMask) RateSlice() []Rate {
+	s := make([]Rate, 16)
+	j := 0
+	for i := 0; i < 16; i++ {
+		if (m>>i)&0x01 == 1 {
+			s[j] = Rate(i + 1)
+			j++
+		}
+	}
+	return s[:j]
 }

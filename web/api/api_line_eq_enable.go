@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	"github.com/zwcway/castserver-go/common/bus"
+	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/web/websockets"
-	"go.uber.org/zap"
 )
 
 type requestLineEQSwitch struct {
@@ -14,7 +14,7 @@ type requestLineEQSwitch struct {
 	Enable bool  `jp:"enable"`
 }
 
-func apiLineSetEqualizerEnable(c *websockets.WSConnection, req Requester, log *zap.Logger) (any, error) {
+func apiLineSetEqualizerEnable(c *websockets.WSConnection, req Requester, log lg.Logger) (any, error) {
 	var p requestLineEQSwitch
 	err := req.Unmarshal(&p)
 	if err != nil {

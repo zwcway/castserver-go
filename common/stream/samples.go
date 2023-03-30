@@ -11,6 +11,7 @@ import (
 type channelIndexMax [audio.Channel_MAX]int
 
 // 对应ffmpeg中的planar类型
+// TODO 增加所有声道的 Samples，自动同步 Format
 type Samples struct {
 	NbSamples     int          // 每声道样本数量，恒等于 Data 的 第二维 数组大小
 	Format        audio.Format // 当前样本格式

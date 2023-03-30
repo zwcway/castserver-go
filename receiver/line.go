@@ -5,7 +5,7 @@ import (
 	"github.com/zwcway/castserver-go/common/speaker"
 )
 
-func initDefaultLine() {
+func registerBus() {
 	bus.Register("line created", func(a ...any) error {
 		line := a[0].(*speaker.Line)
 

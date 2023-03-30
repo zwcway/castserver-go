@@ -7,6 +7,7 @@ import (
 
 	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/bus"
+	"github.com/zwcway/castserver-go/common/config"
 	"github.com/zwcway/castserver-go/common/dsp"
 	"github.com/zwcway/castserver-go/common/element"
 	"github.com/zwcway/castserver-go/common/pipeline"
@@ -38,8 +39,8 @@ type Line struct {
 	SpectrumEle  stream.SpectrumElement  `gorm:"-"`
 	EqualizerEle stream.EqualizerElement `gorm:"-"`
 	PlayerEle    stream.RawPlayerElement `gorm:"-"`
-	ResampleEle  stream.ResampleElement  `gorm:"-"`
-	PusherEle    stream.SwitchElement    `gorm:"-"`
+	// ResampleEle  stream.ResampleElement  `gorm:"-"`
+	// PusherEle    stream.SwitchElement    `gorm:"-"`
 
 	isDeleted bool
 
@@ -47,8 +48,12 @@ type Line struct {
 	spsByCh  [][]*Speaker `gorm:"-"`
 }
 
-func (l *Line) Layout() *audio.ChannelLayout {
-	return &l.Output.Layout
+func (l *Line) String() string {
+	return fmt.Sprintf("%s(%d)", l.Name, l.ID)
+}
+
+func (l *Line) Layout() audio.ChannelLayout {
+	return l.Output.Layout
 }
 
 // 如果返回值不空，就表示有speaker
@@ -144,7 +149,10 @@ func (l *Line) SpeakersByChannel(ch audio.Channel) []*Speaker {
 }
 
 func (l *Line) AppendSpeaker(sp *Speaker) {
-	l.speakers = append(l.speakers, sp)
+	if utils.SliceContains(l.speakers, sp) < 0 {
+		l.speakers = append(l.speakers, sp)
+	}
+
 	l.refresh()
 	bus.Dispatch("line speaker appended", l, sp)
 }
@@ -174,8 +182,6 @@ func (l *Line) SetOutput(f audio.Format) {
 		sp.SetFormat(f)
 	}
 
-	l.refresh()
-
 	bus.Dispatch("line output changed", l)
 }
 
@@ -198,16 +204,47 @@ func (l *Line) SetName(n string) {
 
 func (l *Line) refresh() {
 	channels := []audio.Channel{}
-	l.spsByCh = make([][]*Speaker, audio.Channel_MAX)
+
+	for i := 0; i < len(l.spsByCh); i++ {
+		l.spsByCh[i] = nil
+	}
 
 	for _, sp := range l.speakers {
 		l.spsByCh[sp.Channel] = append(l.spsByCh[sp.Channel], sp)
 		channels = append(channels, sp.SampleChannel())
 	}
 
-	l.Output.Layout = audio.NewChannelLayout(channels...)
+	format := audio.Format{}
+	format.SampleRate, format.SampleBits = l.decideOutputFormat()
+	format.Layout = audio.NewChannelLayout(channels...)
+	l.SetOutput(format)
 
 	bus.Dispatch("line refresh", l)
+}
+
+func (l *Line) SpeakerSamplesFromat() (rm audio.RateMask, bm audio.BitsMask) {
+	rm.CombineSlice(config.SupportAudioRates)
+	bm.CombineSlice(config.SupportAudioBits)
+	for _, sp := range l.speakers {
+		rm.Intersect(sp.Config.RateMask)
+		bm.Intersect(sp.Config.BitsMask)
+	}
+	return
+}
+
+func (l *Line) decideOutputFormat() (r audio.Rate, b audio.Bits) {
+	rm, bm := l.SpeakerSamplesFromat()
+	r = rm.Max()
+	b = bm.Max()
+
+	if rm.Isset(l.Input.Format.SampleRate) {
+		r = l.Input.Format.SampleRate
+	}
+	if bm.Isset(l.Input.Format.SampleBits) {
+		b = l.Input.Format.SampleBits
+	}
+
+	return
 }
 
 func (l *Line) Elements() []stream.Element {
@@ -217,7 +254,6 @@ func (l *Line) Elements() []stream.Element {
 		l.PlayerEle,
 		l.SpectrumEle,
 		l.VolumeEle,
-		l.PusherEle,
 	}
 }
 
@@ -242,11 +278,14 @@ func (l *Line) ApplyInput(ss stream.SourceStreamer) {
 }
 
 func (l *Line) onInputChanged(ss stream.SourceStreamer, inFormat, outFormat audio.Format) {
-	l.Input.Format = inFormat
 	if fs, ok := ss.(stream.FileStreamer); ok {
 		format := audio.InternalFormat()
 		format.InitFrom(inFormat)
 		fs.SetOutFormat(format)
+	}
+	if !l.Input.Format.Equal(&inFormat) {
+		l.Input.Format = inFormat
+		l.refresh()
 	}
 	bus.Dispatch("line audiofile opened", l, ss, inFormat, outFormat)
 }
@@ -256,6 +295,8 @@ func (l *Line) Save() {
 }
 
 func (line *Line) init() {
+	line.spsByCh = make([][]*Speaker, audio.Channel_MAX)
+
 	line.SetOutput(audio.DefaultFormat())
 
 	line.PlayerEle = element.NewPlayer()
@@ -263,7 +304,7 @@ func (line *Line) init() {
 	line.MixerEle = element.NewEmptyMixer()
 	line.SpectrumEle = element.NewSpectrum()
 	line.EqualizerEle = element.NewEqualizer(line.EQ.Eq)
-	line.ResampleEle = element.NewResample(line.Output)
+	// line.ResampleEle = element.NewResample(line.Output)
 
 	line.Input.Mixer = line.MixerEle
 	line.Input.PipeLine = pipeline.NewPipeLine(line.Output,

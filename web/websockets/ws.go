@@ -7,12 +7,12 @@ import (
 	"github.com/fasthttp/websocket"
 	"github.com/valyala/fasthttp"
 	"github.com/zwcway/castserver-go/common/config"
+	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/common/utils"
-	"go.uber.org/zap"
 )
 
 var ctx utils.Context
-var log *zap.Logger
+var log lg.Logger
 var ApiDispatch func(mt int, msg []byte, conn *WSConnection)
 
 const (
@@ -49,7 +49,7 @@ func (c *WSConnection) readFromClient() {
 		UnsubscribeAll(c)
 		delete(c.hub.broadcast, c)
 		delete(c.hub.Clients, c)
-		log.Debug("client close", zap.String("ip", c.Conn.RemoteAddr().String()))
+		log.Debug("client close", lg.String("ip", c.Conn.RemoteAddr().String()))
 		c.Conn.Close()
 		c.Conn = nil
 	}()
@@ -65,7 +65,7 @@ func (c *WSConnection) readFromClient() {
 		t, message, err := c.Conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Error("error", zap.Error(err))
+				log.Error("error", lg.Error(err))
 			}
 			break
 		}
@@ -75,7 +75,7 @@ func (c *WSConnection) readFromClient() {
 			continue
 		}
 		// if t != websocket.TextMessage {
-		// 	log.Debug("receive", zap.String("ip", c.Conn.RemoteAddr().String()), zap.ByteString("data", message))
+		// 	log.Debug("receive", lg.String("ip", c.Conn.RemoteAddr().String()), lg.ByteString("data", message))
 		// }
 		if ApiDispatch != nil {
 			ApiDispatch(t, message, c)
@@ -85,7 +85,7 @@ func (c *WSConnection) readFromClient() {
 
 func (c *WSConnection) Write(d []byte) error {
 	if len(WSHub.writeQueue) >= cap(WSHub.writeQueue) {
-		log.Error("write queue full", zap.Int("size", len(WSHub.writeQueue)))
+		log.Error("write queue full", lg.Int("size", int64(len(WSHub.writeQueue))))
 		return errors.New("write queue full")
 	}
 
@@ -134,7 +134,7 @@ func newConnection(ws *websocket.Conn) {
 
 	wsServer := &WSConnection{hub: WSHub, Conn: ws}
 
-	log.Debug("client connected", zap.String("ip", ws.RemoteAddr().String()))
+	log.Debug("client connected", lg.String("ip", ws.RemoteAddr().String()))
 
 	// 保存客户端列表
 	WSHub.Clients[wsServer] = struct{}{}
@@ -151,7 +151,7 @@ func WSHandler(ctx *fasthttp.RequestCtx) {
 	err := upgrader.Upgrade(ctx, newConnection)
 
 	if err != nil {
-		log.Error("ws handler error", zap.Error(err))
+		log.Error("ws handler error", lg.Error(err))
 	}
 }
 

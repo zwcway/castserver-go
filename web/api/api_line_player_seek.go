@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/zwcway/castserver-go/common/bus"
+	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/web/websockets"
-	"go.uber.org/zap"
 )
 
 type requestLinePlayerSeek struct {
@@ -16,7 +16,7 @@ type requestLinePlayerSeek struct {
 	Pos int   `jp:"pos"`
 }
 
-func apiLinePlayerSeek(c *websockets.WSConnection, req Requester, log *zap.Logger) (any, error) {
+func apiLinePlayerSeek(c *websockets.WSConnection, req Requester, log lg.Logger) (any, error) {
 	var p requestLinePlayerSeek
 	err := req.Unmarshal(&p)
 	if err != nil {

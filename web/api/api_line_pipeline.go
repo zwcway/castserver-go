@@ -3,10 +3,10 @@ package api
 import (
 	"fmt"
 
+	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/common/pipeline"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/web/websockets"
-	"go.uber.org/zap"
 )
 
 type responseLinePipeLineSpend struct {
@@ -18,7 +18,7 @@ type responseLinePipeLine struct {
 	Spends []responseLinePipeLineSpend
 }
 
-func apiLinePipeLineInfo(c *websockets.WSConnection, req Requester, log *zap.Logger) (any, error) {
+func apiLinePipeLineInfo(c *websockets.WSConnection, req Requester, log lg.Logger) (any, error) {
 	var p requestLineInfo
 	err := req.Unmarshal(&p)
 	if err != nil {

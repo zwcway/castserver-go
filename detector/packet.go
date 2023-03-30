@@ -18,7 +18,7 @@ type SpeakerResponse struct {
 	Addr netip.Addr
 	MAC  net.HardwareAddr
 
-	RateMask audio.AudioRateMask
+	RateMask audio.RateMask
 	BitsMask audio.BitsMask
 
 	DataPort uint16 // 用于接收 pcm 数据的端口，同样也是用于接收 控制帧 的端口,尽可能节省设备端资源
@@ -102,7 +102,7 @@ func (r *SpeakerResponse) Unpack(p *protocol.Package) (err error) {
 		err = newUnpackError("rate mask", p.LastBytes(2), err)
 		return
 	}
-	r.RateMask = audio.AudioRateMask(i16)
+	r.RateMask = audio.RateMask(i16)
 	if !r.RateMask.IsValid() {
 		err = newUnpackError("rate mask", p.LastBytes(2), err)
 	}

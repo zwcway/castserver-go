@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	"go.uber.org/zap"
+	"github.com/zwcway/castserver-go/common/lg"
 )
 
 type ctxValue int
@@ -18,7 +18,7 @@ const (
 type Context interface {
 	context.Context
 	Signal() chan os.Signal
-	Logger(tag string) *zap.Logger
+	Logger(tag string) lg.Logger
 }
 
 type cContext struct {
@@ -33,18 +33,18 @@ func (c *cContext) Done() <-chan struct{}       { return c.c.Done() }
 func (c *cContext) Signal() chan os.Signal {
 	return c.c.Value(valueSignalKey).(chan os.Signal)
 }
-func (c *cContext) logger() *zap.Logger {
-	return c.c.Value(valueLoggerKey).(*zap.Logger)
+func (c *cContext) logger() lg.Logger {
+	return c.c.Value(valueLoggerKey).(lg.Logger)
 }
-func (c *cContext) Logger(tag string) *zap.Logger {
-	return c.logger().With(zap.String("tag", tag))
+func (c *cContext) Logger(tag string) lg.Logger {
+	return c.logger().Name(tag)
 }
 
 func (c *cContext) WithSignal(sig chan os.Signal) *cContext {
 	c.c = context.WithValue(c.c, valueSignalKey, sig)
 	return c
 }
-func (c *cContext) WithLogger(log *zap.Logger) *cContext {
+func (c *cContext) WithLogger(log lg.Logger) *cContext {
 	c.c = context.WithValue(c.c, valueLoggerKey, log)
 	return c
 }
@@ -57,5 +57,11 @@ func (c *cContext) WithCancel() (*cContext, context.CancelFunc) {
 
 func NewContext() *cContext {
 	cc := cContext{context.Background()}
+	return &cc
+}
+
+func NewEmptyContext() *cContext {
+	cc := cContext{context.Background()}
+	cc.WithLogger(lg.NewMemroy())
 	return &cc
 }

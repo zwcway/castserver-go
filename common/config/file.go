@@ -11,13 +11,13 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/common/utils"
 	"gorm.io/gorm"
 
 	"github.com/zwcway/castserver-go/common/audio"
 
 	"github.com/go-ini/ini"
-	"go.uber.org/zap"
 )
 
 const (
@@ -25,7 +25,7 @@ const (
 	Unknown = "unknown"
 )
 
-func parseListen(log *zap.Logger, cfg reflect.Value, listen string, port uint16) {
+func parseListen(cfg reflect.Value, listen string, port uint16) {
 	var li Interface
 	if len(listen) != 0 {
 		var err error
@@ -49,7 +49,7 @@ func parseListen(log *zap.Logger, cfg reflect.Value, listen string, port uint16)
 				li.AddrPort = netip.AddrPortFrom(addr, port)
 			}
 		} else {
-			log.Error("this is not a interface name", zap.String("listen", listen))
+			log.Error("this is not a interface name", lg.String("listen", listen))
 		}
 	}
 	if !li.AddrPort.IsValid() {
@@ -62,7 +62,7 @@ _default_:
 	return
 }
 
-func parseBits(log *zap.Logger, cfg reflect.Value, k *ini.Key, ck *CfgKey) {
+func parseBits(cfg reflect.Value, k *ini.Key, ck *CfgKey) {
 	parse := func(b string) []audio.Bits {
 		r := strings.FieldsFunc(b, func(r rune) bool {
 			return r == ' ' || r == '|' || r == '/'
@@ -73,10 +73,10 @@ func parseBits(log *zap.Logger, cfg reflect.Value, k *ini.Key, ck *CfgKey) {
 			var a audio.Bits
 			a.FromName(v)
 			if a == audio.Bits_NONE {
-				log.Error("bits is invalid", zap.String("bits", v), zap.String("key", ck.Key))
+				log.Error("bits is invalid", lg.String("bits", v), lg.String("key", ck.Key))
 				continue
 			}
-			if utils.SliceContains(bits, a) {
+			if utils.SliceContains(bits, a) >= 0 {
 				continue
 			}
 			bits = append(bits, a)
@@ -94,7 +94,7 @@ func parseBits(log *zap.Logger, cfg reflect.Value, k *ini.Key, ck *CfgKey) {
 	}
 }
 
-func parseRates(log *zap.Logger, cfg reflect.Value, k *ini.Key, ck *CfgKey) {
+func parseRates(cfg reflect.Value, k *ini.Key, ck *CfgKey) {
 	parse := func(b string) []audio.Rate {
 		r := strings.FieldsFunc(b, func(r rune) bool {
 			return r == ' ' || r == '|' || r == '/'
@@ -104,15 +104,15 @@ func parseRates(log *zap.Logger, cfg reflect.Value, k *ini.Key, ck *CfgKey) {
 		for _, v := range r {
 			i, err := strconv.ParseInt(v, 0, 32)
 			if err != nil {
-				log.Error("rate is invalid", zap.String("rate", v), zap.String("key", ck.Key))
+				log.Error("rate is invalid", lg.String("rate", v), lg.String("key", ck.Key))
 				continue
 			}
 			a := audio.NewAudioRate(int(i))
 			if !a.IsValid() {
-				log.Error("rate is invalid", zap.String("rate", v), zap.String("key", ck.Key))
+				log.Error("rate is invalid", lg.String("rate", v), lg.String("key", ck.Key))
 				continue
 			}
-			if utils.SliceContains(rates, a) {
+			if utils.SliceContains(rates, a) >= 0 {
 				continue
 			}
 			rates = append(rates, a)
@@ -131,19 +131,19 @@ func parseRates(log *zap.Logger, cfg reflect.Value, k *ini.Key, ck *CfgKey) {
 	}
 }
 
-func parsePath(log *zap.Logger, cfg reflect.Value, k *ini.Key, ck *CfgKey) {
+func parsePath(cfg reflect.Value, k *ini.Key, ck *CfgKey) {
 	path := ""
 	if k != nil {
 		path = k.String()
 	}
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		log.Error("path not exists", zap.String("path", path), zap.String("key", ck.Key))
+		log.Error("path not exists", lg.String("path", path), lg.String("key", ck.Key))
 	} else {
 		cfg.SetString(path)
 	}
 }
 
-func parseTempDir(log *zap.Logger, cfg reflect.Value, k *ini.Key, ck *CfgKey) {
+func parseTempDir(cfg reflect.Value, k *ini.Key, ck *CfgKey) {
 	path := ""
 	if k != nil {
 		path = k.String()
@@ -155,7 +155,7 @@ func parseTempDir(log *zap.Logger, cfg reflect.Value, k *ini.Key, ck *CfgKey) {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		err = os.Mkdir(path, os.ModeTemporary)
 		if err != nil {
-			log.Error("can not create temp dir ", zap.String("dir", path))
+			log.Error("can not create temp dir ", lg.String("dir", path))
 			path = ""
 		}
 	}
@@ -184,14 +184,14 @@ type CfgKey struct {
 	Cfg  any
 	Key  string
 	Desc string
-	cb   func(log *zap.Logger, cfg reflect.Value, k *ini.Key, ck *CfgKey)
+	cb   func(cfg reflect.Value, k *ini.Key, ck *CfgKey)
 }
 type CfgSection struct {
 	Name string
 	Keys []CfgKey
 }
 
-func FromFile(log *zap.Logger, file string) error {
+func FromFile(ctx utils.Context, file string) error {
 	data, err := os.ReadFile(file)
 
 	if err != nil {
@@ -200,10 +200,12 @@ func FromFile(log *zap.Logger, file string) error {
 
 	ConfigFile = file
 
-	return FromContent(log, data)
+	return FromContent(ctx, data)
 }
 
-func FromContent(log *zap.Logger, data []byte) error {
+func FromContent(ctx utils.Context, data []byte) error {
+	initLogger(ctx)
+
 	c, err := ini.Load(data)
 	if err != nil {
 		return err
@@ -213,7 +215,7 @@ func FromContent(log *zap.Logger, data []byte) error {
 		section := c.Section(cs.Name)
 
 		for _, ck := range cs.Keys {
-			setKey(log, section, &ck)
+			setKey(section, &ck)
 		}
 	}
 
@@ -227,7 +229,7 @@ func FromContent(log *zap.Logger, data []byte) error {
 	return nil
 }
 
-func setKey(log *zap.Logger, section *ini.Section, ck *CfgKey) {
+func setKey(section *ini.Section, ck *CfgKey) {
 	key, _ := section.GetKey(ck.Key)
 
 	isNil := ck.Cfg == nil
@@ -245,7 +247,7 @@ func setKey(log *zap.Logger, section *ini.Section, ck *CfgKey) {
 	// Clear(cfgrv)
 
 	if ck.cb != nil {
-		ck.cb(log, cfgrv, key, ck)
+		ck.cb(cfgrv, key, ck)
 		return
 	}
 
@@ -255,65 +257,65 @@ func setKey(log *zap.Logger, section *ini.Section, ck *CfgKey) {
 
 	switch cfgrv.Kind() {
 	case reflect.String:
-		setReflectString(log, key, cfgrv, ck)
+		setReflectString(key, cfgrv, ck)
 	case reflect.Int32, reflect.Int, reflect.Int16, reflect.Int8, reflect.Int64:
-		setReflectInt(log, key, cfgrv, ck)
+		setReflectInt(key, cfgrv, ck)
 	case reflect.Uint, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint8:
-		setReflectUInt(log, key, cfgrv, ck)
+		setReflectUInt(key, cfgrv, ck)
 	case reflect.Bool:
-		setReflectBool(log, key, cfgrv, ck)
+		setReflectBool(key, cfgrv, ck)
 	case reflect.Struct:
-		setReflectStruct(log, key, cfgrv, ck)
+		setReflectStruct(key, cfgrv, ck)
 	case reflect.Slice:
-		setReflectSlice(log, key, cfgrv, ck)
+		setReflectSlice(key, cfgrv, ck)
 	}
 }
 
-func setReflectString(log *zap.Logger, key *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
+func setReflectString(key *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
 	if key != nil {
 		i := key.String()
 		if key == nil || len(key.String()) == 0 {
-			log.Error("value empty", zap.String("key", ck.Key), zap.String("val", key.String()))
+			log.Error("value empty", lg.String("key", ck.Key), lg.String("val", key.String()))
 			return
 		}
 		cfgrv.SetString(i)
 	}
 }
 
-func setReflectInt(log *zap.Logger, key *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
+func setReflectInt(key *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
 	if key != nil {
 		if len(key.String()) == 0 {
-			log.Error("value empty", zap.String("key", ck.Key), zap.String("val", key.String()))
+			log.Error("value empty", lg.String("key", ck.Key), lg.String("val", key.String()))
 		} else if ki, err := key.Int(); err != nil {
-			log.Error("value invalid", zap.String("key", ck.Key), zap.String("val", key.String()))
+			log.Error("value invalid", lg.String("key", ck.Key), lg.String("val", key.String()))
 			cfgrv.SetInt(int64(ki))
 		}
 	}
 }
 
-func setReflectUInt(log *zap.Logger, key *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
+func setReflectUInt(key *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
 	if key != nil {
 		if len(key.String()) == 0 {
-			log.Error("value empty", zap.String("key", ck.Key), zap.String("val", key.String()))
+			log.Error("value empty", lg.String("key", ck.Key), lg.String("val", key.String()))
 		} else if ki, err := key.Uint(); err != nil {
-			log.Error("value invalid", zap.String("key", ck.Key), zap.String("val", key.String()))
+			log.Error("value invalid", lg.String("key", ck.Key), lg.String("val", key.String()))
 			cfgrv.SetUint(uint64(ki))
 		}
 	}
 }
 
-func setReflectBool(log *zap.Logger, key *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
+func setReflectBool(key *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
 	if key != nil {
 		if len(key.String()) == 0 {
-			log.Error("value empty", zap.String("key", ck.Key), zap.String("val", key.String()))
+			log.Error("value empty", lg.String("key", ck.Key), lg.String("val", key.String()))
 		} else if ki, err := key.Bool(); err != nil {
-			log.Error("value invalid", zap.String("key", ck.Key), zap.String("val", key.String()))
+			log.Error("value invalid", lg.String("key", ck.Key), lg.String("val", key.String()))
 			cfgrv.SetBool(ki)
 		}
 	}
 }
 
-func setReflectStruct(log *zap.Logger, key *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
+func setReflectStruct(key *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
 	var keyV string
 	isEmpty := key != nil && len(key.String()) == 0
 
@@ -321,7 +323,7 @@ func setReflectStruct(log *zap.Logger, key *ini.Key, cfgrv reflect.Value, ck *Cf
 		keyV = key.String()
 	}
 	if isEmpty {
-		log.Error("value empty", zap.String("key", ck.Key), zap.String("val", key.String()))
+		log.Error("value empty", lg.String("key", ck.Key), lg.String("val", key.String()))
 	}
 
 	if cfgrv.Kind() == reflect.Pointer {
@@ -337,7 +339,7 @@ func setReflectStruct(log *zap.Logger, key *ini.Key, cfgrv reflect.Value, ck *Cf
 		if key != nil {
 			val = key.String()
 		}
-		parseListen(log, cfgrv, val, uint16(port))
+		parseListen(cfgrv, val, uint16(port))
 	} else if as(reflect.TypeOf((*net.Interface)(nil)).Elem()) {
 		if len(keyV) == 0 {
 			cfgrv.Set(reflect.Zero(cfgrv.Type()))
@@ -345,27 +347,27 @@ func setReflectStruct(log *zap.Logger, key *ini.Key, cfgrv reflect.Value, ck *Cf
 		}
 		ifi := utils.InterfaceByName(keyV)
 		if ifi == nil {
-			log.Error("this is not a interface name", zap.String("name", keyV))
+			log.Error("this is not a interface name", lg.String("name", keyV))
 		}
 		cfgrv.Set(reflect.ValueOf(ifi))
 	}
 }
 
-func setReflectSlice(log *zap.Logger, key *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
+func setReflectSlice(key *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
 	isEmpty := key != nil && len(key.String()) == 0
 
 	if isEmpty {
-		log.Error("value empty", zap.String("key", ck.Key), zap.String("val", key.String()))
+		log.Error("value empty", lg.String("key", ck.Key), lg.String("val", key.String()))
 	}
 	elemRT := cfgrv.Type().Elem()
 	as := elemRT.AssignableTo
 
 	if as(reflect.PointerTo(reflect.TypeOf((*net.IPNet)(nil)).Elem())) {
-		setReflectSliceIPNet(log, key, cfgrv, ck)
+		setReflectSliceIPNet(key, cfgrv, ck)
 	}
 }
 
-func setReflectSliceIPNet(log *zap.Logger, key *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
+func setReflectSliceIPNet(key *ini.Key, cfgrv reflect.Value, ck *CfgKey) {
 	var keyV string
 	elemRT := cfgrv.Type().Elem()
 	if key != nil {
@@ -383,7 +385,7 @@ func setReflectSliceIPNet(log *zap.Logger, key *ini.Key, cfgrv reflect.Value, ck
 		if err != nil {
 			ip := net.ParseIP(ipstr)
 			if ip == nil {
-				log.Error("ip invalid", zap.String("key", ck.Key), zap.String("val", key.String()))
+				log.Error("ip invalid", lg.String("key", ck.Key), lg.String("val", key.String()))
 				return
 			}
 			var m net.IPMask

@@ -2,9 +2,9 @@ package control
 
 import (
 	"github.com/zwcway/castserver-go/common/audio"
+	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/common/protocol"
 	"github.com/zwcway/castserver-go/common/speaker"
-	"go.uber.org/zap"
 )
 
 type Sample struct {
@@ -32,13 +32,13 @@ func ControlSample(sp *speaker.Speaker) {
 
 	p, err := s.Pack()
 	if err != nil {
-		log.Error("encode sample package error", zap.String("speaker", sp.String()), zap.Error(err))
+		log.Error("encode sample package error", lg.String("speaker", sp.String()), lg.Error(err))
 		return
 	}
 
 	err = sp.WriteUDP(p.Bytes())
 	if err != nil {
-		log.Error("ControlSample error", zap.String("speaker", sp.String()), zap.Error(err))
+		log.Error("ControlSample error", lg.String("speaker", sp.String()), lg.Error(err))
 		return
 	}
 }

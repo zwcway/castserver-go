@@ -9,14 +9,13 @@ import (
 	"strconv"
 	"strings"
 
-	utils "github.com/zwcway/castserver-go/common/utils"
+	"github.com/zwcway/castserver-go/common/utils"
 
 	"github.com/jedib0t/go-pretty/table"
 	gap "github.com/muesli/go-app-paths"
-	"go.uber.org/zap"
 )
 
-func readConfigFile(log *zap.Logger, opts map[string]string) error {
+func readConfigFile(ctx utils.Context, opts map[string]string) error {
 	var path string
 
 	if v, ok := opts["c"]; ok {
@@ -29,7 +28,7 @@ func readConfigFile(log *zap.Logger, opts map[string]string) error {
 			return err
 		}
 
-		return FromFile(log, path)
+		return FromFile(ctx, path)
 	}
 
 	scope := gap.NewScope(gap.User, APPNAME)
@@ -50,10 +49,10 @@ func readConfigFile(log *zap.Logger, opts map[string]string) error {
 			return err
 		}
 		if _, err := os.Stat(path); !os.IsNotExist(err) {
-			return FromFile(log, path)
+			return FromFile(ctx, path)
 		}
 	}
-	return FromContent(log, []byte{})
+	return FromContent(ctx, []byte{})
 }
 
 func printInterfaces() {
@@ -75,13 +74,14 @@ func printInterfaces() {
 	t.Render()
 }
 
-func FromOptions(log *zap.Logger, opts map[string]string) error {
+func FromOptions(ctx utils.Context, opts map[string]string) error {
 	var (
 		v  string
 		ok bool
 	)
+	initLogger(ctx)
 
-	if err := readConfigFile(log, opts); err != nil {
+	if err := readConfigFile(ctx, opts); err != nil {
 		return err
 	}
 

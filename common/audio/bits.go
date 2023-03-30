@@ -57,7 +57,7 @@ func (a *Bits) FromBytes(i int8) {
 	a.FromInt(int(i * 8))
 }
 
-func (a Bits) ToInt() int32 {
+func (a Bits) ToInt() int {
 	switch a {
 	case Bits_S8, Bits_U8:
 		return 8
@@ -142,9 +142,14 @@ func (a Bits) String() string {
 	}
 }
 
-func (a Bits) Bits() int32 {
+func (a Bits) Bits() int {
 	return a.ToInt()
 }
+
+func (a Bits) LessThan(r Bits) bool {
+	return a.ToInt() < r.ToInt()
+}
+
 func (a Bits) Size() int {
 	return int(a.ToInt() / 8)
 }
@@ -171,36 +176,96 @@ func (m *BitsMask) FromSlice(arr []uint8) error {
 	return nil
 }
 
-func (m *BitsMask) Isset(a uint8) bool {
-	return maskIsset(uint(*m), a)
+func (m BitsMask) IssetInt(a uint8) bool {
+	return MaskIsset(uint32(m), a)
 }
 
-func (m *BitsMask) IssetSlice(a []uint8) bool {
-	return maskIssetSlice(uint(*m), a)
+func (m BitsMask) Isset(a Bits) bool {
+	return MaskIsset(uint32(m), uint8(a))
 }
 
-func (m *BitsMask) CombineSlice(a []uint8) bool {
-	r := maskCombineSlice(uint(*m), a)
-	*m = BitsMask(r)
-	return r > 0
+func (m BitsMask) IssetSlice(a []uint8) bool {
+	return MaskIssetIntSlice(uint32(m), a)
 }
 
-func (m *BitsMask) Combine(a []Bits) bool {
-	r := maskCombineSlice(uint(*m), toSlice(a))
-	*m = BitsMask(r)
-	return r > 0
+func (m *BitsMask) CombineIntSlice(a []uint8) bool {
+	r, err := NewAudioBitsMask(a)
+	if err != nil {
+		return false
+	}
+	*m &= r
+	return m.IsValid()
 }
 
-func (m *BitsMask) IsValid() bool {
-	return *m > 0 && ((*m)>>(Bits_MAX-1)) == 0
+// 默认参数是合法的
+func (m *BitsMask) IntersectSlice(a []Bits) bool {
+	*m &= BitsMask(MakeMaskFromSlice(a))
+	return m.IsValid()
 }
-func (m *BitsMask) Slice() []string {
-	s := []string{}
-	for i := 0; i < 16; i++ {
-		if (*m>>i)&0x01 == 1 {
-			b := Bits(i + 1)
-			s = append(s, b.String())
+
+func (m *BitsMask) Intersect(a BitsMask) bool {
+	*m &= a
+	return m.IsValid()
+}
+
+// 默认参数是合法的
+func (m *BitsMask) CombineSlice(a []Bits) bool {
+	*m |= BitsMask(MakeMaskFromSlice(a))
+	return m.IsValid()
+}
+
+func (m *BitsMask) Combine(a BitsMask) bool {
+	*m |= a
+	return m.IsValid()
+}
+
+func (m BitsMask) IsValid() bool {
+	return m > 0 && ((m)>>(Bits_MAX-1)) == 0
+}
+
+func (m BitsMask) Max() (max Bits) {
+	for _, r := range m.BitsSlice() {
+		if max.LessThan(r) {
+			max = r
 		}
 	}
-	return s
+
+	return
+}
+
+func (m BitsMask) StringSlice() []string {
+	s := make([]string, 16)
+	j := 0
+	for i := 0; i < 16; i++ {
+		if (m>>i)&0x01 == 1 {
+			s[j] = Bits(i + 1).String()
+			j++
+		}
+	}
+	return s[:j]
+}
+
+func (m BitsMask) Slice() []int {
+	s := make([]int, 16)
+	j := 0
+	for i := 0; i < 16; i++ {
+		if (m>>i)&0x01 == 1 {
+			b := Bits(i + 1)
+			s[j] = int(b.ToInt())
+			j++
+		}
+	}
+	return s[:j]
+}
+
+func (m BitsMask) BitsSlice() []Bits {
+	s := make([]Bits, 16)
+	j := 0
+	for i := 0; i < 16; i++ {
+		if (m>>i)&0x01 == 1 {
+			s[j] = Bits(i + 1)
+			j++
+		}
+	}
+	return s[:j]
 }

@@ -1,9 +1,9 @@
 package api
 
 import (
+	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/web/websockets"
-	"go.uber.org/zap"
 )
 
 type requestVolume struct {
@@ -12,7 +12,7 @@ type requestVolume struct {
 	Mute   *bool  `jp:"mute,omitempty"`
 }
 
-func apiSpeakerVolume(c *websockets.WSConnection, req Requester, log *zap.Logger) (any, error) {
+func apiSpeakerVolume(c *websockets.WSConnection, req Requester, log lg.Logger) (any, error) {
 	var p requestVolume
 	err := req.Unmarshal(&p)
 	if err != nil {
