@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/zwcway/castserver-go/common/dsp"
-	"github.com/zwcway/castserver-go/common/lg"
+	log1 "github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/web/websockets"
 )
@@ -16,7 +16,7 @@ type requestLineEQ struct {
 	Gain      float32 `jp:"gain"`
 }
 
-func apiLineSetEqualizer(c *websockets.WSConnection, req Requester, log lg.Logger) (any, error) {
+func apiLineSetEqualizer(c *websockets.WSConnection, req Requester, log log1.Logger) (any, error) {
 	var p requestLineEQ
 	err := req.Unmarshal(&p)
 	if err != nil {

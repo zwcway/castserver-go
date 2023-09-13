@@ -12,7 +12,7 @@ import (
 
 	"github.com/valyala/fasthttp"
 	"github.com/zwcway/castserver-go/common/audio"
-	"github.com/zwcway/castserver-go/common/lg"
+	log1 "github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/common/pipeline"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/common/stream"
@@ -92,7 +92,7 @@ type requestSpeakerCreate struct {
 	AVol     bool
 }
 
-func apiSpeakerCreate(c *websockets.WSConnection, req Requester, log lg.Logger) (any, error) {
+func apiSpeakerCreate(c *websockets.WSConnection, req Requester, log log1.Logger) (any, error) {
 	p := requestSpeakerCreate{}
 	if err := req.Unmarshal(&p); err != nil {
 		return nil, err
@@ -127,7 +127,7 @@ func apiSpeakerCreate(c *websockets.WSConnection, req Requester, log lg.Logger) 
 	return true, nil
 }
 
-func apiReconnect(c *websockets.WSConnection, req Requester, log lg.Logger) (any, error) {
+func apiReconnect(c *websockets.WSConnection, req Requester, log log1.Logger) (any, error) {
 	var sp uint32
 	err := req.Unmarshal(&sp)
 	if err != nil {
@@ -142,7 +142,7 @@ func apiReconnect(c *websockets.WSConnection, req Requester, log lg.Logger) (any
 	return true, nil
 }
 
-func apiSendServerInfo(c *websockets.WSConnection, req Requester, log lg.Logger) (any, error) {
+func apiSendServerInfo(c *websockets.WSConnection, req Requester, log log1.Logger) (any, error) {
 	var spId uint32
 	err := req.Unmarshal(&spId)
 	if err != nil {
@@ -158,7 +158,7 @@ func apiSendServerInfo(c *websockets.WSConnection, req Requester, log lg.Logger)
 	return true, nil
 }
 
-func apiControlSpeakerFormat(c *websockets.WSConnection, req Requester, log lg.Logger) (any, error) {
+func apiControlSpeakerFormat(c *websockets.WSConnection, req Requester, log log1.Logger) (any, error) {
 	var spId uint32
 	err := req.Unmarshal(&spId)
 	if err != nil {
@@ -174,7 +174,7 @@ func apiControlSpeakerFormat(c *websockets.WSConnection, req Requester, log lg.L
 	return true, nil
 }
 
-func apiEventDebug(c *websockets.WSConnection, req Requester, log lg.Logger) (ret any, err error) {
+func apiEventDebug(c *websockets.WSConnection, req Requester, log log1.Logger) (ret any, err error) {
 	var evt uint8
 
 	err = req.Unmarshal(&evt)
@@ -210,7 +210,7 @@ func apiEventDebug(c *websockets.WSConnection, req Requester, log lg.Logger) (re
 	return
 }
 
-func apiLocalSpeaker(c *websockets.WSConnection, req Requester, log lg.Logger) (ret any, err error) {
+func apiLocalSpeaker(c *websockets.WSConnection, req Requester, log log1.Logger) (ret any, err error) {
 	var power bool
 	err = req.Unmarshal(&power)
 	if err != nil {
@@ -233,7 +233,7 @@ func apiLocalSpeaker(c *websockets.WSConnection, req Requester, log lg.Logger) (
 	return true, nil
 }
 
-func apiPlayFile(c *websockets.WSConnection, req Requester, log lg.Logger) (ret any, err error) {
+func apiPlayFile(c *websockets.WSConnection, req Requester, log log1.Logger) (ret any, err error) {
 	var file struct {
 		Line int
 		File string
@@ -259,7 +259,7 @@ func apiPlayFile(c *websockets.WSConnection, req Requester, log lg.Logger) (ret 
 	return
 }
 
-func apiPlayPause(c *websockets.WSConnection, req Requester, log lg.Logger) (ret any, err error) {
+func apiPlayPause(c *websockets.WSConnection, req Requester, log log1.Logger) (ret any, err error) {
 	var p struct {
 		Line  int
 		Pause bool
@@ -278,7 +278,7 @@ func apiPlayPause(c *websockets.WSConnection, req Requester, log lg.Logger) (ret
 	return true, nil
 }
 
-func apiDebugStatus(c *websockets.WSConnection, req Requester, log lg.Logger) (ret any, err error) {
+func apiDebugStatus(c *websockets.WSConnection, req Requester, log log1.Logger) (ret any, err error) {
 	var p struct {
 		Line *int `jp:"line,omitempty"`
 	}
@@ -346,7 +346,7 @@ func apiDebugStatus(c *websockets.WSConnection, req Requester, log lg.Logger) (r
 	return resp, nil
 }
 
-func apiElementPower(c *websockets.WSConnection, req Requester, log lg.Logger) (ret any, err error) {
+func apiElementPower(c *websockets.WSConnection, req Requester, log log1.Logger) (ret any, err error) {
 	var p struct {
 		Line    *int   `jp:"line,omitempty"`
 		Speaker *int   `jp:"sp,omitempty"`

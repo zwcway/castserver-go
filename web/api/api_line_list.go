@@ -1,12 +1,12 @@
 package api
 
 import (
-	"github.com/zwcway/castserver-go/common/lg"
+	log1 "github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/web/websockets"
 )
 
-func apiLineList(c *websockets.WSConnection, req Requester, log lg.Logger) (any, error) {
+func apiLineList(c *websockets.WSConnection, req Requester, log log1.Logger) (any, error) {
 	list := []*websockets.ResponseLineList{}
 
 	for _, l := range speaker.LineList() {

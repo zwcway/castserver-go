@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/go-ini/ini"
-	"github.com/zwcway/castserver-go/common/lg"
+	log1 "github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/common/utils"
 )
 
@@ -41,12 +41,12 @@ func (ck *CfgKey) setKey(section *ini.Section) {
 		return
 	}
 	if len(key.String()) == 0 {
-		log.Error("value empty", lg.String("key", ck.Key), lg.String("val", key.String()))
+		log.Error("value empty", log1.String("key", ck.Key), log1.String("val", key.String()))
 		return
 	}
 	err := ck.setReflect(key, cfgrv)
 	if err != nil {
-		log.Error(err.Error(), lg.String("key", ck.Key), lg.String("val", key.String()))
+		log.Error(err.Error(), log1.String("key", ck.Key), log1.String("val", key.String()))
 	}
 }
 

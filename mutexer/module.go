@@ -7,13 +7,13 @@ import (
 	"time"
 
 	config "github.com/zwcway/castserver-go/common/config"
-	"github.com/zwcway/castserver-go/common/lg"
+	log1 "github.com/zwcway/castserver-go/common/log"
 	utils "github.com/zwcway/castserver-go/common/utils"
 )
 
 var (
 	conn   *net.UDPConn
-	log    lg.Logger
+	log    log1.Logger
 	Module = mutexModule{}
 )
 
@@ -50,7 +50,7 @@ func listenUDP() error {
 
 	str := string(buffer[:numBytes])
 	if str == RSP || str == TAG {
-		log.Error("there are another server running. exiting.", lg.String("addr", src.String()))
+		log.Error("there are another server running. exiting.", log1.String("addr", src.String()))
 		return fmt.Errorf("exiting")
 	}
 

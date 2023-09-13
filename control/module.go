@@ -2,13 +2,13 @@ package control
 
 import (
 	"github.com/zwcway/castserver-go/common/bus"
-	"github.com/zwcway/castserver-go/common/lg"
+	log1 "github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/common/utils"
 )
 
 var (
-	log lg.Logger
+	log log1.Logger
 )
 
 type controlModule struct{}

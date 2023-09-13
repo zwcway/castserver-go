@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/zwcway/castserver-go/common/config"
-	"github.com/zwcway/castserver-go/common/lg"
+	"github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/common/utils"
 )
 
@@ -26,7 +26,7 @@ const (
 
 type FileStream struct {
 	ctx     utils.Context
-	log     lg.Logger
+	log     log.Logger
 	fp      *os.File
 	rpath   string
 	t       int
@@ -133,7 +133,7 @@ func (s *FileStream) downloadRoutine(resp *http.Response) {
 	s.wpos = 0
 	isUnknownSize := s.size == 0
 	s.isDone = false
-	s.log.Info("begin download file", lg.String("local", s.fp.Name()), lg.String("url", s.rpath))
+	s.log.Info("begin download file", log.String("local", s.fp.Name()), log.String("url", s.rpath))
 	// 参考 io.Copy
 	size := 32 * 1024
 	if l, ok := src.(*io.LimitedReader); ok && int64(size) > l.N {
@@ -173,7 +173,7 @@ func (s *FileStream) downloadRoutine(resp *http.Response) {
 			break
 		}
 	}
-	s.log.Info("download file complete", lg.String("local", s.fp.Name()), lg.String("url", s.rpath), lg.Int("size", s.wpos))
+	s.log.Info("download file complete", log.String("local", s.fp.Name()), log.String("url", s.rpath), log.Int("size", s.wpos))
 	s.isDone = true
 	s.process <- processDownloaded
 }
@@ -220,7 +220,7 @@ func (s *FileStream) readHttpFile(urlPath string) (err error) {
 	if err != nil {
 		s.size = 0
 	}
-	s.log.Info("need download", lg.String("local", s.fp.Name()), lg.String("url", s.rpath), lg.Int("size", s.size))
+	s.log.Info("need download", log.String("local", s.fp.Name()), log.String("url", s.rpath), log.Int("size", s.size))
 
 	resp, err := cli.Get(urlPath)
 	if err != nil {

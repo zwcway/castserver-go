@@ -2,7 +2,7 @@ package control
 
 import (
 	"github.com/zwcway/castserver-go/common/audio"
-	"github.com/zwcway/castserver-go/common/lg"
+	log1 "github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/common/protocol"
 	"github.com/zwcway/castserver-go/common/speaker"
 )
@@ -32,13 +32,13 @@ func ControlSample(sp *speaker.Speaker) {
 
 	p, err := s.Pack()
 	if err != nil {
-		log.Error("encode sample package error", lg.String("speaker", sp.String()), lg.Error(err))
+		log.Error("encode sample package error", log1.String("speaker", sp.String()), log1.Error(err))
 		return
 	}
 
 	err = sp.WriteUDP(p.Bytes())
 	if err != nil {
-		log.Error("ControlSample error", lg.String("speaker", sp.String()), lg.Error(err))
+		log.Error("ControlSample error", log1.String("speaker", sp.String()), log1.Error(err))
 		return
 	}
 }

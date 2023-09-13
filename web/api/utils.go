@@ -3,21 +3,21 @@ package api
 import (
 	"fmt"
 
-	"github.com/zwcway/castserver-go/common/lg"
+	log1 "github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/web/websockets"
 	"github.com/zwcway/go-jsonpack"
 )
 
-var log lg.Logger
+var log log1.Logger
 
 type apiRouter struct {
-	cb func(c *websockets.WSConnection, req Requester, log lg.Logger) (any, error)
+	cb func(c *websockets.WSConnection, req Requester, log log1.Logger) (any, error)
 }
 
-func writePack(c *websockets.WSConnection, pack any, req Requester, log lg.Logger) {
+func writePack(c *websockets.WSConnection, pack any, req Requester, log log1.Logger) {
 	data, err := jsonpack.Marshal(pack)
 	if err != nil {
-		log.Error("marshal failed", lg.Error(err))
+		log.Error("marshal failed", log1.Error(err))
 		return
 	}
 	msg := []byte(req.RequestId())
@@ -26,23 +26,23 @@ func writePack(c *websockets.WSConnection, pack any, req Requester, log lg.Logge
 
 	err = c.Write(msg)
 	if err != nil {
-		log.Error("write message error", lg.Error(err))
+		log.Error("write message error", log1.Error(err))
 	}
 }
-func writeError(c *websockets.WSConnection, err *Error, req Requester, log lg.Logger) {
+func writeError(c *websockets.WSConnection, err *Error, req Requester, log log1.Logger) {
 	msg := []byte(req.RequestId())
 	msg = append(msg, byte(err.Code))
 
 	log.Error(req.Command()+" api error",
-		lg.Int("code", int64(err.Code)),
-		lg.Error(err.Err),
-		lg.String("reqid", req.RequestId()),
+		log1.Int("code", int64(err.Code)),
+		log1.Error(err.Err),
+		log1.String("reqid", req.RequestId()),
 	)
 
 	e := c.Write(msg)
 
 	if e != nil {
-		log.Error("write message error", lg.Error(err))
+		log.Error("write message error", log1.Error(err))
 	}
 }
 

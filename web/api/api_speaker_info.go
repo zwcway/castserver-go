@@ -3,14 +3,14 @@ package api
 import (
 	"fmt"
 
-	"github.com/zwcway/castserver-go/common/lg"
+	log1 "github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/web/websockets"
 )
 
 type requestSpeakerInfo uint32
 
-func apiSpeakerInfo(c *websockets.WSConnection, req Requester, log lg.Logger) (any, error) {
+func apiSpeakerInfo(c *websockets.WSConnection, req Requester, log log1.Logger) (any, error) {
 	var p requestSpeakerInfo
 	err := req.Unmarshal(&p)
 	if err != nil {

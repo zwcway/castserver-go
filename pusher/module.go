@@ -3,13 +3,13 @@ package pusher
 import (
 	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/config"
-	"github.com/zwcway/castserver-go/common/lg"
+	log1 "github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/common/utils"
 )
 
 var (
-	log     lg.Logger
+	log     log1.Logger
 	context utils.Context
 	Module  = pusherModule{}
 )
@@ -41,7 +41,7 @@ func (pusherModule) Init(ctx utils.Context) error {
 		return nil
 	}).ASync()
 	speaker.BusLineRefresh.Register(func(line *speaker.Line) error {
-		log.Debug("line output format changed", lg.String("line", line.LineName), lg.String("format", line.Output.String()))
+		log.Debug("line output format changed", log1.String("line", line.LineName), log1.String("format", line.Output.String()))
 		return nil
 	}).ASync()
 	receiveQueue = make(chan speaker.QueueData, config.ReadQueueSize)

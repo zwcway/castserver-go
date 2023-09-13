@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/zwcway/castserver-go/common/audio"
-	"github.com/zwcway/castserver-go/common/lg"
+	log1 "github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/common/utils"
 	upnputils "github.com/zwcway/fasthttp-upnp/utils"
 	"gorm.io/gorm"
@@ -29,7 +29,7 @@ func (f Interface) String() string {
 }
 
 var (
-	log lg.Logger
+	log log1.Logger
 
 	ConfigFile string = "castserver.conf"
 

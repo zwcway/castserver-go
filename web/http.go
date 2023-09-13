@@ -15,7 +15,7 @@ import (
 
 	"github.com/valyala/fasthttp"
 	"github.com/zwcway/castserver-go/common/config"
-	"github.com/zwcway/castserver-go/common/lg"
+	log1 "github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/common/utils"
 	"github.com/zwcway/castserver-go/web/api"
 	"github.com/zwcway/castserver-go/web/websockets"
@@ -47,7 +47,7 @@ func startServer(listen *config.Interface, root string) error {
 	}
 	conn, err = net.Listen("tcp", listen.AddrPort.String())
 	if err != nil {
-		log.Error("http listen error", lg.Error(err))
+		log.Error("http listen error", log1.Error(err))
 		return err
 	}
 
@@ -78,7 +78,7 @@ func stopServer() error {
 func requestHandle(ctx *fasthttp.RequestCtx) {
 	uri := string(ctx.Path())
 
-	log.Info("request", lg.String("path", uri), lg.String("src", ctx.RemoteAddr().String()))
+	log.Info("request", log1.String("path", uri), log1.String("src", ctx.RemoteAddr().String()))
 
 	if api.ApiDispatchDevel(ctx) {
 		return

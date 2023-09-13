@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/zwcway/castserver-go/common/lg"
+	log1 "github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/common/utils"
 	"gorm.io/gorm"
 
@@ -48,7 +48,7 @@ func parseListen(cfg reflect.Value, listen string, port uint16) {
 				li.AddrPort = netip.AddrPortFrom(addr, port)
 			}
 		} else {
-			log.Error("this is not a interface name", lg.String("listen", listen))
+			log.Error("this is not a interface name", log1.String("listen", listen))
 		}
 	}
 	if !li.AddrPort.IsValid() {
@@ -72,7 +72,7 @@ func parseBits(cfg reflect.Value, k *ini.Key, ck *CfgKey) {
 			var a audio.Bits
 			a.FromName(v)
 			if a == audio.Bits_NONE {
-				log.Error("bits is invalid", lg.String("bits", v), lg.String("key", ck.Key))
+				log.Error("bits is invalid", log1.String("bits", v), log1.String("key", ck.Key))
 				continue
 			}
 			if utils.SliceContains(bits, a) >= 0 {
@@ -103,12 +103,12 @@ func parseRates(cfg reflect.Value, k *ini.Key, ck *CfgKey) {
 		for _, v := range r {
 			i, err := strconv.ParseInt(v, 0, 32)
 			if err != nil {
-				log.Error("rate is invalid", lg.String("rate", v), lg.String("key", ck.Key))
+				log.Error("rate is invalid", log1.String("rate", v), log1.String("key", ck.Key))
 				continue
 			}
 			a := audio.NewAudioRate(int(i))
 			if !a.IsValid() {
-				log.Error("rate is invalid", lg.String("rate", v), lg.String("key", ck.Key))
+				log.Error("rate is invalid", log1.String("rate", v), log1.String("key", ck.Key))
 				continue
 			}
 			if utils.SliceContains(rates, a) >= 0 {
@@ -136,7 +136,7 @@ func parsePath(cfg reflect.Value, k *ini.Key, ck *CfgKey) {
 	}
 	path := k.String()
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		log.Error("path not exists", lg.String("path", path), lg.String("key", ck.Key))
+		log.Error("path not exists", log1.String("path", path), log1.String("key", ck.Key))
 	} else {
 		cfg.SetString(path)
 	}
@@ -154,7 +154,7 @@ func parseTempDir(cfg reflect.Value, k *ini.Key, ck *CfgKey) {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		err = os.Mkdir(path, os.ModeTemporary)
 		if err != nil {
-			log.Error("can not create temp dir ", lg.String("dir", path))
+			log.Error("can not create temp dir ", log1.String("dir", path))
 			path = ""
 		}
 	}

@@ -2,7 +2,7 @@ package detector
 
 import (
 	"github.com/zwcway/castserver-go/common/config"
-	"github.com/zwcway/castserver-go/common/lg"
+	log1 "github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/common/utils"
 	"github.com/zwcway/castserver-go/control"
@@ -75,10 +75,10 @@ func CheckSpeaker(res *SpeakerResponse) (err error) {
 		err := updateSpeaker(sp, support, res, isFirstConn)
 
 		if !isOnline || isFirstConn {
-			log.Info("speaker online ", lg.String("speaker", sp.String()))
+			log.Info("speaker online ", log1.String("speaker", sp.String()))
 			speaker.BusSpeakerOnline.Dispatch(sp)
 		} else {
-			log.Debug("speaker reonline ", lg.String("speaker", sp.String()))
+			log.Debug("speaker reonline ", log1.String("speaker", sp.String()))
 			speaker.BusSpeakerReonline.Dispatch(sp)
 		}
 
@@ -87,7 +87,7 @@ func CheckSpeaker(res *SpeakerResponse) (err error) {
 
 	sp, err = speaker.NewSpeaker(res.Addr.String(), speaker.DefaultLineID, control.DefaultChannel())
 	if err != nil {
-		log.Error("add speaker error", lg.Int("id", int64(res.ID)))
+		log.Error("add speaker error", log1.Int("id", int64(res.ID)))
 		return err
 	}
 

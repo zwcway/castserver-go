@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/zwcway/castserver-go/common/config"
-	"github.com/zwcway/castserver-go/common/lg"
+	log1 "github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/common/protocol"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/common/utils"
@@ -34,7 +34,7 @@ func Connect(sp *speaker.Speaker) error {
 		return err
 	}
 	sp.ConnTime = time.Now()
-	log.Info("connect speaker success", lg.Time("conn", sp.ConnTime))
+	log.Info("connect speaker success", log1.Time("conn", sp.ConnTime))
 
 	refreshPushQueue(sp, 0)
 
@@ -66,18 +66,18 @@ func connectionTest(sp *speaker.Speaker, udpAddr *net.UDPAddr) bool {
 	}
 	conn, err := net.DialUDP("udp", udpAddr, sp.UDPAddr())
 	if err != nil {
-		log.Error("dial speaker error", lg.Error(err))
+		log.Error("dial speaker error", log1.Error(err))
 		return false
 	}
 	defer conn.Close()
 
 	n, err := conn.Write([]byte{byte(protocol.PT_Ping)})
 	if err != nil {
-		log.Error("ping speaker error", lg.Error(err))
+		log.Error("ping speaker error", log1.Error(err))
 		return false
 	}
 	if n != 1 {
-		log.Error("ping speaker error", lg.Int("writed", int64(n)), lg.Int("want", 1))
+		log.Error("ping speaker error", log1.Int("writed", int64(n)), log1.Int("want", 1))
 		return false
 	}
 
@@ -85,11 +85,11 @@ func connectionTest(sp *speaker.Speaker, udpAddr *net.UDPAddr) bool {
 	conn.SetReadDeadline(time.Now().Add(time.Second))
 	n, err = conn.Read(buf)
 	if err != nil {
-		log.Info("read speaker error", lg.Error(err))
+		log.Info("read speaker error", log1.Error(err))
 		return false
 	}
 	if buf[0] != byte(protocol.PT_Pong) {
-		log.Info("read speaker pong error", lg.Int("size", int64(n)))
+		log.Info("read speaker pong error", log1.Int("size", int64(n)))
 		return false
 	}
 

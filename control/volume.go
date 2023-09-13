@@ -1,7 +1,7 @@
 package control
 
 import (
-	"github.com/zwcway/castserver-go/common/lg"
+	log1 "github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/common/protocol"
 	"github.com/zwcway/castserver-go/common/speaker"
 )
@@ -41,13 +41,13 @@ func ControlSpeakerVolume(sp *speaker.Speaker, vol float64, mute bool) {
 
 	p, err := s.Pack(sp.ID)
 	if err != nil {
-		log.Error("encode volume package error", lg.Uint("speaker", uint64(sp.ID)), lg.Error(err))
+		log.Error("encode volume package error", log1.Uint("speaker", uint64(sp.ID)), log1.Error(err))
 		return
 	}
 
 	err = sp.WriteUDP(p.Bytes())
 	if err != nil {
-		log.Error("write speaker error", lg.Uint("speaker", uint64(sp.ID)), lg.Error(err))
+		log.Error("write speaker error", log1.Uint("speaker", uint64(sp.ID)), log1.Error(err))
 		return
 	}
 }

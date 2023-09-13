@@ -10,7 +10,7 @@ import (
 
 	"github.com/zwcway/castserver-go/common/config"
 	"github.com/zwcway/castserver-go/common/database"
-	"github.com/zwcway/castserver-go/common/lg"
+	"github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/common/utils"
 )
 
@@ -60,7 +60,7 @@ func main() {
 		exit(exitCode, true, "")
 	}
 
-	log, logClose, err := lg.NewLogger(logFile, daemon)
+	log, logClose, err := log.NewLogger(logFile, daemon)
 	if err != nil {
 		exit(2, true, err.Error())
 	}

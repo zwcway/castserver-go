@@ -5,11 +5,11 @@ import (
 	"reflect"
 
 	"github.com/pkg/errors"
-	"github.com/zwcway/castserver-go/common/lg"
+	log1 "github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/common/utils"
 )
 
-var log lg.Logger
+var log log1.Logger
 var list = make(map[string][]*HandlerData)
 var queue = make(chan *HandlerData, 10)
 
@@ -117,12 +117,12 @@ func DispatchObj(obj any, e string, args ...any) error {
 		}
 	}
 
-	lf := []lg.Field{lg.String("event", e), lg.Int("count", int64(count))}
+	lf := []log1.Field{log1.String("event", e), log1.Int("count", int64(count))}
 	if len(args) > 0 {
 		if s, ok := obj.(Eventer); ok {
-			lf = append(lf, lg.String("from", s.Name()))
+			lf = append(lf, log1.String("from", s.Name()))
 		} else if s, ok := obj.(fmt.Stringer); ok {
-			lf = append(lf, lg.String("from", s.String()))
+			lf = append(lf, log1.String("from", s.String()))
 		}
 	}
 	log.Debug("dispatch", lf...)

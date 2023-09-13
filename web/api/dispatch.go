@@ -2,7 +2,7 @@ package api
 
 import (
 	"github.com/fasthttp/websocket"
-	"github.com/zwcway/castserver-go/common/lg"
+	log1 "github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/common/utils"
 	"github.com/zwcway/castserver-go/web/websockets"
 )
@@ -55,7 +55,7 @@ func ApiDispatch(mt int, msg []byte, conn *websockets.WSConnection) {
 		return
 	}
 	if len(jp.cmd) <= 0 || len(jp.cmd) > 24 {
-		log.Error("command invalid", lg.String("cmd", jp.cmd))
+		log.Error("command invalid", log1.String("cmd", jp.cmd))
 		return
 	}
 	jp.body = msg[idx:]

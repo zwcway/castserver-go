@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/zwcway/castserver-go/common/config"
-	"github.com/zwcway/castserver-go/common/lg"
+	"github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/common/utils"
 	"github.com/zwcway/castserver-go/receiver/dlna/service"
 	upnp "github.com/zwcway/fasthttp-upnp"
@@ -14,7 +14,7 @@ import (
 
 type DLNAServer struct {
 	ctx utils.Context
-	log lg.Logger
+	log log.Logger
 
 	upnp *upnp.DeviceServer
 	c    chan int
@@ -30,10 +30,10 @@ func (s *DLNAServer) ListenAndServe() {
 
 func (s *DLNAServer) onError(err error) {
 	if upnp.IsIPDenyError(err) {
-		s.log.Warn("ip denied", lg.Error(err))
+		s.log.Warn("ip denied", log.Error(err))
 	} else if ssdp.IsRequestError(err) {
 	} else {
-		s.log.Warn("error", lg.Error(err))
+		s.log.Warn("error", log.Error(err))
 	}
 }
 
