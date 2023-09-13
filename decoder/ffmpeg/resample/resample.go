@@ -112,7 +112,6 @@ func (r *Resample) Stream(samples *stream.Samples) error {
 	// 确保有足够空间存储
 	samples.Resize(int(ret), r.outFormat)
 	samples.LastNbSamples = int(ret)
-	samples.Format = r.outFormat
 
 	// 复制C内存至Go内存
 	samples.CopyFromCBytes(unsafe.Pointer(r.swrCtx.out_buffer), int(r.outFormat.Count), int(ret), 0, 0)

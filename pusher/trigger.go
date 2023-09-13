@@ -31,7 +31,7 @@ func initTrigger() {
 
 	currentTrigger = lastTrigger
 
-	bus.Register("line created", func(a ...any) error {
+	bus.Register("line created", func(o any, a ...any) error {
 		line := a[0].(*speaker.Line)
 		TriggerAddLine(line)
 		return nil

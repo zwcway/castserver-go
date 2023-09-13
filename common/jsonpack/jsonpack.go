@@ -13,7 +13,7 @@ func Marshal(v any) ([]byte, error) {
 }
 
 func Unmarshal(b []byte, v any) error {
-	d := newDecoder(b)
+	d := NewDecoder(b)
 
 	return d.reflectDecode(reflect.ValueOf(v))
 }

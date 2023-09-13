@@ -17,7 +17,8 @@ const (
 
 type Element interface {
 	Streamer
-	Name() string
+	bus.Eventer
+
 	Type() ElementType
 	Sample(*float64, int, int)
 	Close() error
@@ -43,7 +44,6 @@ type VolumeElement interface {
 
 type MixerElement interface {
 	Element
-	bus.Eventer
 
 	Len() int
 	Del(SourceStreamer)
@@ -74,8 +74,8 @@ type RawPlayerElement interface {
 	Element
 	SourceStreamer
 
-	SetPCM(audio.Format, []byte)
-	SetPCMWithChannel(audio.Channel, audio.Format, []byte)
+	AddPCM(audio.Format, []byte)
+	AddPCMWithChannel(audio.Channel, audio.Format, []byte)
 }
 
 type ResampleElement interface {

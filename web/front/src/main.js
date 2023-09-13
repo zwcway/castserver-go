@@ -9,6 +9,7 @@ import store from './store';
 import * as i18n from '@/locales';
 
 import 'ant-design-vue/dist/antd.css';
+import 'vue-slider-component/theme/antd.css';
 import '@/assets/icons';
 import '@/assets/css/layout.scss';
 import '@/assets/css/slider.scss';

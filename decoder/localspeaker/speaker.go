@@ -74,40 +74,33 @@ func Init() error {
 }
 
 func registerEventBus() {
-	bus.Register("line created", func(a ...any) error {
-		AddLine(a[0].(*speaker.Line))
-		return nil
-	})
-	bus.Register("line deleted", func(a ...any) error {
-		RemoveLine(a[0].(*speaker.Line))
-		return nil
-	})
-	bus.RegisterObj(mixer, "mixer format changed", func(a ...any) error {
-		// m := a[0].(stream.MixerElement)
-		f := a[1].(*audio.Format)
+	speaker.BusLineCreated.Register(AddLine)
+	speaker.BusLineDeleted.Register(RemoveLine)
+	stream.BusMixerFormatChanged.Register(mixer, func(m stream.MixerElement, format *audio.Format, channelIndex *audio.ChannelIndex) error {
 		if sampleReader.samples == nil {
-			sampleReader.samples = stream.NewSamplesDuration(config.AudioBuferMSDuration, *f)
+			sampleReader.samples = stream.NewSamplesDuration(config.AudioBuferMSDuration, *format)
 		} else {
-			sampleReader.samples.ResizeDuration(config.AudioBuferMSDuration, *f)
+			sampleReader.samples.ResizeDuration(config.AudioBuferMSDuration, *format)
 		}
+		sampleReader.samples.SetChannelIndex(channelIndex)
 		return nil
 	})
 }
 
-func AddLine(line *speaker.Line) {
+func AddLine(line *speaker.Line) error {
 	ss := line.Input.PipeLine.(stream.SourceStreamer)
-	if mixer.Has(ss) {
-		return
+	if !mixer.Has(ss) {
+		mixer.Add(ss)
 	}
-	mixer.Add(ss)
+	return nil
 }
 
-func RemoveLine(line *speaker.Line) {
+func RemoveLine(line, dst *speaker.Line) error {
 	ss := line.Input.PipeLine.(stream.SourceStreamer)
 	if mixer.Has(ss) {
-		return
+		mixer.Del(ss)
 	}
-	mixer.Del(ss)
+	return nil
 }
 
 func IsOpened() bool {
@@ -122,6 +115,9 @@ func IsPlaying() bool {
 }
 
 func Play() {
+	mu.Lock()
+	defer mu.Unlock()
+
 	if player == nil || mixer == nil {
 		return
 	}
@@ -133,11 +129,16 @@ func Play() {
 func Close() error {
 	mu.Lock()
 	defer mu.Unlock()
+
 	if player != nil {
 		if err := player.Close(); err != nil {
 			return err
 		}
 		player = nil
+	}
+	if mixer != nil {
+		mixer.Close()
+		mixer = nil
 	}
 
 	return nil

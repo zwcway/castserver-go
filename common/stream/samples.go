@@ -23,8 +23,8 @@ type Samples struct {
 	buffer         []byte
 	fmt            audio.Format // buffer 申请的实际格式
 	autoSize       bool
-	channelSamples []*Samples             // 每个声道的样本对象
-	channelIndex   [audio.Channel_MAX]int // channel和索引的映射表
+	channelSamples []*Samples         // 每个声道的样本对象
+	ChannelIndex   audio.ChannelIndex // channel和索引的映射表
 }
 
 // Buffer 总大小，包含所有声道
@@ -62,12 +62,25 @@ func (s *Samples) SetRate(f audio.Rate) {
 	s.Format.Sample.Rate = f
 }
 
-// 更改声道布局
-func (s *Samples) SetLayout(f audio.Layout) {
-	if s.Format.Count <= f.Count {
+// 在 SourceStreamer 中调用
+func (s *Samples) SetFormatAndIndex(f audio.Format, ci *audio.ChannelIndex) {
+	if s.Format == f {
 		return
 	}
-	s.setLayout(f)
+	s.Format = f
+	s.ChannelIndex = *ci
+}
+
+// 更改声道布局
+func (s *Samples) SetLayout(f audio.Layout) {
+	if s.Format.Count >= f.Count {
+		return
+	}
+	if len(s.Data) < int(f.Count) {
+		s.setLayout(f)
+	} else {
+		s.Format.Layout = f
+	}
 }
 
 func (s *Samples) setLayout(f audio.Layout) {
@@ -79,12 +92,11 @@ func (s *Samples) setLayout(f audio.Layout) {
 		perChSize int = s.SamplesSize()
 		bits      int = s.Format.Sample.Bits.Size()
 	)
-	if len(s.Data) < chs {
-		s.Data = make([][]float64, chs)
-		s.RawData = make([][]byte, chs)
-	}
 
 	s.Format.Layout = f
+
+	s.Data = make([][]float64, chs)
+	s.RawData = make([][]byte, chs)
 
 	for ch = 0; ch < chs; ch++ {
 		chBuf = unsafe.Pointer(&s.buffer[ch*samples*bits])
@@ -92,28 +104,28 @@ func (s *Samples) setLayout(f audio.Layout) {
 		s.Data[ch] = utils.MakeSlice[float64](chBuf, samples)
 		s.RawData[ch] = utils.MakeSlice[byte](chBuf, perChSize)
 	}
+
+	// s.setChannelIndex()
 }
 
-func (s *Samples) refreshChannelIndex() {
-	for i := 0; i < int(s.Format.Layout.Count); i++ {
-
+func (s *Samples) SetChannelIndex(ci *audio.ChannelIndex) {
+	if ci == nil {
+		s.ChannelIndex = *s.Format.ChannelIndex()
+		return
 	}
+
+	s.ChannelIndex = *ci
 }
 
 func (s *Samples) LessThan(r *Samples) bool {
 	if s == nil {
-		return false
+		return true
 	}
 	if r == nil {
 		return false
 	}
-	if s.Format.Layout.Count < r.Format.Layout.Count {
-		return true
-	}
-	if s.Format.Size() < r.Format.Size() {
-		return true
-	}
-	if s.RequestNbSamples < r.RequestNbSamples {
+
+	if len(s.buffer) < len(r.buffer) {
 		return true
 	}
 
@@ -121,10 +133,17 @@ func (s *Samples) LessThan(r *Samples) bool {
 }
 
 func (s *Samples) ResetData() {
-	for j := 0; j < len(s.buffer); j++ {
-		s.buffer[j] = 0
+	s.buffer[0] = byte(0)
+	s.buffer[1] = byte(0)
+	s.buffer[2] = byte(0)
+	s.buffer[4] = byte(0)
+	s.buffer[5] = byte(0)
+	s.buffer[6] = byte(0)
+	s.buffer[7] = byte(0)
+	for bp := 8; bp < len(s.buffer); bp <<= 1 {
+		copy(s.buffer[bp:], s.buffer[:bp])
 	}
-	s.RequestNbSamples = s.SamplesCount()
+	s.RequestNbSamples = len(s.buffer) / int(s.fmt.Count) / s.fmt.Bits.Size()
 	s.LastNbSamples = 0
 	s.LastErr = nil
 }
@@ -140,14 +159,14 @@ func (s *Samples) ResetAll() {
 
 func (s *Samples) BeZeroLeft(j int) {
 	for _, ch := range s.Data {
-		for ; j < s.RequestNbSamples; j++ {
+		for ; j < len(ch); j++ {
 			ch[j] = 0
 		}
 	}
 }
 
 func (s *Samples) ChannelBytes(ch audio.Channel) []byte {
-	c := s.channelIndex[ch]
+	c := s.ChannelIndex[ch]
 	if c < 0 {
 		return nil
 	}
@@ -155,48 +174,39 @@ func (s *Samples) ChannelBytes(ch audio.Channel) []byte {
 	return planar[:s.LastSamplesSize()]
 }
 
-func (s *Samples) ChannelsCountBySlice(src []audio.Channel) (c int) {
-	for _, ch := range src {
-		if s.channelIndex[ch] >= 0 {
-			c++
-		}
-	}
-	return
-}
-
 // 混合声道，处理声道数量不一致的情况
 func (src *Samples) MixChannelMap(dst *Samples, dstOffset, srcOffset int) (mixed int) {
-	if sc := src.channelIndex[audio.Channel_FRONT_CENTER]; sc >= 0 && src.Format.Layout.Count == 1 && dst.Format.Layout.Count > 1 {
-		dc := dst.channelIndex[audio.Channel_FRONT_CENTER]
+	if sc := src.ChannelIndex[audio.Channel_FRONT_CENTER]; sc >= 0 && src.Format.Layout.Count == 1 && dst.Format.Layout.Count > 1 {
+		dc := dst.ChannelIndex[audio.Channel_FRONT_CENTER]
 		if dc >= 0 {
 			mixed = src.mixChannel(dst, dc, sc, dstOffset, srcOffset)
 			return
 		}
 		// 混合至前左和前右
-		dc = dst.channelIndex[audio.Channel_FRONT_LEFT]
+		dc = dst.ChannelIndex[audio.Channel_FRONT_LEFT]
 		if dc >= 0 {
 			mixed = src.mixChannel(dst, dc, sc, dstOffset, srcOffset)
 		}
-		dc = dst.channelIndex[audio.Channel_FRONT_RIGHT]
+		dc = dst.ChannelIndex[audio.Channel_FRONT_RIGHT]
 		if dc >= 0 {
 			mixed = src.mixChannel(dst, dc, sc, dstOffset, srcOffset)
 		}
 		return
 	}
 
-	if dc := dst.channelIndex[audio.Channel_FRONT_CENTER]; dc >= 0 && src.Format.Layout.Count > 1 && dst.Format.Layout.Count == 1 {
-		sc := src.channelIndex[audio.Channel_FRONT_CENTER]
+	if dc := dst.ChannelIndex[audio.Channel_FRONT_CENTER]; dc >= 0 && src.Format.Layout.Count > 1 && dst.Format.Layout.Count == 1 {
+		sc := src.ChannelIndex[audio.Channel_FRONT_CENTER]
 
 		if sc >= 0 {
 			mixed = src.mixChannel(dst, dc, sc, dstOffset, srcOffset)
 			return
 		}
 		// 从前左和前右混合
-		sc = src.channelIndex[audio.Channel_FRONT_LEFT]
+		sc = src.ChannelIndex[audio.Channel_FRONT_LEFT]
 		if sc >= 0 {
 			mixed = src.mixChannel(dst, dc, sc, dstOffset, srcOffset)
 		}
-		sc = src.channelIndex[audio.Channel_FRONT_RIGHT]
+		sc = src.ChannelIndex[audio.Channel_FRONT_RIGHT]
 		if sc >= 0 {
 			mixed = src.mixChannel(dst, dc, sc, dstOffset, srcOffset)
 		}
@@ -206,7 +216,7 @@ func (src *Samples) MixChannelMap(dst *Samples, dstOffset, srcOffset int) (mixed
 	return src.MixChannels(dst, src.Format.Channels(), dstOffset, srcOffset)
 }
 
-func (src *Samples) mixChannel(dst *Samples, dstCh, srcCh int, dstOffset, srcOffset int) int {
+func (src *Samples) mixChannel(dst *Samples, dstCh, srcCh int8, dstOffset, srcOffset int) int {
 	var (
 		i = dstOffset
 		j = srcOffset
@@ -227,13 +237,13 @@ func (src *Samples) Mix(dst *Samples, dstOffset int, srcOffset int) int {
 
 // 相同声道之间混合
 func (src *Samples) MixChannels(dst *Samples, srcChs []audio.Channel, dstOffset int, srcOffset int) int {
-	if src.Format.Sample.Bits != audio.Bits_DEFAULT || dst == nil || dst.Format.Sample.Bits != audio.Bits_DEFAULT {
+	if src.Format.Bits != audio.Bits_DEFAULT || dst == nil || dst.Format.Bits != audio.Bits_DEFAULT {
 		return 0
 	}
 	var (
-		i     = 0
-		j     = 0
-		mixed = 0
+		i     int8 = 0
+		j     int8 = 0
+		mixed      = 0
 	)
 
 	for _, ch := range srcChs {
@@ -241,19 +251,44 @@ func (src *Samples) MixChannels(dst *Samples, srcChs []audio.Channel, dstOffset 
 			continue
 		}
 
-		i = src.channelIndex[ch]
+		i = src.ChannelIndex[ch]
 		if i < 0 {
 			continue
 		}
-		j = dst.channelIndex[ch]
+		j = dst.ChannelIndex[ch]
 		if j < 0 {
 			continue
 		}
 
-		i = src.mixChannel(dst, j, i, dstOffset, srcOffset)
-		if mixed < i {
-			mixed = i
+		mixed = src.mixChannel(dst, j, i, dstOffset, srcOffset)
+	}
+
+	return mixed
+}
+
+func (src *Samples) CopyTo(dst *Samples, dstOffset, srcOffset int) int {
+	if src.Format.Bits != audio.Bits_DEFAULT || dst == nil || dst.Format.Bits != audio.Bits_DEFAULT {
+		return 0
+	}
+	var (
+		i     int8 = 0
+		j     int8 = 0
+		mixed      = 0
+	)
+	for _, ch := range src.Format.Channels() {
+		if !ch.IsValid() {
+			continue
 		}
+
+		i = src.ChannelIndex[ch]
+		if i < 0 {
+			continue
+		}
+		j = dst.ChannelIndex[ch]
+		if j < 0 {
+			continue
+		}
+		mixed = copy(dst.Data[i][dstOffset:], src.Data[j][srcOffset:])
 	}
 
 	return mixed
@@ -423,26 +458,29 @@ func reuseSamples(s *Samples, p []byte, format audio.Format) {
 	s.RequestNbSamples = samples
 	s.Format = format
 	s.fmt = format
+	s.ChannelIndex = *format.ChannelIndex()
 
 	s.setLayout(format.Layout)
 }
 
 func (s *Samples) resizeSample(samples int, format audio.Format) {
 	p := make([]byte, samples*format.Size())
-	copy(p, s.buffer)
+	// copy(p, s.buffer)
 	reuseSamples(s, p, format)
 }
 
 func (s *Samples) Resize(samples int, format audio.Format) {
-	if !format.IsValid() {
+	if !format.IsValid() || (format == s.Format && s.SamplesCount() == samples) {
 		return
 	}
-	if format.AllSamplesLessThan(samples, &s.fmt) {
+	if (s.Format == format || !s.Format.LessThan(format)) && samples <= s.SamplesCount() {
+		// 缓存空间足够大，变更格式即可
 		s.RequestNbSamples = samples
-		s.Format = format
 		s.SetLayout(format.Layout)
+		s.Format = format
 		return
 	}
+
 	s.resizeSample(samples, format)
 }
 
@@ -452,7 +490,7 @@ func (s *Samples) ResizeDuration(duration time.Duration, format audio.Format) {
 }
 
 func (s *Samples) ChannelSamples(ch audio.Channel) *Samples {
-	si := s.channelIndex[ch]
+	si := s.ChannelIndex[ch]
 	if si < 0 {
 		return nil
 	}
@@ -460,19 +498,12 @@ func (s *Samples) ChannelSamples(ch audio.Channel) *Samples {
 	format := s.Format
 	format.Layout = audio.NewLayout(ch)
 
-	ns := &Samples{
-		Format:           format,
-		buffer:           s.buffer,
-		Data:             make([][]float64, 1),
-		RawData:          make([][]byte, 1),
-		RequestNbSamples: s.RequestNbSamples,
-		fmt:              format,
-	}
-	ns.setLayout(format.Layout)
+	ns := &Samples{}
+	reuseSamples(ns, s.buffer, format)
 
 	// 将任意的声道都映射至第一个
 	for i := 0; i < int(audio.Channel_MAX); i++ {
-		s.channelIndex[i] = 0
+		ns.ChannelIndex[i] = 0
 	}
 
 	ns.Data[0] = s.Data[si]

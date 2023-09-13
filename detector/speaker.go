@@ -1,7 +1,6 @@
 package detector
 
 import (
-	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/config"
 	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/common/speaker"
@@ -10,8 +9,8 @@ import (
 )
 
 func initSpeaker(sp *speaker.Speaker, res *SpeakerResponse) {
-	if len(sp.Name) == 0 {
-		sp.Name = res.MAC.String()
+	if len(sp.SpeakerName) == 0 {
+		sp.SpeakerName = res.MAC.String()
 	}
 	sp.Config.RateMask = res.RateMask
 	sp.Config.BitsMask = res.BitsMask
@@ -76,11 +75,11 @@ func CheckSpeaker(res *SpeakerResponse) (err error) {
 		err := updateSpeaker(sp, support, res, isFirstConn)
 
 		if !isOnline || isFirstConn {
-			log.Info("speaker online " + sp.String())
-			bus.Dispatch("speaker online", sp)
+			log.Info("speaker online ", lg.String("speaker", sp.String()))
+			speaker.BusSpeakerOnline.Dispatch(sp)
 		} else {
-			log.Debug("speaker reonline " + sp.String())
-			bus.Dispatch("speaker reonline", sp)
+			log.Debug("speaker reonline ", lg.String("speaker", sp.String()))
+			speaker.BusSpeakerReonline.Dispatch(sp)
 		}
 
 		return err
@@ -95,7 +94,7 @@ func CheckSpeaker(res *SpeakerResponse) (err error) {
 	err = updateSpeaker(sp, support, res, true)
 	log.Info("found a new speaker " + sp.String())
 
-	bus.Dispatch("speaker detected", sp)
+	speaker.BusSpeakerDetected.Dispatch(sp)
 
 	if err != nil {
 		return err

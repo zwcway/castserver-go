@@ -5,10 +5,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/zwcway/castserver-go/common/jsonpack"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/common/stream"
 	"github.com/zwcway/castserver-go/common/utils"
+	"github.com/zwcway/go-jsonpack"
 )
 
 var ticker = time.NewTicker(50 * time.Millisecond)

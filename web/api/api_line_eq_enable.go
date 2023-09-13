@@ -3,7 +3,6 @@ package api
 import (
 	"fmt"
 
-	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/web/websockets"
@@ -32,7 +31,7 @@ func apiLineSetEqualizerEnable(c *websockets.WSConnection, req Requester, log lg
 		nl.EqualizerEle.Off()
 	}
 
-	bus.Dispatch("line eq power", nl, p.Enable)
+	nl.Dispatch("line eq power", p.Enable)
 
 	return true, nil
 }

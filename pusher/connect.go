@@ -4,7 +4,6 @@ import (
 	"net"
 	"time"
 
-	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/config"
 	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/common/protocol"
@@ -41,7 +40,7 @@ func Connect(sp *speaker.Speaker) error {
 
 	go receiveSpeakerRoutine(sp)
 
-	bus.Dispatch("speaker connected", sp)
+	sp.Dispatch("speaker connected")
 
 	return nil
 }
@@ -56,7 +55,7 @@ func Disconnect(sp *speaker.Speaker) error {
 	sp.Conn.Close()
 	sp.Conn = nil
 
-	bus.Dispatch("speaker disconnected", sp)
+	sp.Dispatch("speaker disconnected")
 
 	return nil
 }

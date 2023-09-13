@@ -170,3 +170,18 @@ li {
   user-select: none;
   -webkit-user-select: none;
 }
+
+
+.is-danger {
+  color: var(--color-danger);
+  .svg-icon {
+    color: var(--color-danger);
+  }
+}
+
+.is-primary {
+  color: var(--color-border-hover);
+  .svg-icon {
+    color: var(--color-border-hover);
+  }
+}

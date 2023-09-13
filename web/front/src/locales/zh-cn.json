@@ -30,5 +30,6 @@
   "sample bits supported": "支持的位宽",
   "queued size": "队列中",
   "sended size": "已发送",
-  "droped size": "已丢弃"
+  "droped size": "已丢弃",
+  "mute": "静音"
 }

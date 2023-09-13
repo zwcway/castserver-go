@@ -1,10 +1,13 @@
 package element
 
 import (
+	"os"
 	"testing"
 
 	"github.com/zwcway/castserver-go/common/audio"
+	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/stream"
+	"github.com/zwcway/castserver-go/common/utils"
 	"golang.org/x/exp/slices"
 )
 
@@ -19,8 +22,8 @@ func (m *mixer1) Stream(samples *stream.Samples) {
 	}
 	samples.LastNbSamples = 8
 }
-func (m mixer1) Close() error { return nil }
-func (m mixer1) AudioFormat() audio.Format {
+func (mixer1) Close() error { return nil }
+func (mixer1) AudioFormat() audio.Format {
 	return audio.Format{
 		Sample: audio.Sample{
 			Rate: audio.AudioRate_44100,
@@ -29,9 +32,11 @@ func (m mixer1) AudioFormat() audio.Format {
 		Layout: audio.Layout10,
 	}
 }
-func (m mixer1) SetOutFormat(f audio.Format) error { return nil }
-func (m mixer1) CanRemove() bool                   { return false }
-func (m mixer1) IsPlaying() bool                   { return true }
+
+func (mixer1) ChannelIndex() *audio.ChannelIndex { return audio.Layout10.ChannelIndex() }
+func (mixer1) SetOutFormat(f audio.Format) error { return nil }
+func (mixer1) CanRemove() bool                   { return false }
+func (mixer1) IsPlaying() bool                   { return true }
 
 func TestMixer(t *testing.T) {
 	t.Parallel()
@@ -68,4 +73,10 @@ func TestMixer(t *testing.T) {
 			t.Errorf("mix same error = \n%v\n, want \n%v\n", samples.Data[0], result)
 		}
 	})
+}
+
+func TestMain(m *testing.M) {
+	bus.Init(utils.NewEmptyContext())
+	m.Run()
+	os.Exit(0)
 }

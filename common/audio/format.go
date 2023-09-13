@@ -31,7 +31,16 @@ func (s Format) SampleLessThan(r Format) bool {
 }
 
 func (s Format) LessThan(r Format) bool {
-	return s.Size() < r.Size()
+	if s.Layout.Count < r.Layout.Count {
+		return true
+	}
+	if s.Bits.Size() < r.Bits.Size() {
+		return true
+	}
+	if s.Rate.ToInt() < r.Bits.ToInt() {
+		return true
+	}
+	return false
 }
 
 func (s Format) Channels() []Channel {
@@ -45,11 +54,6 @@ func (s Format) Size() int {
 
 func (s Format) IsValid() bool {
 	return s.Layout.IsValid() && s.Sample.Rate.IsValid() && s.Sample.Bits.IsValid()
-}
-
-// 每声道样本字节数
-func (s *Format) AllSamplesLessThan(nbSamples int, r *Format) bool {
-	return s.AllSamplesSize(nbSamples) <= r.AllSamplesSize(nbSamples)
 }
 
 // 每声道样本字节数

@@ -3,6 +3,7 @@ package element
 import (
 	"math"
 
+	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/dsp"
 	"github.com/zwcway/castserver-go/common/stream"
 )
@@ -147,8 +148,17 @@ func (r *Spectrum) Spectrum() []float64 {
 }
 
 func (r *Spectrum) Close() error {
+	bus.UnregisterObj(r)
+
 	r.Off()
 	return nil
+}
+
+func (o *Spectrum) Dispatch(e string, a ...any) error {
+	return bus.DispatchObj(o, e, a...)
+}
+func (o *Spectrum) Register(e string, c bus.Handler) *bus.HandlerData {
+	return bus.RegisterObj(o, e, c)
 }
 
 func (r *Spectrum) init() {

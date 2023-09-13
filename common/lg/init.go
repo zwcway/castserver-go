@@ -88,7 +88,8 @@ func NewLogger(logFile string, daemon bool) (l Logger, close func(), err error) 
 }
 
 func NewMemroy() Logger {
-	return &Log{l: zap.NewNop()}
+	log = &Log{l: zap.NewNop()}
+	return log
 }
 
 func NewDBLog(level Level) logger.Interface {

@@ -2,6 +2,7 @@ package decoder
 
 import (
 	"github.com/zwcway/castserver-go/common/audio"
+	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/stream"
 	"github.com/zwcway/castserver-go/decoder/ffmpeg/resample"
 )
@@ -13,10 +14,8 @@ type Resample struct {
 	swrCtx *resample.Resample
 }
 
-const ResampleName = "Resampler"
-
 func (r *Resample) Name() string {
-	return ResampleName
+	return "Resampler"
 }
 
 func (r *Resample) Type() stream.ElementType {
@@ -68,8 +67,17 @@ func (r *Resample) Format() audio.Format {
 }
 
 func (r *Resample) Close() error {
+	bus.UnregisterObj(r)
+
 	r.swrCtx.Close()
 	return nil
+}
+
+func (o *Resample) Dispatch(e string, a ...any) error {
+	return bus.DispatchObj(o, e, a...)
+}
+func (o *Resample) Register(e string, c bus.Handler) *bus.HandlerData {
+	return bus.RegisterObj(o, e, c)
 }
 
 func NewResample(format audio.Format) stream.ResampleElement {

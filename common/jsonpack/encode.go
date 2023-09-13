@@ -78,33 +78,33 @@ func (j *Encoder) writeFloat64(t float64) {
 	j.writeInteger(uint32(b>>32), 4)
 }
 
-func (j *Encoder) encodeInt8(val int8) {
+func (j *Encoder) EncodeInt8(val int8) {
 	if val >= 0 {
-		j.encodeUint32(uint32(val))
+		j.EncodeUint32(uint32(val))
 	} else {
-		j.encodeInt32(-int32(-val))
+		j.EncodeInt32(-int32(-val))
 	}
 }
-func (j *Encoder) encodeUint8(val uint8) {
-	j.encodeUint32(uint32(val))
+func (j *Encoder) EncodeUint8(val uint8) {
+	j.EncodeUint32(uint32(val))
 }
 
-func (j *Encoder) encodeInt16(val int16) {
+func (j *Encoder) EncodeInt16(val int16) {
 	if val >= 0 {
-		j.encodeUint32(uint32(val))
+		j.EncodeUint32(uint32(val))
 	} else {
-		j.encodeInt32(-int32(-val))
+		j.EncodeInt32(-int32(-val))
 	}
 }
-func (j *Encoder) encodeUint16(val uint16) {
-	j.encodeUint32(uint32(val))
+func (j *Encoder) EncodeUint16(val uint16) {
+	j.EncodeUint32(uint32(val))
 }
 
-func (j *Encoder) encodeInt32(val int32) {
-	j.encodeInt64(int64(val))
+func (j *Encoder) EncodeInt32(val int32) {
+	j.EncodeInt64(int64(val))
 }
 
-func (j *Encoder) encodeInt64(val int64) {
+func (j *Encoder) EncodeInt64(val int64) {
 	var i uint64 = uint64(val)
 	var size = j.intSize(i)
 	if val < 0 {
@@ -124,23 +124,23 @@ func (j *Encoder) encodeInt64(val int64) {
 	}
 }
 
-func (j *Encoder) encodeUint32(val uint32) {
+func (j *Encoder) EncodeUint32(val uint32) {
 	size := j.intSize(uint64(val))
 	j.writeType(JSONPACK_NUMBER, size)
 	j.writeInteger(val, size)
 }
 
-func (j *Encoder) encodeFloat32(val float32) {
+func (j *Encoder) EncodeFloat32(val float32) {
 	j.writeType(JSONPACK_FLOAT, 4)
 	j.writeFloat(val)
 }
 
-func (j *Encoder) encodeFloat64(val float64) {
+func (j *Encoder) EncodeFloat64(val float64) {
 	j.writeType(JSONPACK_FLOAT, 8)
 	j.writeFloat64(val)
 }
 
-func (j *Encoder) encodeBool(val bool) {
+func (j *Encoder) EncodeBool(val bool) {
 	if val {
 		j.writeType(JSONPACK_BOOLEAN, 1)
 	} else {
@@ -148,14 +148,17 @@ func (j *Encoder) encodeBool(val bool) {
 	}
 }
 
-func (j *Encoder) encodeNull() {
+func (j *Encoder) EncodeNull() {
 	j.writeType(JSONPACK_NULL, 0)
 }
 
-func (j *Encoder) encodeString(val string) {
+func (j *Encoder) EncodeString(val string) {
 	j.EncodeBinary([]byte(val))
 }
 
+// 4 位：       0-15 类型
+// 4 位：       0-7  字符串长度的字节数量
+// 0-7 个字节： 支持长度 0 - 0xFF FFFF FFFF FFFF (0 - 72,057,594,037,927,935)
 func (j *Encoder) EncodeBinary(val []byte) {
 	len := uint32(len(val))
 	size := j.intSize(uint64(len))
@@ -256,7 +259,7 @@ func (j *Encoder) reflectMap(r reflect.Value, t reflect.Type, field string) erro
 	j.EncodeMap(uint32(len(ss)))
 	for _, s := range ss {
 		tf := s.tf
-		j.encodeString(s.name)
+		j.EncodeString(s.name)
 		err := j.reflectValue(s.tr, field+"."+tf.Name())
 		if err != nil {
 			return err
@@ -272,7 +275,7 @@ func (j *Encoder) reflectValue(r reflect.Value, field string) (err error) {
 	switch r.Kind() {
 	case reflect.Pointer:
 		if r.IsNil() {
-			j.encodeNull()
+			j.EncodeNull()
 			return
 		}
 		err = j.reflectValue(r.Elem(), field)
@@ -281,29 +284,29 @@ func (j *Encoder) reflectValue(r reflect.Value, field string) (err error) {
 	case reflect.Array, reflect.Slice:
 		err = j.reflectArray(r, r.Type(), field)
 	case reflect.String:
-		j.encodeString(r.String())
+		j.EncodeString(r.String())
 	case reflect.Bool:
-		j.encodeBool(r.Bool())
+		j.EncodeBool(r.Bool())
 	case reflect.Int, reflect.Int32:
-		j.encodeInt32(int32(r.Int()))
+		j.EncodeInt32(int32(r.Int()))
 	case reflect.Uint, reflect.Uint32:
-		j.encodeUint32(uint32(r.Uint()))
+		j.EncodeUint32(uint32(r.Uint()))
 	case reflect.Int8:
-		j.encodeInt8(int8(r.Int()))
+		j.EncodeInt8(int8(r.Int()))
 	case reflect.Uint8:
-		j.encodeUint8(uint8(r.Uint()))
+		j.EncodeUint8(uint8(r.Uint()))
 	case reflect.Int16:
-		j.encodeInt16(int16(r.Int()))
+		j.EncodeInt16(int16(r.Int()))
 	case reflect.Uint16:
-		j.encodeUint16(uint16(r.Uint()))
+		j.EncodeUint16(uint16(r.Uint()))
 	case reflect.Int64: // js 不支持64位整数，转为千分字符串
-		j.encodeInt64(r.Int())
+		j.EncodeInt64(r.Int())
 	case reflect.Uint64:
-		j.encodeInt64(int64(r.Uint()))
+		j.EncodeInt64(int64(r.Uint()))
 	case reflect.Float32:
-		j.encodeFloat32(float32(r.Float()))
+		j.EncodeFloat32(float32(r.Float()))
 	case reflect.Float64:
-		j.encodeFloat64(r.Float())
+		j.EncodeFloat64(r.Float())
 	default:
 		return &InvalidValueError{field, r.Kind()}
 	}

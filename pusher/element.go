@@ -43,6 +43,12 @@ func (e *Element) IsOn() bool {
 }
 
 func (e *Element) Close() error {
+	bus.UnregisterObj(e)
+
+	if e.resample != nil {
+		e.resample.Off()
+		e.resample.Close()
+	}
 	e.buffer = nil
 	return nil
 }
@@ -50,15 +56,19 @@ func (e *Element) Close() error {
 func (e *Element) initBuf(samples int, format audio.Format) {
 	if e.buffer == nil {
 		e.buffer = stream.NewSamples(samples, format)
-	} else {
+	} else if e.buffer.Format != format || samples != e.buffer.RequestNbSamples {
 		e.buffer.Resize(samples, format)
+	} else {
+		e.buffer.ResetData()
+		return
 	}
+
+	e.buffer.ResetData()
 	e.buffer.Format = format
 	e.resetData()
 }
 
 func (e *Element) resetData() {
-	e.buffer.ResetData()
 	for i := range e.chBuf {
 		e.chBuf[i] = nil
 	}
@@ -87,26 +97,32 @@ func (e *Element) Stream(samples *stream.Samples) {
 		from   []audio.Channel
 		buf    *stream.Samples
 		format = samples.Format
+		layout = samples.Format.Layout
 	)
 	format.Layout = e.line.Layout()
 
 	e.initBuf(samples.RequestNbSamples, format)
 
+	// 开始声道路由/混合
 	for i = 0; i < len(chList); i++ {
 		ch = chList[i]
 		chList[i] = 0
 
-		from = e.line.ChannelRoute(ch)
-		c = samples.ChannelsCountBySlice(from)
-		if c == 0 {
-			continue
-		}
 		if e.chBuf[i] == nil {
 			continue
 		}
+
+		from = e.line.ChannelRoute(ch)
+		layout = samples.Format.Layout
+		if !layout.IntersectSlice(from) {
+			// 批量判断声道是否存在
+			continue
+		}
+
 		buf = e.chBuf[i]
 		buf.ResetData()
 
+		// 混合多个声道至目标声道
 		c = samples.MixChannels(buf, from, 0, 0)
 		if c == 0 {
 			continue
@@ -155,6 +171,7 @@ func (e *Element) PushSpeaker(sp *speaker.Speaker, samples *stream.Samples) {
 		return
 	}
 
+	// 填充slient实现延迟
 	delay := sp.EqualizerEle.Delay()
 
 	buf := ServerPush{
@@ -178,6 +195,7 @@ func (e *Element) PushSpeaker(sp *speaker.Speaker, samples *stream.Samples) {
 	// 按照采样率填充指定大小的静音样本实现延迟指定时间
 	delayBufSize := bufSizeWithDelay(delay, sp.Format())
 
+	// TODO 使用缓存池
 	data := make([]byte, delayBufSize+p.DataSize())
 	copy(data[delayBufSize:], p.Bytes())
 
@@ -188,6 +206,13 @@ func (e *Element) PushSpeaker(sp *speaker.Speaker, samples *stream.Samples) {
 
 func (e *Element) Sample(*float64, int, int) {}
 
+func (o *Element) Dispatch(e string, args ...any) error {
+	return bus.DispatchObj(o, e, args...)
+}
+func (o *Element) Register(e string, c func(o any, a ...any) error) *bus.HandlerData {
+	return bus.RegisterObj(o, e, c)
+}
+
 func bufSizeWithDelay(delay time.Duration, f audio.Format) int {
 	return int((delay * time.Duration(f.Rate.ToInt()*f.Bits.Size()) * time.Second) / (time.Microsecond * 100))
 }
@@ -197,15 +222,15 @@ func NewElement(line *speaker.Line) stream.SwitchElement {
 		line: line,
 	}
 	var resample stream.ResampleElement
-	bus.Dispatch("get resample element", e, &resample, line.Output)
+	stream.BusResample.GetInstance(e, &resample, &line.Output)
 	if resample == nil {
 		return nil
 	}
 
 	e.resample = resample
 
-	bus.RegisterObj(line, "line output changed", func(a ...any) error {
-		l := a[0].(*speaker.Line)
+	line.Register("line output changed", func(o any, a ...any) error {
+		l := o.(*speaker.Line)
 		e.resample.SetFormat(l.Output)
 		return nil
 	})

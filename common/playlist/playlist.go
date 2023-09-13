@@ -25,7 +25,7 @@ type PlayList struct {
 func (pl *PlayList) Add(url string) {
 	ai := &AudioInfo{Url: url}
 
-	bus.Dispatch("get audioinfo", ai, len(pl.list))
+	bus.DispatchObj(pl, "get audioinfo", ai, len(pl.list))
 
 	if ai.Duration > 0 {
 		pl.list = append(pl.list, ai)
@@ -37,7 +37,7 @@ func (pl *PlayList) PlayUrl(url string) {
 		if ai.Url == url {
 			pl.current = i
 
-			bus.Dispatch("playlist current changed", ai, i)
+			bus.DispatchObj(pl, "playlist current changed", ai, i)
 			return
 		}
 	}

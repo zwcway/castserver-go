@@ -30,7 +30,7 @@ func (r *reader) Read(p []byte) (n int, err error) {
 
 	for n < len(p) {
 		if r.bufPos >= r.bufSize {
-			samples.ResetAll()
+			samples.ResetData()
 
 			mixer.Stream(samples)
 

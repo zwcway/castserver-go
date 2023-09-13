@@ -8,6 +8,7 @@ import (
 	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/element"
+	"github.com/zwcway/castserver-go/common/pipeline"
 	"github.com/zwcway/castserver-go/common/stream"
 	"github.com/zwcway/castserver-go/common/utils"
 	"github.com/zwcway/castserver-go/decoder"
@@ -35,7 +36,10 @@ func Test_reader_Read(t *testing.T) {
 			},
 			Layout: audio.Layout10,
 		}
-		player := element.NewPlayerChannel(audio.Channel_FRONT_CENTER, inFormat, data)
+		pl := pipeline.NewPipeLine(inFormat)
+		player := element.NewPlayer()
+		player.AddPCMWithChannel(audio.Channel_FRONT_CENTER, inFormat, data)
+		pl.Append(player)
 
 		// 输出格式
 		format = audio.Format{
@@ -52,7 +56,7 @@ func Test_reader_Read(t *testing.T) {
 		r.resample.On()
 
 		mixer.Clear()
-		mixer.Add(player)
+		mixer.Add(pl.(stream.SourceStreamer))
 
 		p := make([]byte, 40)
 

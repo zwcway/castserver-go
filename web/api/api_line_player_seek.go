@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/web/websockets"
@@ -39,7 +38,7 @@ func apiLinePlayerSeek(c *websockets.WSConnection, req Requester, log lg.Logger)
 		return nil, err
 	}
 
-	bus.Dispatch("line audiofile seek", nl, fs, pos)
+	nl.Dispatch("line audiofile seek", fs, pos)
 
 	return websockets.NewResponseLineSource(nl), nil
 }

@@ -3,9 +3,9 @@ package api
 import (
 	"fmt"
 
-	"github.com/zwcway/castserver-go/common/jsonpack"
 	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/web/websockets"
+	"github.com/zwcway/go-jsonpack"
 )
 
 var log lg.Logger

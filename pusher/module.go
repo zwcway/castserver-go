@@ -20,31 +20,28 @@ func (pusherModule) Init(ctx utils.Context) error {
 	log = ctx.Logger("pusher")
 	context = ctx
 
-	bus.Register("speaker format changed", func(a ...any) error {
-		sp := a[0].(*speaker.Speaker)
+	bus.Register("speaker format changed", func(o any, a ...any) error {
+		sp := o.(*speaker.Speaker)
 
 		refreshPushQueue(sp, sp.EqualizerEle.Delay())
 		return nil
 	})
-	bus.Register("speaker online", func(a ...any) error {
-		sp := a[0].(*speaker.Speaker)
+	speaker.BusSpeakerOnline.Register(func(sp *speaker.Speaker) error {
 		Disconnect(sp)
 		Connect(sp)
 		return nil
 	}).ASync()
-	bus.Register("speaker detected", func(a ...any) error {
-		sp := a[0].(*speaker.Speaker)
+	speaker.BusSpeakerDetected.Register(func(sp *speaker.Speaker) error {
 		Connect(sp)
 		return nil
 	}).ASync()
-	bus.Register("speaker reonline", func(a ...any) error {
-		sp := a[0].(*speaker.Speaker)
+	bus.Register("speaker reonline", func(o any, a ...any) error {
+		sp := o.(*speaker.Speaker)
 		Connect(sp)
 		return nil
 	}).ASync()
-	bus.Register("line refresh", func(a ...any) error {
-		line := a[0].(*speaker.Line)
-		log.Debug("line output format changed", lg.String("line", line.Name), lg.String("format", line.Output.String()))
+	speaker.BusLineRefresh.Register(func(line *speaker.Line) error {
+		log.Debug("line output format changed", lg.String("line", line.LineName), lg.String("format", line.Output.String()))
 		return nil
 	}).ASync()
 	receiveQueue = make(chan speaker.QueueData, config.ReadQueueSize)

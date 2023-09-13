@@ -433,14 +433,6 @@ nav {
         justify-items: center;
         align-items: center;
         width: 100%;
-
-        .is-danger {
-          color: var(--color-danger);
-        }
-
-        .is-primary {
-          color: var(--color-border-hover);
-        }
       }
 
       .link-state {

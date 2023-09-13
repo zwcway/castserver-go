@@ -14,6 +14,10 @@ var list = make(map[string][]*HandlerData)
 var queue = make(chan *HandlerData, 10)
 
 func Register(e string, c Handler) (hd *HandlerData) {
+	return RegisterObj(nil, e, c)
+}
+
+func RegisterObj(obj any, e string, c Handler) (hd *HandlerData) {
 	if c == nil {
 		panic(fmt.Errorf("callback can not nil for event(%s)", e))
 	}
@@ -23,21 +27,19 @@ func Register(e string, c Handler) (hd *HandlerData) {
 	}
 
 	hd = &HandlerData{
-		e:  e,
-		h:  c,
-		hr: reflect.ValueOf(c).Pointer(),
+		e:   e,
+		obj: obj,
+		h:   c,
+		hr:  reflect.ValueOf(c).Pointer(),
 	}
 	list[e] = append(list[e], hd)
 
 	return hd
 }
 
-func RegisterObj(obj any, e string, c Handler) (hd *HandlerData) {
-	hd = Register(e, c)
-	hd.obj = obj
-	return
-}
-
+// 注销指定事件
+//
+// 忽略对象，按回调函数注销
 func Unregister(e string, c Handler) {
 	if ll, ok := list[e]; ok {
 		cr := reflect.ValueOf(c).Pointer()
@@ -50,6 +52,9 @@ func Unregister(e string, c Handler) {
 	}
 }
 
+// 注销绑定指定对象的所有事件
+//
+// 主要用于取消引用对象指针以GC
 func UnregisterObj(obj any) {
 	if obj == nil {
 		return
@@ -70,6 +75,10 @@ func UnregisterObj(obj any) {
 }
 
 func Dispatch(e string, args ...any) error {
+	return DispatchObj(nil, e, args...)
+}
+
+func DispatchObj(obj any, e string, args ...any) error {
 	var (
 		err   error
 		count int = 0
@@ -79,13 +88,14 @@ func Dispatch(e string, args ...any) error {
 		count = len(ll)
 
 		for _, hd := range ll {
-			if hd.obj != nil && len(args) > 0 && hd.obj != args[0] {
+			if hd.obj != nil && hd.obj != obj {
+				// 过滤指定对象的事件，不符合就跳过该回调
 				continue
 			}
 
 			if hd.async {
 				hd = hd.clone()
-				hd.a = args
+				hd.a = append([]any{obj}, args...)
 				queue <- hd
 				continue
 			}
@@ -96,7 +106,7 @@ func Dispatch(e string, args ...any) error {
 				removeHandler(hd)
 			}
 
-			e := hd.h(args...)
+			e := hd.h(obj, args...)
 			if e != nil {
 				if err != nil {
 					err = errors.Wrap(e, "")
@@ -107,13 +117,15 @@ func Dispatch(e string, args ...any) error {
 		}
 	}
 
+	lf := []lg.Field{lg.String("event", e), lg.Int("count", int64(count))}
 	if len(args) > 0 {
-		if s, ok := args[0].(fmt.Stringer); ok {
-			log.Debug("dispatch", lg.String("event", e), lg.Int("count", int64(count)), lg.String("param", s.String()))
-			return err
+		if s, ok := obj.(Eventer); ok {
+			lf = append(lf, lg.String("from", s.Name()))
+		} else if s, ok := obj.(fmt.Stringer); ok {
+			lf = append(lf, lg.String("from", s.String()))
 		}
 	}
-	log.Debug("dispatch", lg.String("event", e), lg.Int("count", int64(count)))
+	log.Debug("dispatch", lf...)
 
 	return err
 }
@@ -127,18 +139,23 @@ func eventBusRoutine(ctx utils.Context) {
 			return
 		case hd = <-queue:
 		}
-		if hd.once > 1 {
-			continue
-		} else if hd.once == 1 {
-			hd.once = 2
-		}
+		asyncCall(hd)
+	}
+}
 
-		hd.h(hd.a...)
+func asyncCall(hd *HandlerData) {
+	if hd.once > 1 {
+		return
+	} else if hd.once == 1 {
+		hd.once = 2
+	}
 
-		if hd.once > 0 {
-			removeHandler(hd)
-			hd.once = 3
-		}
+	hd.h(hd.a[0], hd.a[1:]...)
+	hd.a = nil
+
+	if hd.once > 0 {
+		removeHandler(hd)
+		hd.once = 3
 	}
 }
 

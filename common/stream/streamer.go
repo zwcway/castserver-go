@@ -24,8 +24,9 @@ type StreamSeekCloser interface {
 
 type SourceStreamer interface {
 	StreamCloser
-	AudioFormat() audio.Format       // 获取输入的音频格式
-	SetOutFormat(audio.Format) error // 设置音频输出格式
+	AudioFormat() audio.Format         // 获取输入的音频格式
+	ChannelIndex() *audio.ChannelIndex // 获取输入的声道布局
+	SetOutFormat(audio.Format) error   // 设置音频输出格式
 	IsPlaying() bool
 	CanRemove() bool // 是否可以自动移除
 }

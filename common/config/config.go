@@ -85,7 +85,7 @@ var (
 		AddrPort: netip.MustParseAddrPort("0.0.0.0:4416"),
 	}
 	ReceiveTempDir string = ""
-	EnableDLNA     bool   = false
+	EnableDLNA     bool   = true
 	EnableAirPlay  bool   = false
 
 	// tcp

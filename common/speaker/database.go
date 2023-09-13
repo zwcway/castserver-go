@@ -7,7 +7,7 @@ import (
 
 	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/dsp"
-	"github.com/zwcway/castserver-go/common/jsonpack"
+	jsonpack "github.com/zwcway/go-jsonpack"
 )
 
 type DBeqData struct {

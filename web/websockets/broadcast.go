@@ -2,8 +2,8 @@ package websockets
 
 import (
 	"github.com/zwcway/castserver-go/common/audio"
-	"github.com/zwcway/castserver-go/common/jsonpack"
 	"github.com/zwcway/castserver-go/common/speaker"
+	"github.com/zwcway/go-jsonpack"
 )
 
 type notifySpeakerMoved struct {

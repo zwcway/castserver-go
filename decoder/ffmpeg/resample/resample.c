@@ -136,8 +136,8 @@ static int go_convert(GOResample *ctx, int nb_samples)
 {
     uint8_t *buf;
     int ret, chs;
-    // int dst_nb_samples = out_nb_samples(ctx, nb_samples);
-    int dst_nb_samples = nb_samples;
+    int dst_nb_samples = out_nb_samples(ctx, nb_samples);
+    // int dst_nb_samples = nb_samples;
 
     int outBufferSize = av_samples_get_buffer_size(NULL, ctx->out_chs_layout, dst_nb_samples, ctx->out_fmt, 0);
     if (outBufferSize < 0)

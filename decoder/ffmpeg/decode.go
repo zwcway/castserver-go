@@ -13,7 +13,6 @@ import (
 	"unsafe"
 
 	"github.com/zwcway/castserver-go/common/audio"
-	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/playlist"
 	"github.com/zwcway/castserver-go/common/stream"
 	"github.com/zwcway/castserver-go/decoder/ffmpeg/avutil"
@@ -87,7 +86,7 @@ type AVFormatContext struct {
 	finished bool
 
 	ctx                *C.GOAVDecoder
-	channelIndex       [audio.Channel_MAX]int
+	channelIndex       *audio.ChannelIndex
 	outputFmt          audio.Format
 	outBufferSize      int //
 	outBufferNbSamples int
@@ -148,7 +147,7 @@ func (c *AVFormatContext) OpenFile(fileName string) (err error) {
 		return err
 	}
 
-	bus.Dispatch("source format changed", c, &c.channelIndex)
+	stream.BusSourceFormatChanged.Dispatch(c, &c.format, c.channelIndex)
 
 	return nil
 }
@@ -163,6 +162,10 @@ func (c *AVFormatContext) Type() stream.ElementType {
 
 func (c *AVFormatContext) AudioFormat() audio.Format {
 	return c.format
+}
+
+func (c *AVFormatContext) ChannelIndex() *audio.ChannelIndex {
+	return c.channelIndex
 }
 
 func (c *AVFormatContext) OutFormat() audio.Format {
@@ -281,9 +284,7 @@ func (c *AVFormatContext) Stream(samples *stream.Samples) {
 		return
 	}
 
-	// 强制同步格式
-	// samples.Resize(samples.RequestNbSamples, c.outputFmt)
-	samples.Format = c.outputFmt
+	samples.SetFormatAndIndex(c.outputFmt, c.channelIndex)
 
 	if c.pause || c.finished {
 		// samples.BeZero()

@@ -50,15 +50,58 @@
     width: 100%;
     min-width: 300px;
 
-    &:hover {
-      border-color: var(--color-border-hover);
 
-      .svg-icon {
-        color: var(--color-border-hover);
+    &.disconnected {
+      background-color: var(--color-secondary-bg);
+      color: var(--color-secondary);
+
+      .name,
+      .ip,
+      .ratebits {
+        color: var(--color-secondary);
+      }
+
+      .speaker-name {
+        .svg-icon {
+          color: var(--color-secondary);
+        }
+
+        .channel-name {
+          background-color: var(--color-secondary-bg);
+          border: 1px solid var(--color-border-hover);
+          color: var(--color-secondary);
+        }
+      }
+
+      .volume-controller {
+        .svg-icon {
+          color: var(--color-secondary);
+        }
+
       }
     }
 
-    >div {
+    &:hover {
+      border-color: var(--color-border-hover);
+
+      .name,
+      .ip,
+      .ratebits,
+      .speaker-name .svg-icon,
+      .volume-controller .svg-icon {
+        color: var(--color-border-hover);
+      }
+
+      .button {
+        color: #fff;
+        background-color: #ff4d4f;
+        border-color: #ff4d4f;
+      }
+
+    }
+
+
+    .speaker-name {
       display: flex;
       flex-direction: row;
       flex-wrap: nowrap;
@@ -78,10 +121,7 @@
         width: 9rem;
         overflow: hidden;
         text-overflow: ellipsis;
-
-        &:hover {
-          color: var(--color-border-hover);
-        }
+        margin-right: 1rem;
       }
 
       .channel-name {
@@ -89,7 +129,7 @@
         flex: 0 0 auto;
         width: auto;
         white-space: nowrap;
-        background: var(--color-border-hover);
+        background-color: var(--color-border-hover);
         color: var(--color-body-bg);
         padding: 0 4px 0 6px;
         border-radius: 2px;
@@ -99,19 +139,27 @@
           height: 21px;
           font-size: 14px;
           margin-left: 3px;
-
-          &:hover {
-            color: #fff;
-            background-color: #ff4d4f;
-            border-color: #ff4d4f;
-          }
         }
       }
     }
 
-    .ip {
-      font-size: 0.5rem;
-      margin: 0 4px;
+    .speaker-info {
+      line-height: 2rem;
+      display: flex;
+      align-items: center;
+      justify-items: flex-start;
+
+      .svg-icon {
+        cursor: default;
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+      }
+
+      .ip {
+        font-size: 0.5rem;
+        margin: 0 4px;
+      }
     }
   }
 }

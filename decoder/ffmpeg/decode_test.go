@@ -55,7 +55,7 @@ func TestAudioInfo(t *testing.T) {
 
 	t.Run("get empty audio info", func(t *testing.T) {
 		ai := playlist.AudioInfo{}
-		if err := AudioInfo("test/test_44100_fltp_stereo.mp3", &ai); err != nil {
+		if err := AudioInfo("test/test_44100_fltp_mono.mp3", &ai); err != nil {
 			t.Errorf("AudioInfo() error = %v", err)
 		}
 		t.Logf("%s", ai.Url)

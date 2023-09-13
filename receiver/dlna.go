@@ -1,7 +1,6 @@
 package receiver
 
 import (
-	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/config"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/receiver/dlna"
@@ -20,34 +19,32 @@ func initDlna() error {
 	}
 	go dlnaInstance.ListenAndServe()
 
-	bus.Register("line name changed", func(a ...any) error {
-		line := a[0].(*speaker.Line)
+	speaker.BusLineNameChanged.Register(EditDLNA)
+	speaker.BusLineCreated.Register(AddDLNA)
+	speaker.BusLineDeleted.Register(DelDLNA)
 
-		EditDLNA(line)
-		return nil
-	})
 	return nil
 }
 
-func AddDLNA(line *speaker.Line) {
-	if dlnaInstance == nil {
-		return
+func AddDLNA(line *speaker.Line) error {
+	if dlnaInstance != nil {
+		line.UUID = dlnaInstance.AddNewInstance(line.LineName, line.UUID)
 	}
-	line.UUID = dlnaInstance.AddNewInstance(line.Name, line.UUID)
+	return nil
 }
 
-func DelDLNA(line *speaker.Line) {
-	if dlnaInstance == nil {
-		return
+func DelDLNA(line, dst *speaker.Line) error {
+	if dlnaInstance != nil {
+		dlnaInstance.DelInstance(line.UUID)
 	}
-	dlnaInstance.DelInstance(line.UUID)
+	return nil
 }
 
-func EditDLNA(line *speaker.Line) {
-	if dlnaInstance == nil {
-		return
+func EditDLNA(line *speaker.Line, old *string) error {
+	if dlnaInstance != nil {
+		dlnaInstance.ChangeName(line.UUID, line.LineName)
 	}
-	dlnaInstance.ChangeName(line.UUID, line.Name)
+	return nil
 }
 
 func SetDLNAName(uuid string, name string) {

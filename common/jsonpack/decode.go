@@ -1,6 +1,7 @@
 package jsonpack
 
 import (
+	"io"
 	"math"
 	"reflect"
 	"strings"
@@ -13,18 +14,47 @@ type structField struct {
 }
 
 type Decoder struct {
-	d   []byte
-	pos uint32
+	d    []byte
+	pos  int
+	left int
+	r    io.Reader
+}
+
+func (d *Decoder) sure(s int64) (left int64, err error) {
+	if int64(d.pos)+s <= int64(d.left) {
+		return
+	}
+
+	if d.r == nil {
+		err = &endError{}
+		return
+	}
+
+	copy(d.d, d.d[d.pos:])
+	i := d.left - d.pos
+	d.pos = 0
+
+	n, err := d.r.Read(d.d[i:])
+	d.left = i + n
+
+	// 剩余的缓存不足，计算出不足的待请求的大小
+	left = int64(d.pos) + s - int64(d.left)
+	if left < 0 {
+		left = 0
+	}
+
+	return
 }
 
 func (d *Decoder) getType() (uint8, uint8, error) {
-	if len(d.d) < int(d.pos)+1 {
+	if e, _ := d.sure(1); e > 0 {
 		return 0, 0, &endError{}
 	}
 	by := d.d[d.pos]
 
 	return uint8(by >> 4), uint8(by & 0x0f), nil
 }
+
 func (d *Decoder) readType() (uint8, uint8, error) {
 	t, s, err := d.getType()
 	if err != nil {
@@ -34,29 +64,29 @@ func (d *Decoder) readType() (uint8, uint8, error) {
 
 	return t, s, err
 }
-func (d *Decoder) readInt32(s uint8) (uint32, error) {
-	if len(d.d) < int(d.pos)+int(s) {
+
+func (d *Decoder) readInt64(s uint8) (int64, error) {
+	if e, _ := d.sure(int64(s)); e > 0 {
 		return 0, &endError{}
 	}
 	s &= 0x07
-	i := d.d[d.pos : d.pos+uint32(s)]
 
-	d.pos += uint32(s)
+	i := d.d[d.pos : d.pos+int(s)]
+	d.pos += int(s)
 
-	switch s {
-	case 1:
-		return uint32(i[0]), nil
-	case 2:
-		return (uint32(i[0])) | (uint32(i[1]) << 8), nil
-	case 3:
-		return (uint32(i[0])) | (uint32(i[1]) << 8) | (uint32(i[2]) << 16), nil
-	case 4:
-		return (uint32(i[0])) | (uint32(i[1]) << 8) | (uint32(i[3]) << 24), nil
+	if s > 7 || s < 1 {
+		return 0, &InvalidJsonPackError{d.pos - 1, byte(s), []byte{1, 2, 4}}
 	}
 
-	return 0, &InvalidJsonPackError{d.pos - 1, byte(s), []byte{1, 2, 4}}
+	val := int64(0)
+	for idx := 0; idx < int(s); idx++ {
+		val |= int64(i[idx]) << uint(idx*8)
+	}
+
+	return val, nil
 }
 
+// 当前数据必须符合指定类型
 func (d *Decoder) needType(tt uint8) (uint8, error) {
 	t, s, err := d.readType()
 	if err != nil {
@@ -69,11 +99,18 @@ func (d *Decoder) needType(tt uint8) (uint8, error) {
 	return s, nil
 }
 
-func needReflectKind(skip bool, f string, r reflect.Value, ks ...reflect.Kind) error {
+// 当前存储结构必须符合指定类型
+func needReflectKind(skip bool, f string, r reflect.Value, ks ...reflect.Kind) (rp reflect.Value, err error) {
 	if skip {
-		return nil
+		return
 	}
+
 	kind := r.Kind()
+	rp = r
+	if kind == reflect.Pointer {
+		rp = r.Elem()
+		kind = r.Type().Elem().Kind()
+	}
 	found := false
 	for _, k := range ks {
 		if k == kind {
@@ -82,66 +119,96 @@ func needReflectKind(skip bool, f string, r reflect.Value, ks ...reflect.Kind) e
 		}
 	}
 	if !found {
-		return &KindUnmarshalError{InvalidUnmarshalError{f, kind}, ks}
+		err = &KindUnmarshalError{InvalidUnmarshalError{f, kind}, ks}
+		return
 	}
 
 	if !r.CanSet() {
-		return &PrivateUnmarshalError{f}
+		err = &PrivateUnmarshalError{f}
+		return
 	}
 
-	return nil
+	return
+}
+
+func (d *Decoder) parseString(s uint8, skip bool) (strs string, err error) {
+	l, err := d.readInt64(s)
+	if err != nil {
+		return
+	}
+
+	var (
+		str []byte
+		i   int64
+		end int
+		e   int64
+	)
+	if !skip {
+		str = make([]byte, l)
+	}
+
+	for {
+		e, err = d.sure(l)
+		if err != nil {
+			if e > 0 {
+				err = &endError{}
+				return
+			}
+			return
+		}
+		if e > 0 {
+			i += l - e
+			end = d.left
+		} else {
+			end = d.pos + int(l)
+		}
+		l = e
+		if !skip {
+			copy(str[i:], d.d[d.pos:end])
+		}
+		d.pos = end
+
+		if l == 0 {
+			break
+		}
+	}
+
+	strs = string(str)
+
+	return
 }
 
 func (d *Decoder) decodeString(r reflect.Value, s uint8, f string, skip bool) error {
-	err := needReflectKind(skip, f, r, reflect.String)
+	rp, err := needReflectKind(skip, f, r, reflect.String)
 	if err != nil {
 		return err
 	}
 
-	l, err := d.readInt32(s)
+	str, err := d.parseString(s, skip)
 	if err != nil {
 		return err
 	}
-	if int(l) > len(d.d)-int(d.pos) {
-		return &endError{}
+
+	if !skip {
+		rp.SetString(str)
 	}
-
-	str := string(d.d[d.pos : d.pos+l])
-	d.pos += l
-
-	if skip {
-		return nil
-	}
-
-	r.SetString(str)
 
 	return nil
 }
 
-func (d *Decoder) needString(r reflect.Value, f string) (string, error) {
-	var str string
-
+func (d *Decoder) needString(r reflect.Value, f string) (str string, err error) {
 	s, err := d.needType(JSONPACK_STRING)
 	if err != nil {
-		return str, err
-	}
-	l, err := d.readInt32(s)
-	if err != nil {
-		return str, err
-	}
-	if int(l) > len(d.d)-int(d.pos) {
-		return str, &endError{}
+		return
 	}
 
-	str = string(d.d[d.pos : d.pos+l])
+	str, err = d.parseString(s, false)
 
-	d.pos += l
-
-	return str, nil
+	return
 }
 
 func (d *Decoder) decodeInt64(r reflect.Value, s uint8, f string, skip bool) error {
-	err := needReflectKind(skip, f, r, reflect.Int8, reflect.Uint8, reflect.Int, reflect.Uint,
+	rp, err := needReflectKind(skip, f, r, reflect.Int8, reflect.Uint8, reflect.Int, reflect.Uint,
 		reflect.Int16, reflect.Uint16, reflect.Int32, reflect.Uint32, reflect.Int64, reflect.Uint64,
 		reflect.Float32, reflect.Float64)
 	if err != nil {
@@ -153,17 +220,17 @@ func (d *Decoder) decodeInt64(r reflect.Value, s uint8, f string, skip bool) err
 		neg  bool  = s&0x08 > 0
 	)
 	if size > 4 {
-		il, err := d.readInt32(4)
+		il, err := d.readInt64(4)
 		if err != nil {
 			return err
 		}
-		ih, err := d.readInt32(size - 4)
+		ih, err := d.readInt64(size - 4)
 		if err != nil {
 			return err
 		}
 		i = int64(il) | (int64(ih) << 32)
 	} else {
-		i32, err := d.readInt32(size)
+		i32, err := d.readInt64(size)
 		if err != nil {
 			return err
 		}
@@ -172,66 +239,66 @@ func (d *Decoder) decodeInt64(r reflect.Value, s uint8, f string, skip bool) err
 	if skip {
 		return nil
 	}
-	switch r.Kind() {
+	switch rp.Kind() {
 	case reflect.Int8:
 		if neg {
-			r.SetInt(int64(int8(-i)))
+			rp.SetInt(int64(int8(-i)))
 		} else {
-			r.SetInt(int64(int8(i)))
+			rp.SetInt(int64(int8(i)))
 		}
 	case reflect.Int, reflect.Int32:
 		if neg {
-			r.SetInt(int64(int32(-i)))
+			rp.SetInt(int64(int32(-i)))
 		} else {
-			r.SetInt(int64(int32(i)))
+			rp.SetInt(int64(int32(i)))
 		}
 	case reflect.Int16:
 		if neg {
-			r.SetInt(int64(int16(-i)))
+			rp.SetInt(int64(int16(-i)))
 		} else {
-			r.SetInt(int64(int16(i)))
+			rp.SetInt(int64(int16(i)))
 		}
 	case reflect.Int64:
 		if neg {
-			r.SetInt(-i)
+			rp.SetInt(-i)
 		} else {
-			r.SetInt(i)
+			rp.SetInt(i)
 		}
 	case reflect.Uint8:
 		if neg {
-			r.SetUint(uint64(uint8(-i)))
+			rp.SetUint(uint64(uint8(-i)))
 		} else {
-			r.SetUint(uint64(uint8(i)))
+			rp.SetUint(uint64(uint8(i)))
 		}
 	case reflect.Uint16:
 		if neg {
-			r.SetUint(uint64(uint16(-i)))
+			rp.SetUint(uint64(uint16(-i)))
 		} else {
-			r.SetUint(uint64(uint16(i)))
+			rp.SetUint(uint64(uint16(i)))
 		}
 	case reflect.Uint, reflect.Uint32:
 		if neg {
-			r.SetUint(uint64(uint32(-i)))
+			rp.SetUint(uint64(uint32(-i)))
 		} else {
-			r.SetUint(uint64(uint32(i)))
+			rp.SetUint(uint64(uint32(i)))
 		}
 	case reflect.Uint64:
 		if neg {
-			r.SetUint(uint64(-i))
+			rp.SetUint(uint64(-i))
 		} else {
-			r.SetUint(uint64(i))
+			rp.SetUint(uint64(i))
 		}
 	case reflect.Float32:
 		if neg {
-			r.SetFloat(float64(float32(-i)))
+			rp.SetFloat(float64(float32(-i)))
 		} else {
-			r.SetFloat(float64(float32(i)))
+			rp.SetFloat(float64(float32(i)))
 		}
 	case reflect.Float64:
 		if neg {
-			r.SetFloat(float64(-i))
+			rp.SetFloat(float64(-i))
 		} else {
-			r.SetFloat(float64(i))
+			rp.SetFloat(float64(i))
 		}
 	}
 
@@ -239,12 +306,12 @@ func (d *Decoder) decodeInt64(r reflect.Value, s uint8, f string, skip bool) err
 }
 
 func (d *Decoder) decodeFloat32(r reflect.Value, s uint8, f string, skip bool) error {
-	err := needReflectKind(skip, f, r, reflect.Float32, reflect.Float64)
+	rp, err := needReflectKind(skip, f, r, reflect.Float32, reflect.Float64)
 	if err != nil {
 		return err
 	}
 
-	i, err := d.readInt32(s)
+	i, err := d.readInt64(s)
 	if err != nil {
 		return err
 	}
@@ -252,23 +319,23 @@ func (d *Decoder) decodeFloat32(r reflect.Value, s uint8, f string, skip bool) e
 		return nil
 	}
 
-	bits := math.Float32frombits(i)
-	r.SetFloat(float64(bits))
+	bits := math.Float32frombits(uint32(i))
+	rp.SetFloat(float64(bits))
 
 	return nil
 }
 
 func (d *Decoder) decodeFloat64(r reflect.Value, f string, skip bool) error {
-	err := needReflectKind(skip, f, r, reflect.Float32, reflect.Float64)
+	rp, err := needReflectKind(skip, f, r, reflect.Float32, reflect.Float64)
 	if err != nil {
 		return err
 	}
 
-	il, err := d.readInt32(4)
+	il, err := d.readInt64(4)
 	if err != nil {
 		return err
 	}
-	ih, err := d.readInt32(4)
+	ih, err := d.readInt64(4)
 	if err != nil {
 		return err
 	}
@@ -277,13 +344,13 @@ func (d *Decoder) decodeFloat64(r reflect.Value, f string, skip bool) error {
 	}
 
 	bits := math.Float64frombits(uint64(il) | (uint64(ih) << 32))
-	r.SetFloat(bits)
+	rp.SetFloat(bits)
 
 	return nil
 }
 
 func (d *Decoder) decodeBool(r reflect.Value, s uint8, f string, skip bool) error {
-	err := needReflectKind(skip, f, r, reflect.Bool)
+	rp, err := needReflectKind(skip, f, r, reflect.Bool)
 	if err != nil {
 		return err
 	}
@@ -295,13 +362,13 @@ func (d *Decoder) decodeBool(r reflect.Value, s uint8, f string, skip bool) erro
 		return nil
 	}
 
-	r.SetBool(s != 0)
+	rp.SetBool(s != 0)
 
 	return nil
 }
 
 func (d *Decoder) decodeNull(r reflect.Value, s uint8, f string, skip bool) error {
-	err := needReflectKind(skip, f, r, reflect.Pointer)
+	rp, err := needReflectKind(skip, f, r, reflect.Pointer)
 	if err != nil {
 		return err
 	}
@@ -313,16 +380,18 @@ func (d *Decoder) decodeNull(r reflect.Value, s uint8, f string, skip bool) erro
 		return nil
 	}
 
+	rp.Set(reflect.Zero(rp.Type()))
+
 	return nil
 }
 
 func (d *Decoder) decodeArray(r reflect.Value, s uint8, f string, skip bool) error {
-	err := needReflectKind(skip, f, r, reflect.Slice, reflect.Array)
+	rp, err := needReflectKind(skip, f, r, reflect.Slice, reflect.Array)
 	if err != nil {
 		return err
 	}
 
-	l, err := d.readInt32(s)
+	l, err := d.readInt64(s)
 	if err != nil {
 		return err
 	}
@@ -341,20 +410,20 @@ func (d *Decoder) decodeArray(r reflect.Value, s uint8, f string, skip bool) err
 		} else if lastT != t {
 			return &InvalidJsonPackError{d.pos, byte(t), []byte{byte(lastT)}}
 		}
-		nrv := reflect.New(r.Type().Elem())
+		nrv := reflect.New(rp.Type().Elem())
 		err = d.reflectObject(nrv.Elem(), f, skip)
 		if err != nil {
 			return err
 		}
 		if !skip {
-			r.Set(reflect.Append(r, nrv.Elem()))
+			rp.Set(reflect.Append(r, nrv.Elem()))
 		}
 	}
 
 	return nil
 }
 
-func (d *Decoder) reflectMap2Struct(r reflect.Value, l uint32, f string, skip bool) error {
+func (d *Decoder) reflectMap2Struct(r reflect.Value, l int64, f string, skip bool) error {
 	// 预先整理出struct中的Tag
 	fc := r.NumField()
 	fields := make(map[string]structField, l)
@@ -386,21 +455,7 @@ func (d *Decoder) reflectMap2Struct(r reflect.Value, l uint32, f string, skip bo
 			if _, ok := sf.tags["stop"]; ok {
 				return nil
 			}
-			if sf.r.Kind() == reflect.Pointer {
-				// 请求指针类型
-				var t uint8
-				if t, _, err = d.getType(); err == nil && t == JSONPACK_NULL {
-					// 指针可以是 null
-					err = d.reflectObject(sf.r, key, skip)
-				} else {
-					// 使用指针指向的结构
-					spr := reflect.New(sf.r.Type().Elem())
-					err = d.reflectObject(spr.Elem(), key, skip)
-					sf.r.Set(spr)
-				}
-			} else {
-				err = d.reflectObject(sf.r, key, skip)
-			}
+			err = d.reflectObject(sf.r, key, skip)
 			delete(fields, key)
 		} else {
 			// struct中没有该键，但是解码需要继续
@@ -423,17 +478,17 @@ func (d *Decoder) reflectMap2Struct(r reflect.Value, l uint32, f string, skip bo
 }
 
 func (d *Decoder) reflectMap(r reflect.Value, s uint8, f string, skip bool) error {
-	err := needReflectKind(skip, f, r, reflect.Struct)
+	rp, err := needReflectKind(skip, f, r, reflect.Struct)
 	if err != nil {
 		return err
 	}
-	l, err := d.readInt32(s)
+	l, err := d.readInt64(s)
 	if err != nil {
 		return err
 	}
 
 	if r.Kind() == reflect.Struct {
-		return d.reflectMap2Struct(r, l, f, skip)
+		return d.reflectMap2Struct(rp, l, f, skip)
 	}
 
 	// kk := r.Type().Key().Kind()
@@ -466,6 +521,13 @@ func (d *Decoder) reflectMap(r reflect.Value, s uint8, f string, skip bool) erro
 }
 
 func (d *Decoder) reflectObject(r reflect.Value, f string, skip bool) error {
+
+	if !skip {
+		if ok, err := d.checkAndReflectBytes(r); ok {
+			return err
+		}
+	}
+
 	t, s, err := d.readType()
 	if err != nil {
 		return err
@@ -510,15 +572,61 @@ func (d *Decoder) reflectDecode(r reflect.Value) error {
 		return err
 	}
 
-	if int(d.pos) != len(d.d) {
+	if int(d.pos) != d.left {
 		return &endError{}
 	}
 
 	return nil
 }
 
-func newDecoder(b []byte) *Decoder {
-	return &Decoder{b, 0}
+func (d *Decoder) checkAndReflectBytes(r reflect.Value) (ok bool, err error) {
+	if r.Kind() != reflect.Slice || r.Type().Elem().Kind() != reflect.Uint8 {
+		return
+	}
+	ok = true
+	pos := d.pos
+
+	err = d.reflectObject(r, "", true)
+	if err != nil {
+		return
+	}
+
+	r.Set(reflect.ValueOf(d.d[pos:d.pos]))
+	return
+}
+
+func (d *Decoder) ReadFrom(rd io.Reader, v any) (s int, err error) {
+	var n int
+	for {
+		n, err = rd.Read(d.d)
+		s += n
+		if err != nil {
+			return
+		}
+		err = d.reflectDecode(reflect.ValueOf(v))
+
+		if _, ok := err.(*endError); ok {
+			copy(d.d[:len(d.d)-int(d.pos)], d.d[int(d.pos):])
+			d.pos = 0
+			continue
+		}
+	}
+}
+
+func NewDecoder(b []byte) *Decoder {
+	return &Decoder{
+		d:   b,
+		pos: 0,
+		r:   nil,
+	}
+}
+
+func NewDecoderFromReader(rd io.Reader, bufSize int) *Decoder {
+	return &Decoder{
+		d:   make([]byte, bufSize),
+		pos: 0,
+		r:   rd,
+	}
 }
 
 func (d *Decoder) Resume(v any) error {

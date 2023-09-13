@@ -92,6 +92,10 @@ func (s *DLNAServer) newUPnPServer(ctx utils.Context) (err error) {
 	s.upnp.ErrorHandler = s.onError
 	s.upnp.InfoHandler = s.onInfo
 
+	if len(config.DLNAAllowIps) == 0 {
+		s.upnp.AllowIps = nil
+	}
+
 	// s.upnp.BeforeRequestHandle = func(ctx *fasthttp.RequestCtx) bool {
 	// 	s.log.Info(ctx.RemoteAddr().String() + " " + string(ctx.Request.Body()))
 	// 	return true

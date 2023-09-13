@@ -3,6 +3,7 @@ package element
 import (
 	"math"
 
+	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/stream"
 )
 
@@ -75,9 +76,18 @@ func (v *Volume) Volume() float64 {
 }
 
 func (v *Volume) Close() error {
+	bus.UnregisterObj(v)
+
 	v.volume = 0
 	v.Off()
 	return nil
+}
+
+func (o *Volume) Dispatch(e string, a ...any) error {
+	return bus.DispatchObj(o, e, a...)
+}
+func (o *Volume) Register(e string, c bus.Handler) *bus.HandlerData {
+	return bus.RegisterObj(o, e, c)
 }
 
 func NewVolume(vol float64) stream.VolumeElement {

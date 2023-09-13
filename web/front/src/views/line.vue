@@ -81,12 +81,13 @@
         </div>
       </div>
       <ul class="speaker-list" v-show="infomation.speakers && infomation.speakers.length">
-        <li class="speaker level-meter-slider" v-for="sp in infomation.speakers" :key="sp.id" :id="'speaker-' + sp.id">
-          <div>
+        <li class="speaker level-meter-slider" v-for="sp in infomation.speakers" :key="sp.id" :id="'speaker-' + sp.id"
+          :class="sp.cTime > 0 ? 'connected' : 'disconnected'">
+          <div class="speaker-name">
             <svg-icon icon-class="speaker" :size="0" @click.native="onIamHere(sp.id)"></svg-icon>
-            <span class="name" @click.stop.prevent="gotoSpeaker(sp.id)">
+            <a class="name" @click.stop.prevent="gotoSpeaker(sp.id)">
               {{ sp.name }}
-            </span>
+            </a>
             <span class="channel-name user-select-none" v-if="sp.ch && channelAttr[sp.ch]"
               @click.stop.prevent="onShowChannelInfo(sp.ch)">
               {{ showChannelName(sp.ch) }}
@@ -97,8 +98,12 @@
               {{ $t('set channel') }}
             </a-button>
           </div>
-          <span class="ip">{{ sp.ip }}</span>
-          <span class="ratebits">{{ showRatebits(sp) }}</span>
+          <div class="speaker-info">
+            <svg-icon :icon-class="sp.cTime > 0 ? 'link' : 'unlink'" :size="0"
+              :class="sp.cTime > 0 ? 'is-primary' : 'is-danger'" />
+            <span class="ip">{{ sp.ip }}</span>
+            <span class="ratebits">{{ showRatebits(sp) }}</span>
+          </div>
           <Volume :volume="sp.vol" :mute="sp.mute" tooltip-placement="top" @change="onSpeakerVolumeChanged($event, sp.id)"
             @mute="onSpeakerVolumeMute($event, sp.id)" />
         </li>

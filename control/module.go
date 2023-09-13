@@ -18,16 +18,16 @@ var Module = controlModule{}
 func (controlModule) Init(ctx utils.Context) error {
 	log = ctx.Logger("control")
 
-	c := func(a ...any) error {
-		sp := a[0].(*speaker.Speaker)
+	c := func(o any, a ...any) error {
+		sp := o.(*speaker.Speaker)
 		ControlSample(sp)
 		return nil
 	}
 	bus.Register("speaker connected", c)
 	bus.Register("speaker format changed", c)
 
-	bus.Register("speaker volume changed", func(a ...any) error {
-		sp := a[0].(*speaker.Speaker)
+	bus.Register("speaker volume changed", func(o any, a ...any) error {
+		sp := o.(*speaker.Speaker)
 		ControlSpeakerVolume(sp, float64(sp.Volume), sp.Mute)
 		return nil
 	})

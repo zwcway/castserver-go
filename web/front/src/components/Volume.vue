@@ -1,17 +1,16 @@
 <template>
   <div class="volume-controller"  @touchstart.stop @mousedown.stop>
-    <div class="mute" :class="{ 'is-muted': isMute }" @click.stop.prevent="onVolumeMute()">
+    <div class="mute" :class="{ 'is-muted': isMute }" @click.stop.prevent="onVolumeMute()" :title="$t('mute')">
       <svg-icon :icon-class="isMute ? 'volume-mute' : 'volume'" :size="24"></svg-icon>
     </div>
     <vue-slider v-model="curVolume" :min="0" :max="100" :process="volumeLevelProcess"
-      :tooltip-placement="this.tooltipPlacement" ref="volumeSlider" @change="throttleTimer"
+      :tooltip-placement="tooltipPlacement" ref="volumeSlider" @change="throttleTimer"
       @drag-end="throttleTimer.finally(curVolume)" />
   </div>
 </template>
 
 <script>
 import VueSlider from 'vue-slider-component';
-import 'vue-slider-component/theme/antd.css';
 import { throttleFunction } from '@/common/throttle';
 
 export default {

@@ -60,6 +60,7 @@ func (p *PipeLine) Prepend(s stream.Element) {
 	// } else if s.Type() == stream.ET_WholeSamples {
 	p.wholeStreams = append(ps, p.wholeStreams...)
 	// }
+	p.append(s)
 }
 
 // TODO 防止循环引用
@@ -77,18 +78,18 @@ func (p *PipeLine) Append(s ...stream.Element) {
 		// } else if ss.Type() == stream.ET_WholeSamples {
 		p.wholeStreams = append(p.wholeStreams, ps)
 		// }
+		p.append(ss)
+	}
+}
 
-		if sc, ok := ss.(stream.MixerElement); ok {
-			bus.Register("mixer format changed", func(a ...any) error {
-				m := a[0].(stream.MixerElement)
-				if m == sc {
-					p.format = *(a[1].(*audio.Format))
-
-					bus.Dispatch("source format changed", p)
-				}
-				return nil
-			})
-		}
+func (p *PipeLine) append(ss stream.Element) {
+	if sc, ok := ss.(stream.MixerElement); ok {
+		// 注册样本格式变更的回调
+		stream.BusMixerFormatChanged.Register(sc, func(m stream.MixerElement, format *audio.Format, channelIndex *audio.ChannelIndex) error {
+			p.format = *format
+			stream.BusSourceFormatChanged.Dispatch(p, format, channelIndex)
+			return nil
+		})
 	}
 }
 
@@ -99,6 +100,13 @@ func (p *PipeLine) Clear() {
 
 func (p *PipeLine) AudioFormat() audio.Format {
 	return p.format
+}
+
+func (p *PipeLine) ChannelIndex() *audio.ChannelIndex {
+	if p.buffer == nil {
+		return p.format.ChannelIndex()
+	}
+	return &p.buffer.ChannelIndex
 }
 
 func (p *PipeLine) SetOutFormat(f audio.Format) error {

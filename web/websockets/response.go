@@ -48,7 +48,7 @@ func NewResponseSpeakerList(sp *speaker.Speaker) *ResponseSpeakerList {
 	}
 	return &ResponseSpeakerList{
 		ID:          int32(sp.ID),
-		Name:        sp.Name,
+		Name:        sp.SpeakerName,
 		IP:          sp.Ip,
 		MAC:         sp.Mac,
 		Channel:     sp.Channel,
@@ -107,7 +107,7 @@ func NewResponseLineList(ls *speaker.Line) *ResponseLineList {
 	}
 	return &ResponseLineList{
 		ID:      uint8(ls.ID),
-		Name:    ls.Name,
+		Name:    ls.LineName,
 		Default: ls.ID == speaker.DefaultLineID,
 		Volume:  int(ls.Volume),
 		Mute:    ls.Mute,

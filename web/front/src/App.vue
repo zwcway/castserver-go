@@ -140,6 +140,10 @@ export default {
       width: 100%;
       height: fit-content;
       position: absolute;
+      max-width: 1024px;
+      left: 0;
+      right: 0;
+      margin: auto;
 
     }
   }

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/zwcway/castserver-go/common/audio"
+	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/dsp"
 	"github.com/zwcway/castserver-go/common/stream"
 )
@@ -125,11 +126,20 @@ func (e *Equalizer) init() {
 }
 
 func (e *Equalizer) Close() error {
+	bus.UnregisterObj(e)
+
 	e.Off()
 	if e.filters != nil {
 		e.filters = e.filters[:0]
 	}
 	return nil
+}
+
+func (o *Equalizer) Dispatch(e string, a ...any) error {
+	return bus.DispatchObj(o, e, a...)
+}
+func (o *Equalizer) Register(e string, c bus.Handler) *bus.HandlerData {
+	return bus.RegisterObj(o, e, c)
 }
 
 func NewEqualizer(eq *dsp.DataProcess) stream.EqualizerElement {

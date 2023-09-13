@@ -29,10 +29,10 @@ func Init(ctx utils.Context, d *gorm.DB) {
 	bus.Register("get line", getLine)
 	bus.Register("save line", saveLine).ASync()
 	bus.Register("line deleted", deleteLine).ASync()
-	bus.Register("line edited", func(a ...any) error {
-		line := a[0].(*speaker.Line)
+	bus.Register("line edited", func(o any, a ...any) error {
+		line := o.(*speaker.Line)
 		um := map[string]any{}
-		for i := 1; i < len(a); i += 2 {
+		for i := 0; i < len(a); i += 2 {
 			um[a[i].(string)] = a[i+1]
 		}
 		result := db.Model(line).UpdateColumns(um)
@@ -47,10 +47,9 @@ func Init(ctx utils.Context, d *gorm.DB) {
 	bus.Register("get speaker", getSpeaker)
 	bus.Register("save speaker", saveSpeaker).ASync()
 	bus.Register("speaker deleted", deleteSpeaker).ASync()
-	bus.Register("speaker edited", func(a ...any) error {
-		sp := a[0].(*speaker.Speaker)
+	speaker.BusSpeakerEdited.Register(func(sp *speaker.Speaker, a ...any) error {
 		um := map[string]any{}
-		for i := 1; i < len(a); i += 2 {
+		for i := 0; i < len(a); i += 2 {
 			um[a[i].(string)] = a[i+1]
 		}
 		result := db.Model(sp).UpdateColumns(um)
@@ -77,7 +76,7 @@ func getLines(lineList *[]*speaker.Line) error {
 	return result.Error
 }
 
-func getLine(a ...any) error {
+func getLine(o any, a ...any) error {
 	line := a[0].(*speaker.Line)
 	result := db.Take(line)
 	if result.Error != nil {
@@ -86,8 +85,8 @@ func getLine(a ...any) error {
 	return result.Error
 }
 
-func saveLine(a ...any) error {
-	line := a[0].(*speaker.Line)
+func saveLine(o any, a ...any) error {
+	line := o.(*speaker.Line)
 	result := db.Save(line)
 
 	if result.Error != nil {
@@ -96,8 +95,8 @@ func saveLine(a ...any) error {
 	return result.Error
 }
 
-func deleteLine(a ...any) error {
-	line := a[0].(*speaker.Line)
+func deleteLine(o any, a ...any) error {
+	line := o.(*speaker.Line)
 	result := db.Delete(line)
 	if result.Error != nil {
 		log.Fatal("delete line error", lg.Uint("line", uint64(line.ID)), lg.Error(result.Error))
@@ -105,7 +104,7 @@ func deleteLine(a ...any) error {
 	return result.Error
 }
 
-func getSpeakers(a ...any) error {
+func getSpeakers(o any, a ...any) error {
 	spList := a[0].(*[]*speaker.Speaker)
 	sps := []speaker.Speaker{}
 	result := db.Preload(clause.Associations).Find(&sps)
@@ -121,7 +120,7 @@ func getSpeakers(a ...any) error {
 	return result.Error
 }
 
-func getSpeaker(a ...any) error {
+func getSpeaker(o any, a ...any) error {
 	sp := a[0].(*speaker.Speaker)
 	result := db.Take(sp)
 	if result.Error != nil {
@@ -130,7 +129,7 @@ func getSpeaker(a ...any) error {
 	return result.Error
 }
 
-func saveSpeaker(a ...any) error {
+func saveSpeaker(o any, a ...any) error {
 	sp := a[0].(*speaker.Speaker)
 	result := db.Session(&gorm.Session{FullSaveAssociations: true}).Save(sp)
 	if result.Error != nil {
@@ -139,7 +138,7 @@ func saveSpeaker(a ...any) error {
 	return result.Error
 }
 
-func deleteSpeaker(a ...any) error {
+func deleteSpeaker(o any, a ...any) error {
 	sp := a[0].(*speaker.Speaker)
 	result := db.Delete(sp)
 	if result.Error != nil {

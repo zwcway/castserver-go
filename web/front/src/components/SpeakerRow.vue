@@ -1,29 +1,22 @@
 <template>
-  <div class="speaker" :class="{ 'not-connect': !spInfo.cTime }">
-    <div class="speaker-content">
-      <div class="speaker-info">
-        <div class="title">
-          <div class="speaker-icon">
-            <svg-icon icon-class="speaker" :size="0" />
-            <i v-if="!spInfo.cTime" class="codicon codicon-close"></i>
-          </div>
-          <router-link class="speaker-name" :to="`/speaker/${spInfo.id}`">
-            {{ spInfo.name }}
-          </router-link>
-          <a-button type="link" v-if="spInfo.line" class="line-name"
-            @click.stop="$router.push(`/line/${spInfo.line.id}`)">
-            {{ spInfo.line.name }}
-          </a-button>
-        </div>
-        <p class="subtitle">
-          <span v-if="!spInfo.cTime" class="connect-info">未连接</span>
-          <span>{{ spInfo.ip }}</span>
-          <span class="ratebits">{{ showRateBits(speaker) }}</span>
-        </p>
-      </div>
-      <div class="speaker-volume level-meter-slider" v-on:click.stop="">
-        <Volume :volume="volume" :mute="mute" @change="setSpeakerVolume" @mute="setSpeakerMute" />
-      </div>
+  <div class="speaker" :class="spInfo.cTime > 0 ? 'connected' : 'disconnected'">
+    <div class="speaker-name">
+      <svg-icon icon-class="speaker" :size="0" />
+      <router-link class="name" :to="`/speaker/${spInfo.id}`">
+        {{ spInfo.name }}
+      </router-link>
+      <a-button type="link" v-if="spInfo.line" class="line-name" @click.stop="$router.push(`/line/${spInfo.line.id}`)">
+        {{ spInfo.line.name }}
+      </a-button>
+    </div>
+    <div class="speaker-info">
+      <svg-icon :icon-class="spInfo.cTime > 0 ? 'link' : 'unlink'" :size="0"
+        :class="spInfo.cTime > 0 ? 'is-primary' : 'is-danger'" />
+      <span class="ip">{{ spInfo.ip }}</span>
+      <span class="ratebits">{{ showRateBits(speaker) }}</span>
+    </div>
+    <div class="speaker-volume level-meter-slider" v-on:click.stop="">
+      <Volume :volume="volume" :mute="mute" @change="setSpeakerVolume" @mute="setSpeakerMute" />
     </div>
   </div>
 </template>
@@ -127,62 +120,20 @@ export default {
 .speaker {
   border: 0;
 
-  .speaker-icon {
-    width: 2rem;
-    height: 2rem;
+  .speaker-volume.level-meter-slider {
+    width: auto;
+    flex: unset;
+    flex-wrap: nowrap;
+    flex: 1 0 12rem;
+    // max-width: 20rem;
+    display: flex;
     align-items: center;
-    position: relative;
-    margin-right: 1rem;
 
-    .svg-icon {
-      flex: unset;
+    .volume-controller {
       width: 100%;
-      height: 100%;
     }
   }
 
-  .speaker-content {
-    overflow: visible;
-    flex-wrap: wrap;
-    flex-grow: 1;
-
-    .speaker-info {
-      display: flex;
-      flex-wrap: wrap;
-      flex-grow: 0;
-      flex-direction: column;
-
-      .title {
-        margin: 0;
-        font-size: 1rem;
-        display: flex;
-        flex-wrap: nowrap;
-        align-items: center;
-        height: 2rem;
-        line-height: 2rem;
-      }
-
-      .subtitle {
-        margin: 0;
-        font-size: 0.8rem;
-      }
-
-    }
-
-    .speaker-volume.level-meter-slider {
-      width: auto;
-      flex: unset;
-      flex-wrap: nowrap;
-      flex: 1 0 12rem;
-      max-width: 20rem;
-      display: flex;
-      align-items: center;
-
-      .volume-controller {
-        width: 100%;
-      }
-    }
-  }
 
   .vue-slider-dot-handle {
     border-color: var(--color-border);

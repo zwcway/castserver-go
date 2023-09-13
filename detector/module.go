@@ -5,7 +5,6 @@ import (
 	"net/netip"
 	"time"
 
-	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/config"
 	"github.com/zwcway/castserver-go/common/lg"
 	"github.com/zwcway/castserver-go/common/protocol"
@@ -219,7 +218,7 @@ func onlineCheckRoutine(ctx utils.Context, done <-chan struct{}) {
 
 			sp.Timeout = 0
 
-			bus.Dispatch("speaker offline", sp)
+			sp.Dispatch("speaker offline")
 		})
 	}
 }

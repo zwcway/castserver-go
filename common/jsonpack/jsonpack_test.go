@@ -1,6 +1,7 @@
 package jsonpack
 
 import (
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -43,7 +44,7 @@ func TestMarshal(t *testing.T) {
 		{"bool_0", false, []byte{0x20}, false},
 		{"bool_1", true, []byte{0x21}, false},
 
-		{"string_3", "123", []byte{49, 3, '1', '2', '3'}, false},
+		{"string_3", "123", []byte{0x31, 3, '1', '2', '3'}, false},
 		{"string_safe", "abc\x00abc", []byte{0x31, 0x07, 'a', 'b', 'c', 0, 'a', 'b', 'c'}, false},
 		{"string_256", str256, bytes256, false},
 
@@ -308,5 +309,36 @@ func TestUnmarshal(t *testing.T) {
 		err := Unmarshal([]byte("\x51\x03\x31\x03evt\x11\x02\x31\x03act\x70\x31\x03cmd\x11\x01"), &val)
 		assert.Equal(t, err != nil, false)
 		assert.Equal(t, val, reqSubscribe{2, nil, nil, &i})
+	})
+	t.Run("struct []byte", func(t *testing.T) {
+		type reqSubscribe struct {
+			Evt int    `jp:"evt"`
+			Act []byte `jp:"act"`
+			Sub []byte `jp:"sub,omitempty"`
+			Cmd []byte `jp:"cmd"`
+		}
+		var (
+			val reqSubscribe
+		)
+
+		err := Unmarshal([]byte("\x51\x03\x31\x03evt\x11\x02\x31\x03act\x70\x31\x03cmd\x11\x01"), &val)
+		assert.Equal(t, err != nil, false)
+		assert.Equal(t, val, reqSubscribe{2, []byte{0x70}, nil, []byte{0x11, 0x01}})
+	})
+	t.Run("struct io.Writer", func(t *testing.T) {
+		type req struct {
+			Evt  int       `jp:"evt"`
+			Act  []byte    `jp:"act"`
+			Sub  []byte    `jp:"sub,omitempty"`
+			Data io.Writer `jp:"data"`
+		}
+		// var (
+		// 	val req
+		// )
+
+		// err := Unmarshal([]byte("\x51\x03\x31\x03evt\x11\x02\x31\x03act\x70\x31\x03cmd\x11\x01"), &val)
+		// assert.Equal(t, err != nil, false, err)
+		// assert.Equal(t, val, req{2, []byte{0x70}, nil, nil})
+
 	})
 }

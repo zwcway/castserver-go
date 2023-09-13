@@ -10,7 +10,7 @@ require (
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/muesli/go-app-paths v0.2.2
 	github.com/pkg/errors v0.9.1
-	github.com/stretchr/testify v1.8.2
+	github.com/stretchr/testify v1.8.4
 	github.com/valyala/fasthttp v1.44.0
 	github.com/zwcway/fasthttp-upnp v0.0.0-20230327113116-cfeb3e90ec00
 	go.uber.org/zap v1.24.0
@@ -47,6 +47,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/savsgio/gotils v0.0.0-20220530130905-52f3993e8d6d // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
+	github.com/zwcway/go-jsonpack v0.0.0-20230621104234-52358eb7753f
 	go.mongodb.org/mongo-driver v1.10.0 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect

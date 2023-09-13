@@ -59,7 +59,7 @@ func (e *EmptyUnmarshalError) Error() string {
 }
 
 type InvalidJsonPackError struct {
-	pos  uint32
+	pos  int
 	data byte
 	want []byte
 }

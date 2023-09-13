@@ -9,7 +9,7 @@ import (
 func TestBus(t *testing.T) {
 
 	t.Run("unregister", func(t *testing.T) {
-		c := func(a ...any) error { return nil }
+		c := func(o any, a ...any) error { return nil }
 		Register("unregister", c)
 		assert.Equal(t, len(list), 1)
 

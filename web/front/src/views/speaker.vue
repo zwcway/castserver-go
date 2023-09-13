@@ -13,16 +13,19 @@
             <i class="codicon codicon-check"></i>
           </a-button>
         </div>
-        <vue-slider v-model="volume" :min="0" :max="100" :process="volumeLevelProcess" :tooltip-placement="'bottom'"
-          ref="volumeSlider" @change="volumeChanged" @drag-end="volumeChanged('finally')" />
-        <div> </div>
+        <Volume :volume="speaker.vol" :mute="speaker.mute || false" @change="onVolumeChanged" tooltip-placement="bottom"
+          @mute="onVolumeChanged" />
       </div>
     </div>
     <div class="notification">
       <div class="columns is-mobile">
         <div class="column">
-          <label>MAC</label>
+          <label>{{ $t('MAC') }}</label>
           <span>{{ speaker.mac }}</span>
+        </div>
+        <div class="column">
+          <label>{{ $t('IP') }}</label>
+          <span>{{ speaker.ip }}</span>
         </div>
         <div class="column">
           <label>{{ $t('position') }}</label>
@@ -34,8 +37,9 @@
           </span>
         </div>
         <div class="column">
-          <label>{{ $t('connection state')}}</label>
-          <span :class="speaker.cTime ? 'success' : 'warn'">{{ speaker.cTime ? $t('connected') : $t('disconnected') }}</span>
+          <label>{{ $t('connection state') }}</label>
+          <span :class="speaker.cTime ? 'success' : 'is-danger'">{{ speaker.cTime ? $t('connected') : $t('disconnected')
+          }}</span>
         </div>
         <div class="column block">
           <label>{{ $t('sample rates supported') }}</label>
@@ -72,38 +76,26 @@
 <script>
 import VueSlider from 'vue-slider-component';
 import 'vue-slider-component/theme/antd.css';
-import { throttleFunction } from '@/common/throttle';
+import Volume from '@/components/Volume';
 import * as ApiLine from '@/api/line';
 import * as ApiSpeaker from '@/api/speaker';
 import { socket } from '@/common/request';
-
-let throttleTimer;
 
 export default {
   name: 'Speaker',
   components: {
     VueSlider,
+    Volume
   },
   data() {
     return {
       id: 0,
-      speaker: {},
+      speaker: {vol:0},
       lineList: [],
       isSpeakerNameEdit: false,
-      volumeLevelProcess(dotsPos) {
-        return [[0, 0, { backgroundColor: 'pink' }]];
-      },
     };
   },
   computed: {
-    volume: {
-      get() {
-        return this.speaker.vol;
-      },
-      set(value) {
-        this.speaker.volume = value;
-      },
-    },
     channel: {
       get() {
         return this.speaker.ch > 0 ? this.speaker.ch + '' : '-1';
@@ -166,14 +158,15 @@ export default {
         .catch(code => {
           this.$router.replace('/speakers');
         });
-
-      throttleTimer = throttleFunction(vol => {
-        ApiSpeaker.setVolume(this.speaker.id, vol);
-      }, 200);
     },
-    volumeChanged(v) {
-      if (v === 'finally') return throttleTimer.finally();
-      throttleTimer(v);
+    onVolumeChanged(v) {
+      ApiSpeaker.setVolume(this.speaker.id, v).then(() => {
+        if (typeof v === 'boolean') {
+          this.speaker.mute = v
+        } else {
+          this.speaker.vol = v
+        }
+      })
     },
     onNameChange() {
       if (!this.speaker.newName || this.speaker.name === this.speaker.newName || this.speaker.newName.length === 0) {
@@ -228,7 +221,7 @@ export default {
   margin-top: 0rem;
   display: flex;
 
-  .vue-slider {
+  .volume-controller {
     flex: 2 1 auto;
     margin: 0 2rem;
   }
@@ -258,6 +251,7 @@ export default {
       align-items: center;
       line-height: 1rem;
       display: flex;
+      flex-wrap: wrap;
 
       .tag {
         // padding: 1px 3px;
@@ -271,9 +265,4 @@ export default {
   }
 }
 
-@media only screen and (max-width: 479px) {
-  .volume {
-    padding: 1rem 1rem;
-  }
-}
 </style>

@@ -7,7 +7,6 @@ import (
 
 	"github.com/go-ini/ini"
 	"github.com/zwcway/castserver-go/common/lg"
-	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/driver/sqlserver"
@@ -43,8 +42,8 @@ func openDatabase(dbstr string) *gorm.DB {
 	switch scheme {
 	case "sqlite":
 		dialector = sqlite.Open(dbUrl.String()[2:])
-	case "mysql":
-		dialector = mysql.Open(dbUrl.String()[2:])
+	// case "mysql":
+	// 	dialector = mysql.Open(dbUrl.String()[2:])
 	case "postgres", "pg":
 		dialector = postgres.Open(postgresDSN(dbUrl, false))
 	case "pgs":
@@ -99,8 +98,8 @@ func getDSN(db *gorm.DB) string {
 	d := db.Dialector
 	if sd, ok := d.(*sqlite.Dialector); ok {
 		return "sqlite://" + sd.DSN
-	} else if sd, ok := d.(*mysql.Dialector); ok {
-		return "mysql://" + sd.Config.DSN
+		// } else if sd, ok := d.(*mysql.Dialector); ok {
+		// 	return "mysql://" + sd.Config.DSN
 	} else if sd, ok := d.(*postgres.Dialector); ok {
 		return "postgres://" + sd.Config.DSN
 	} else if sd, ok := d.(*sqlserver.Dialector); ok {

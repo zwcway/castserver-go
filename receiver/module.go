@@ -21,14 +21,12 @@ func (receiveModel) Init(uctx utils.Context) error {
 	ctx = uctx
 	log = ctx.Logger("receiver")
 
-	registerBus()
-
-	return nil
+	err := initDlna()
+	return err
 }
 
 func (receiveModel) Start() error {
-	err := initDlna()
-	return err
+	return nil
 }
 
 func (receiveModel) DeInit() {

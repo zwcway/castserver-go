@@ -11,7 +11,7 @@ type LineError struct {
 }
 
 func (e *LineError) Error() string {
-	return fmt.Sprintf("The line %s(%d) got error: %s", e.Line.Name, e.Line.ID, e.Err)
+	return fmt.Sprintf("The line %s(%d) got error: %s", e.Line.LineName, e.Line.ID, e.Err)
 }
 
 type UnknownLineError struct {

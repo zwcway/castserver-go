@@ -16,18 +16,18 @@ var (
 type decoderModule struct{}
 
 func (decoderModule) Init(ctx utils.Context) error {
-	bus.Register("get audioinfo", func(a ...any) error {
+	bus.Register("get audioinfo", func(o any, a ...any) error {
 		ai := a[0].(*playlist.AudioInfo)
 
 		return ffmpeg.AudioInfo(ai.Url, ai)
 	})
 
-	bus.Register("get resample element", func(a ...any) error {
-		// from := a[0]
-		resample := a[1].(*stream.ResampleElement)
-		format := a[2].(audio.Format)
-
-		*resample = NewResample(format)
+	stream.BusResample.Register(func(resample *stream.ResampleElement, format *audio.Format) error {
+		if format == nil {
+			*resample = NewResample(audio.InternalFormat())
+		} else {
+			*resample = NewResample(*format)
+		}
 		return nil
 	})
 

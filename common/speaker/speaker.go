@@ -25,10 +25,10 @@ type SpeakerConfig struct {
 }
 
 type Speaker struct {
-	ID        SpeakerID `gorm:"column:id;primaryKey"`
-	LineId    LineID    `gorm:"column:line_id;index"`
-	Name      string    `gorm:"column:name"`
-	Supported bool      `gorm:"column:supported"` // 是否兼容
+	ID          SpeakerID `gorm:"column:id;primaryKey"`
+	LineId      LineID    `gorm:"column:line_id;index"`
+	SpeakerName string    `gorm:"column:name"`
+	Supported   bool      `gorm:"column:supported"` // 是否兼容
 
 	Mac   string `gorm:"column:mac"`
 	Ip    string `gorm:"column:ip"`
@@ -60,6 +60,7 @@ type Speaker struct {
 	VolumeEle    stream.VolumeElement    `gorm:"-"` // 音量
 	SpectrumEle  stream.SpectrumElement  `gorm:"-"`
 	EqualizerEle stream.EqualizerElement `gorm:"-"`
+	PlayerEle    stream.RawPlayerElement `gorm:"-"`
 
 	ConnTime time.Time      `gorm:"-"`
 	Conn     *net.UDPConn   `gorm:"-"`
@@ -72,13 +73,17 @@ type Speaker struct {
 }
 
 func (sp *Speaker) String() string {
-	return fmt.Sprintf("%s(%s/%s)", sp.Name, sp.Ip, sp.Mac)
+	return fmt.Sprintf("%s(%s/%s)", sp.SpeakerName, sp.Ip, sp.Mac)
+}
+
+func (sp *Speaker) Name() string {
+	return sp.SpeakerName
 }
 
 func (sp *Speaker) SetName(n string) {
-	sp.Name = n
-	bus.Dispatch("speaker edited", sp, "name", n)
-	bus.Dispatch("speaker name changed", sp)
+	sp.SpeakerName = n
+	bus.DispatchObj(sp, "speaker edited", "name", n)
+	bus.DispatchObj(sp, "speaker name changed")
 }
 
 func (sp *Speaker) SetIP(ip netip.Addr) {
@@ -109,8 +114,8 @@ func (sp *Speaker) Layout() audio.Layout {
 func (sp *Speaker) SetSample(f audio.Sample) {
 	sp.Rate = uint8(f.Rate)
 	sp.Bits = uint8(f.Bits)
-	bus.Dispatch("speaker edited", sp, "rate", sp.Rate, "bits", sp.Bits)
-	bus.Dispatch("speaker format changed", sp)
+	bus.DispatchObj(sp, "speaker edited", "rate", sp.Rate, "bits", sp.Bits)
+	bus.DispatchObj(sp, "speaker format changed")
 }
 
 func (sp *Speaker) SampleChannel() audio.Channel {
@@ -126,8 +131,8 @@ func (sp *Speaker) SetChannel(ch audio.Channel) {
 	if sp.Line != nil {
 		sp.Line.refresh()
 	}
-	bus.Dispatch("speaker edited", sp, "channel", sp.Channel)
-	bus.Dispatch("speaker channel changed", sp)
+	bus.DispatchObj(sp, "speaker edited", "channel", sp.Channel)
+	bus.DispatchObj(sp, "speaker channel changed")
 }
 
 func (sp *Speaker) IsOnline() bool {
@@ -155,8 +160,8 @@ func (sp *Speaker) SetVolume(vol uint8, mute bool) {
 	sp.VolumeEle.SetVolume(float64(vol) / 100)
 	sp.VolumeEle.SetMute(mute)
 
-	bus.Dispatch("speaker edited", sp, "volume", vol, "mute", mute)
-	bus.Dispatch("speaker volume changed", sp)
+	bus.DispatchObj(sp, "speaker edited", "volume", vol, "mute", mute)
+	bus.DispatchObj(sp, "speaker volume changed")
 }
 
 func (sp *Speaker) SetOffline() {
@@ -210,8 +215,8 @@ func (sp *Speaker) SetLine(newLine *Line) {
 	}
 	sp.SetChannel(audio.Channel_NONE)
 
-	bus.Dispatch("speaker edited", sp, "line_id", sp.LineId)
-	bus.Dispatch("speaker line changed", sp, ol)
+	bus.DispatchObj(sp, "speaker edited", "line_id", sp.LineId)
+	bus.DispatchObj(sp, "speaker line changed", ol)
 }
 
 func (l *Speaker) IsDeleted() bool {
@@ -222,7 +227,17 @@ func (l *Speaker) IsDeleted() bool {
 }
 
 func (sp *Speaker) Save() {
-	bus.Dispatch("save speaker", sp)
+	bus.DispatchObj(sp, "save speaker")
+}
+
+func (sp *Speaker) Elements() []stream.Element {
+	return []stream.Element{
+		sp.MixerEle,
+		sp.EqualizerEle,
+		sp.PlayerEle,
+		sp.SpectrumEle,
+		sp.VolumeEle,
+	}
 }
 
 func (sp *Speaker) init() {
@@ -230,21 +245,16 @@ func (sp *Speaker) init() {
 	sp.VolumeEle = element.NewVolume(float64(sp.Volume) / 100)
 	sp.SpectrumEle = element.NewSpectrum()
 	sp.EqualizerEle = element.NewEqualizer(nil)
-	sp.PipeLine = pipeline.NewPipeLine(sp.Format(),
-		sp.MixerEle,
-		sp.EqualizerEle,
-		sp.SpectrumEle,
-		sp.VolumeEle,
-	)
+	sp.PlayerEle = element.NewPlayer()
+	sp.PipeLine = pipeline.NewPipeLine(sp.Format(), sp.Elements()...)
 }
 
-func (sp *Speaker) Dispatch(e string, args ...any) error {
-	args = append([]any{sp}, args...)
-	return bus.Dispatch(e, args...)
+func (o *Speaker) Dispatch(e string, args ...any) error {
+	return bus.DispatchObj(o, e, args...)
 }
 
-func (sp *Speaker) Register(e string, c func(a ...any) error) *bus.HandlerData {
-	return bus.RegisterObj(sp, e, c)
+func (o *Speaker) Register(e string, c func(o any, a ...any) error) *bus.HandlerData {
+	return bus.RegisterObj(o, e, c)
 }
 
 func CountSpeaker() int {
@@ -288,7 +298,7 @@ func NewSpeaker(ip string, line LineID, channel audio.Channel) (*Speaker, error)
 
 	sp.Save()
 
-	bus.Dispatch("speaker created", &sp)
+	BusSpeakerCreated.Dispatch(&sp)
 
 	return &sp, nil
 }
@@ -310,14 +320,10 @@ func DelSpeaker(id SpeakerID) error {
 
 	sp.PipeLine.Close()
 
-	bus.Dispatch("speaker deleted", sp)
+	BusSpeakerDeleted.Dispatch(sp)
 
+	sp.PipeLine.Close()
 	bus.UnregisterObj(sp)
-	bus.UnregisterObj(sp.MixerEle)
-	bus.UnregisterObj(sp.EqualizerEle)
-	bus.UnregisterObj(sp.VolumeEle)
-	bus.UnregisterObj(sp.SpectrumEle)
-	bus.UnregisterObj(sp.PipeLine)
 
 	return nil
 }
