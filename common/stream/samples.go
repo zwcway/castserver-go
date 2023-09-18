@@ -63,12 +63,12 @@ func (s *Samples) SetRate(f audio.Rate) {
 }
 
 // 在 SourceStreamer 中调用
-func (s *Samples) SetFormatAndIndex(f audio.Format, ci *audio.ChannelIndex) {
+func (s *Samples) SetFormatAndIndex(f audio.Format, ci audio.ChannelIndex) {
 	if s.Format == f {
 		return
 	}
 	s.Format = f
-	s.ChannelIndex = *ci
+	s.ChannelIndex = ci
 }
 
 // 更改声道布局
@@ -108,13 +108,13 @@ func (s *Samples) setLayout(f audio.Layout) {
 	// s.setChannelIndex()
 }
 
-func (s *Samples) SetChannelIndex(ci *audio.ChannelIndex) {
+func (s *Samples) SetChannelIndex(ci audio.ChannelIndex) {
 	if ci == nil {
-		s.ChannelIndex = *s.Format.ChannelIndex()
+		s.ChannelIndex = s.Format.ChannelIndex()
 		return
 	}
 
-	s.ChannelIndex = *ci
+	s.ChannelIndex = ci
 }
 
 func (s *Samples) LessThan(r *Samples) bool {
@@ -458,7 +458,7 @@ func reuseSamples(s *Samples, p []byte, format audio.Format) {
 	s.RequestNbSamples = samples
 	s.Format = format
 	s.fmt = format
-	s.ChannelIndex = *format.ChannelIndex()
+	s.ChannelIndex = format.ChannelIndex()
 
 	s.setLayout(format.Layout)
 }

@@ -75,7 +75,7 @@ func (m *Mixer) Add(ss ...stream.SourceStreamer) {
 	m.decideFormat()
 }
 
-func (m *Mixer) onSourceFormatChanged(ss stream.SourceStreamer, format *audio.Format, channelIndex *audio.ChannelIndex) error {
+func (m *Mixer) onSourceFormatChanged(ss stream.SourceStreamer, format *audio.Format, channelIndex audio.ChannelIndex) error {
 	m.decideFormat()
 	return nil
 }
@@ -166,7 +166,7 @@ func (m *Mixer) SetFormat(format audio.Format) {
 	format.Bits = audio.Bits_DEFAULT
 
 	m.buffer.ResizeDuration(config.AudioBuferMSDuration, format)
-	stream.BusMixerFormatChanged.Dispatch(m, &format, &m.buffer.ChannelIndex)
+	stream.BusMixerFormatChanged.Dispatch(m, &format, m.buffer.ChannelIndex)
 
 	if m.resample != onResample {
 		// 通知所有输入源变更输出格式

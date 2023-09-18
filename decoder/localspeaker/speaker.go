@@ -76,7 +76,7 @@ func Init() error {
 func registerEventBus() {
 	speaker.BusLineCreated.Register(AddLine)
 	speaker.BusLineDeleted.Register(RemoveLine)
-	stream.BusMixerFormatChanged.Register(mixer, func(m stream.MixerElement, format *audio.Format, channelIndex *audio.ChannelIndex) error {
+	stream.BusMixerFormatChanged.Register(mixer, func(m stream.MixerElement, format *audio.Format, channelIndex audio.ChannelIndex) error {
 		if sampleReader.samples == nil {
 			sampleReader.samples = stream.NewSamplesDuration(config.AudioBuferMSDuration, *format)
 		} else {

@@ -112,6 +112,10 @@ func (sp *Speaker) Layout() audio.Layout {
 }
 
 func (sp *Speaker) SetSample(f audio.Sample) {
+	if sp.Rate == uint8(f.Rate) && sp.Bits == uint8(f.Bits) {
+		return
+	}
+
 	sp.Rate = uint8(f.Rate)
 	sp.Bits = uint8(f.Bits)
 	bus.DispatchObj(sp, "speaker edited", "rate", sp.Rate, "bits", sp.Bits)

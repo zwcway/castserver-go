@@ -36,7 +36,7 @@ func apiLineEdit(c *websockets.WSConnection, req Requester, log log1.Logger) (re
 	}
 
 	if p.SpectrumLogAxis != nil {
-		nl.SpectrumEle.SetLogAxis(*p.SpectrumLogAxis)
+		nl.Input.SpectrumEle.SetLogAxis(*p.SpectrumLogAxis)
 	}
 
 	ret = true

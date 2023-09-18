@@ -212,7 +212,7 @@ export default {
 #debug-layout {
   .debug-btn {
     position: fixed;
-    bottom: 1rem;
+    bottom: 4rem;
     right: 0;
     width: 32px;
     height: 32px;

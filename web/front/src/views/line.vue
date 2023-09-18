@@ -1,8 +1,8 @@
 <template>
-  <div class="line-page" :class="{ 'select-channel': specifyChannel >= 0 }">
+  <div class="line-page" :class="{ 'select-channel': specifyChannel >= 0, 'is-player': isPlayer }">
     <div class="player" v-if="isPlayer" @touchstart.stop @mousedown.stop>
       <span>{{ currentDuration }}</span>
-      <VueSlider v-model="line.source.cur" :min="0" :max="line.source.dur" tooltipPlacement="bottom"
+      <VueSlider v-model="line.source.cur" :min="0" :max="line.source.dur" tooltipPlacement="top"
         :tooltipFormatter="playerSliderFormater" @drag-start="onPlayerSeekStart" @drag-end="onPlayerSeekStop" />
       <span>{{ totalDuration }}</span>
     </div>
@@ -152,7 +152,7 @@ import '@/assets/css/speaker.scss';
 const layoutDefault = '2-0';
 
 export default {
-  name: 'Speaker',
+  name: 'LineSpeakers',
   components: {
     VueSlider,
     Equalizer,
@@ -293,9 +293,7 @@ export default {
       ApiLine.removelistenAll();
 
       cancelAnimationFrame(this.specturmCtx.spRequestId);
-      this.specturmCtx.ctx = null;
-      this.specturmCtx.SP = null;
-      this.specturmCtx.level.clear();
+      this.specturmCtx = {};
 
       this.$destroyAll();
       document.removeEventListener('keyup', this.onDocumentKeyUp);
@@ -359,7 +357,6 @@ export default {
       } else {
         // this.onSpectrumChange({ l: [this.line.id, 0], s: [] })
         cancelAnimationFrame(this.specturmCtx.spRequestId)
-        // this.specturmCtx.level.clear();
       }
 
       ApiLine.listenLineInput(this.line.id, s => {
@@ -392,6 +389,8 @@ export default {
           this.onShowChannelInfo(-1);
 
           this.$nextTick(() => {
+            if (!this.specturmCtx.level) return;
+
             this.specturmCtx.level.clear();
             this.specturmCtx.level.push(
               'line-' + this.line.id,
@@ -792,9 +791,21 @@ export default {
 .line-page {
   position: relative;
 
+  &.is-player::after {
+    content: "";
+    display: block;
+    height: 4rem;
+  }
   .player {
     padding: 1rem 3rem;
     display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 99;
+    background-color: var(--color-body-bg);
+    border-top: 1px solid var(--color-secondary-bg);
     flex-direction: row;
     align-items: center;
     justify-items: center;

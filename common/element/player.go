@@ -176,7 +176,7 @@ func (o *Player) IsPlaying() bool {
 	return len(o.streamers) != 0
 }
 
-func (o *Player) ChannelIndex() *audio.ChannelIndex {
+func (o *Player) ChannelIndex() audio.ChannelIndex {
 	return o.format.ChannelIndex()
 }
 

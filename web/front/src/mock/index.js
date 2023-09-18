@@ -73,7 +73,18 @@ Socket.addBeforeSend('setSpeaker', params => { });
 Socket.addBeforeSend('lineVolume', params => { });
 Socket.addBeforeSend('setLineEQ', params => { });
 Socket.addBeforeSend('clearLineEQ', params => { });
-Socket.addBeforeSend('linePlayer', params => { return {} });
+
+let layout = ['1.0', '2.0', '2.1', '3.0', '5.0', '6.0', '7.0', '7.1', '7.1.2', '7.1.4']
+
+Socket.addBeforeSend('linePlayer', params => { return mock.mock({
+  rate: '@integer(44100, 384000)',
+  bits: '@integer(8,64)',
+  channels: '@integer(1, 16)',
+  layout: mock.Random.pick(layout),
+  type: 1,
+  cur: '@integer(0,100)',
+  dur: '@integer(1,1000)',
+}) });
 
 Socket.addBeforeSend('lineList', function () {
   return nomarlTpl(
@@ -87,7 +98,6 @@ Socket.addBeforeSend('lineList', function () {
   );
 });
 Socket.addBeforeSend('lineInfo', function (params) {
-  let layout = ['1.0', '2.0', '2.1', '3.0', '5.0', '6.0', '7.0', '7.1', '7.1.2', '7.1.4']
   return mock.mock({
     id: params.id,
     name: '@ctitle',
@@ -99,7 +109,7 @@ Socket.addBeforeSend('lineInfo', function (params) {
       bits: '@integer(8,64)',
       channels: '@integer(1, 16)',
       layout: mock.Random.pick(layout),
-      type: '@integer(2,4)',
+      type: '@integer(1,4)',
       cur: '@integer(0,100)',
       dur: '@integer(1,1000)',
     },

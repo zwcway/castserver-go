@@ -86,7 +86,7 @@ type AVFormatContext struct {
 	finished bool
 
 	ctx                *C.GOAVDecoder
-	channelIndex       *audio.ChannelIndex
+	channelIndex       audio.ChannelIndex
 	outputFmt          audio.Format
 	outBufferSize      int //
 	outBufferNbSamples int
@@ -164,7 +164,7 @@ func (c *AVFormatContext) AudioFormat() audio.Format {
 	return c.format
 }
 
-func (c *AVFormatContext) ChannelIndex() *audio.ChannelIndex {
+func (c *AVFormatContext) ChannelIndex() audio.ChannelIndex {
 	return c.channelIndex
 }
 

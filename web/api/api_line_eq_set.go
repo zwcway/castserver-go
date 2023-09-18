@@ -46,8 +46,8 @@ func apiLineSetEqualizer(c *websockets.WSConnection, req Requester, log log1.Log
 		return nil, err
 	}
 
-	on := nl.EqualizerEle.IsOn()
-	nl.EqualizerEle.On()
+	on := nl.Input.EqualizerEle.IsOn()
+	nl.Input.EqualizerEle.On()
 
 	if !on {
 		nl.Dispatch("line eq power", true)

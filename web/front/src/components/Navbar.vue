@@ -22,18 +22,18 @@
         </div>
         <ul class="navbar-list">
           <li class="navbar-item" :class="{ 'is-active': $route.name === 'speakers' }">
-            <a-badge count="5">
             <a :href="$router.resolve({ name: 'speakers' }).href" @click="reload">
-              <svg-icon icon-class="speakers" class="icon" :size="0" />
-              <span>{{ $t('speaker') }}</span>
+              <a-badge count="5" show-zero>
+                <svg-icon icon-class="speakers" class="icon" :size="0" />
+              </a-badge>
+              <span class="name">{{ $t('speaker') }}</span>
             </a>
-          </a-badge>
           </li>
           <li class="navbar-item" v-for="(line, i) in lines" :key="line.id"
             :class="{ 'is-active': isLineRoute(line.id) }">
             <a @click="toRouteLine(i, line)">
               <svg-icon icon-class="music" class="icon" :size="0" />
-              <span :id="'nav-' + line.id">{{ line.name }}</span>
+              <span class="name" :id="'nav-' + line.id">{{ line.name }}</span>
               <svg-icon icon-class="x" class="icon delete-line" :size="0" v-show="!line.def && isLineRoute(line.id)"
                 v-on:click.native.stop.prevent="
                   // 需要使用 native ，否则组件无法监听事件
@@ -44,7 +44,7 @@
           <li class="navbar-item">
             <a v-on:click="newLineClick" class="newline">
               <svg-icon icon-class="speakers" class="icon" :size="0" />
-              <span v-show="!newLine">{{ $t('new') }}</span>
+              <span class="name" v-show="!newLine">{{ $t('new') }}</span>
               <input type="text" id="newline-input-name" class="line-name" maxlength="10" v-show="newLine"
                 v-model="newLineName" :class="{
                   'animate__animated animate__headShake': newLineNameError,
@@ -363,6 +363,7 @@ nav {
           top: 3px;
           right: 5px;
           width: 0.8rem;
+          height: 1rem;
           color: var(--color-secondary);
 
           &:hover {
@@ -370,7 +371,12 @@ nav {
           }
         }
 
-        span {
+        .ant-badge-count {
+          background-color: var(--color-body-bg);
+          color: var(--color-text);
+          box-shadow: 0 0 0 1px var(--color-border-hover) inset;
+        }
+        .name {
           font-size: 0.7rem;
           margin-top: 0.5rem;
           max-width: calc(var(--size-navbar-item) - 15px);
@@ -397,6 +403,9 @@ nav {
 
         a {
           color: var(--color-border-hover);
+          .name {
+            color: var(--color-border-hover);
+          }
         }
 
         &+.navbar-item {
@@ -468,7 +477,7 @@ nav {
     }
 
     &.navbar-start {
-      box-shadow: 0.2rem 0 1rem -0.5rem hsl(0deg 0% 29%);
+      box-shadow: 0.2rem 0 1rem -0.5rem var(--color-primary-bg-for-transparent);
 
       .navbar-item {
         border-left: none;
@@ -481,7 +490,7 @@ nav {
     }
 
     &.navbar-end {
-      box-shadow: -0.2rem 0 1rem -0.5rem hsl(0deg 0% 29%);
+      box-shadow: -0.2rem 0 1rem -0.5rem var(--color-primary-bg-for-transparent);
 
       .navbar-item {
         border-right: none;

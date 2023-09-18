@@ -195,7 +195,7 @@ func AVFormatFromBits(b audio.Bits) C.enum_AVSampleFormat {
 	return C.AV_SAMPLE_FMT_NONE
 }
 
-func ChannelsFromLayout(layout uint64) (m audio.Layout, index *audio.ChannelIndex) {
+func ChannelsFromLayout(layout uint64) (m audio.Layout, index audio.ChannelIndex) {
 	acSlice := []audio.Channel{}
 
 	index = m.ChannelIndex()

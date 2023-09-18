@@ -34,14 +34,6 @@ type Line struct {
 	Input  stream.Source `gorm:"-"` // 输入格式
 	Output audio.Format  `gorm:"-"` // 输出格式
 
-	MixerEle     stream.MixerElement     `gorm:"-"`
-	VolumeEle    stream.VolumeElement    `gorm:"-"`
-	SpectrumEle  stream.SpectrumElement  `gorm:"-"`
-	EqualizerEle stream.EqualizerElement `gorm:"-"`
-	PlayerEle    stream.RawPlayerElement `gorm:"-"`
-	// ResampleEle  stream.ResampleElement  `gorm:"-"`
-	// PusherEle    stream.SwitchElement    `gorm:"-"`
-
 	isDeleted bool
 
 	speakers []*Speaker   `gorm:"-"`
@@ -134,9 +126,9 @@ func (l *Line) syncEqualizer() {
 		l.EQ.Eq = dsp.NewDataProcess(0)
 	}
 	eq := l.EQ.Eq
-	l.EqualizerEle.SetDelay(eq.Delay)
-	l.EqualizerEle.SetFilterType(eq.Type)
-	l.EqualizerEle.SetEqualizer(eq.FEQ)
+	l.Input.EqualizerEle.SetDelay(eq.Delay)
+	l.Input.EqualizerEle.SetFilterType(eq.Type)
+	l.Input.EqualizerEle.SetEqualizer(eq.FEQ)
 
 	l.Dispatch("line eq changed")
 }
@@ -177,6 +169,7 @@ func (l *Line) RemoveSpeaker(sp *Speaker) {
 	l.RemoveSpeakerById(sp.ID)
 }
 
+// 更改输出格式
 func (l *Line) SetOutput(f audio.Format) {
 	if l.Output.Equal(f) {
 		return
@@ -184,6 +177,9 @@ func (l *Line) SetOutput(f audio.Format) {
 
 	old := l.Output
 	l.Output = f
+
+	l.Input.SetFormat(f)
+
 	for _, sp := range l.speakers {
 		sp.SetSample(f.Sample)
 	}
@@ -192,7 +188,7 @@ func (l *Line) SetOutput(f audio.Format) {
 }
 
 func (l *Line) SetVolume(vol uint8, mute bool) {
-	old := l.VolumeEle.Volume()
+	old := l.Input.VolumeEle.Volume()
 
 	args := []any{}
 	if l.Volume != vol {
@@ -205,8 +201,8 @@ func (l *Line) SetVolume(vol uint8, mute bool) {
 	}
 	BusLineEdited.Dispatch(l, args...)
 
-	l.VolumeEle.SetVolume(float64(vol) / 100)
-	l.VolumeEle.SetMute(mute)
+	l.Input.VolumeEle.SetVolume(float64(vol) / 100)
+	l.Input.VolumeEle.SetMute(mute)
 
 	BusLineVolumeChanged.Dispatch(l, old)
 }
@@ -219,25 +215,18 @@ func (l *Line) SetName(n string) {
 }
 
 func (l *Line) refresh() {
-	channels := []audio.Channel{}
-
 	for i := 0; i < len(l.spsByCh); i++ {
-		l.spsByCh[i] = nil
+		l.spsByCh[i] = make([]*Speaker, 0)
 	}
 
 	for _, sp := range l.speakers {
 		l.spsByCh[sp.Channel] = append(l.spsByCh[sp.Channel], sp)
-		channels = append(channels, sp.SampleChannel())
 	}
-
-	format := audio.Format{}
-	format.Rate, format.Bits = l.decideOutputFormat()
-	format.Layout = audio.NewLayout(channels...)
-	l.SetOutput(format)
 
 	BusLineRefresh.Dispatch(l)
 }
 
+// 计算设备的格式支持情况
 func (l *Line) SpeakerSamplesFromat() (rm audio.RateMask, bm audio.BitsMask) {
 	rm.CombineSlice(config.SupportAudioRates)
 	bm.CombineSlice(config.SupportAudioBits)
@@ -248,29 +237,30 @@ func (l *Line) SpeakerSamplesFromat() (rm audio.RateMask, bm audio.BitsMask) {
 	return
 }
 
-func (l *Line) decideOutputFormat() (r audio.Rate, b audio.Bits) {
+// 根据设备的支持程度，自动确定输出格式
+func (l *Line) decideOutputFormat() audio.Format {
+	channels := []audio.Channel{}
+	format := audio.DefaultFormat()
+
 	rm, bm := l.SpeakerSamplesFromat()
-	r = rm.Max()
-	b = bm.Max()
-
-	if rm.Isset(l.Input.Format.Rate) {
-		r = l.Input.Format.Rate
-	}
-	if bm.Isset(l.Input.Format.Bits) {
-		b = l.Input.Format.Bits
+	if rm.IsValid() && bm.IsValid() {
+		format.Rate = rm.Max()
+		format.Bits = bm.Max()
 	}
 
-	return
-}
+	// if rm.Isset(l.Output.Rate) {
+	// 	format.Rate = l.Output.Rate
+	// }
+	// if bm.Isset(l.Output.Bits) {
+	// 	format.Bits = l.Output.Bits
+	// }
 
-func (l *Line) Elements() []stream.Element {
-	return []stream.Element{
-		l.MixerEle,
-		l.EqualizerEle,
-		l.PlayerEle,
-		l.SpectrumEle,
-		l.VolumeEle,
+	for _, sp := range l.speakers {
+		channels = append(channels, sp.SampleChannel())
 	}
+	format.Layout = audio.NewLayout(channels...)
+
+	return format
 }
 
 func (l *Line) IsDeleted() bool {
@@ -280,23 +270,6 @@ func (l *Line) IsDeleted() bool {
 func (l *Line) ApplyInput(ss stream.SourceStreamer) {
 	l.Input.ApplySource(ss)
 	BusLineInputChanged.Dispatch(l, ss)
-
-	stream.BusSourceFormatChanged.Register(ss, l.onInputChanged)
-}
-
-func (l *Line) onInputChanged(ss stream.SourceStreamer, format *audio.Format, channelIndex *audio.ChannelIndex) error {
-	inFormat := ss.AudioFormat()
-	if fs, ok := ss.(stream.FileStreamer); ok {
-		format := audio.InternalFormat()
-		format.InitFrom(inFormat)
-		fs.SetOutFormat(format)
-	}
-	if l.Input.Format != inFormat {
-		l.Input.Format = inFormat
-		l.refresh()
-	}
-	l.Dispatch("line source format changed", ss, format)
-	return nil
 }
 
 func (l *Line) Save() {
@@ -306,16 +279,21 @@ func (l *Line) Save() {
 func (line *Line) init() {
 	line.spsByCh = make([][]*Speaker, audio.Channel_MAX)
 
-	line.SetOutput(audio.DefaultFormat())
+	line.SetOutput(line.decideOutputFormat())
 
-	line.VolumeEle = element.NewVolume(float64(line.Volume) / 100)
-	line.MixerEle = element.NewMixer()
-	line.SpectrumEle = element.NewSpectrum()
-	line.EqualizerEle = element.NewEqualizer(line.EQ.Eq)
-	line.PlayerEle = element.NewPlayer()
+	line.Input.MixerEle = element.NewMixer()
+	line.Input.VolumeEle = element.NewVolume(float64(line.Volume) / 100)
+	line.Input.SpectrumEle = element.NewSpectrum()
+	line.Input.EqualizerEle = element.NewEqualizer(line.EQ.Eq)
+	line.Input.PlayerEle = element.NewPlayer()
 
-	line.Input.Mixer = line.MixerEle
-	line.Input.PipeLine = pipeline.NewPipeLine(line.Output, line.Elements()...)
+	line.Input.PipeLine = pipeline.NewPipeLine(line.Output,
+		line.Input.MixerEle,
+		line.Input.EqualizerEle,
+		line.Input.PlayerEle,
+		line.Input.SpectrumEle,
+		line.Input.VolumeEle,
+	)
 
 	line.syncEqualizer()
 	line.syncRoute()

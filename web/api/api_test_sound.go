@@ -53,7 +53,7 @@ func apiTestSound(c *websockets.WSConnection, req Requester, log log1.Logger) (r
 		default:
 			return true, nil
 		}
-		nl.PlayerEle.AddPCMWithChannel(ch, sounds.Format(), chsound)
+		nl.Input.PlayerEle.AddPCMWithChannel(ch, sounds.Format(), chsound)
 	}
 
 	if p.Speaker != nil {

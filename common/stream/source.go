@@ -18,12 +18,17 @@ const (
 )
 
 type Source struct {
-	From   SourceType
-	Format audio.Format
+	From SourceType
 
 	PipeLine PipeLiner
 
-	Mixer MixerElement
+	MixerEle     MixerElement
+	VolumeEle    VolumeElement
+	SpectrumEle  SpectrumElement
+	EqualizerEle EqualizerElement
+	PlayerEle    RawPlayerElement
+	// ResampleEle  ResampleElement
+	// PusherEle    SwitchElement
 
 	fs FileStreamer
 	rs ReceiverStreamer
@@ -34,7 +39,6 @@ type Source struct {
 }
 
 func (s *Source) ApplySource(f SourceStreamer) {
-	s.Mixer.Add(f)
 
 	if fs, ok := f.(FileStreamer); ok {
 		s.From = ST_File
@@ -44,7 +48,11 @@ func (s *Source) ApplySource(f SourceStreamer) {
 		s.rs = rs
 	}
 
-	s.Format = f.AudioFormat()
+	s.MixerEle.Add(f)
+}
+
+func (s *Source) SetFormat(f audio.Format) {
+	s.MixerEle.SetFormat(f)
 }
 
 func (s *Source) FileStreamer() FileStreamer {

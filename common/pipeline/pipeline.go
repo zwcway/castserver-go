@@ -85,7 +85,7 @@ func (p *PipeLine) Append(s ...stream.Element) {
 func (p *PipeLine) append(ss stream.Element) {
 	if sc, ok := ss.(stream.MixerElement); ok {
 		// 注册样本格式变更的回调
-		stream.BusMixerFormatChanged.Register(sc, func(m stream.MixerElement, format *audio.Format, channelIndex *audio.ChannelIndex) error {
+		stream.BusMixerFormatChanged.Register(sc, func(m stream.MixerElement, format *audio.Format, channelIndex audio.ChannelIndex) error {
 			p.format = *format
 			stream.BusSourceFormatChanged.Dispatch(p, format, channelIndex)
 			return nil
@@ -102,11 +102,11 @@ func (p *PipeLine) AudioFormat() audio.Format {
 	return p.format
 }
 
-func (p *PipeLine) ChannelIndex() *audio.ChannelIndex {
+func (p *PipeLine) ChannelIndex() audio.ChannelIndex {
 	if p.buffer == nil {
 		return p.format.ChannelIndex()
 	}
-	return &p.buffer.ChannelIndex
+	return p.buffer.ChannelIndex
 }
 
 func (p *PipeLine) SetOutFormat(f audio.Format) error {

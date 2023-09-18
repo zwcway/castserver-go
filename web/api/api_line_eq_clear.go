@@ -29,7 +29,7 @@ func apiLineClearEqualizer(c *websockets.WSConnection, req Requester, log log1.L
 		return nil, fmt.Errorf("line[%d] not exists", p.ID)
 	}
 
-	nl.EqualizerEle.Off()
+	nl.Input.EqualizerEle.Off()
 	nl.SetEqualizer(dsp.NewDataProcess(p.Seg))
 
 	nl.Dispatch("line eq clean")

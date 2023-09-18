@@ -33,7 +33,7 @@ func (mixer1) AudioFormat() audio.Format {
 	}
 }
 
-func (mixer1) ChannelIndex() *audio.ChannelIndex { return audio.Layout10.ChannelIndex() }
+func (mixer1) ChannelIndex() audio.ChannelIndex  { return audio.Layout10.ChannelIndex() }
 func (mixer1) SetOutFormat(f audio.Format) error { return nil }
 func (mixer1) CanRemove() bool                   { return false }
 func (mixer1) IsPlaying() bool                   { return true }

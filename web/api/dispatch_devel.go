@@ -316,7 +316,7 @@ func apiDebugStatus(c *websockets.WSConnection, req Requester, log log1.Logger) 
 			resp.FilePlaying = !fs.IsPaused()
 			resp.FileName = fs.CurrentFile()
 		}
-		resp.SpectrumLog = line.SpectrumEle.LogAxis()
+		resp.SpectrumLog = line.Input.SpectrumEle.LogAxis()
 		if line.Input.PipeLine != nil {
 			pl, _ = line.Input.PipeLine.(*pipeline.PipeLine)
 		}

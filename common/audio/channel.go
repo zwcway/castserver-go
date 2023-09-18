@@ -85,7 +85,7 @@ func (a Channel) IsValid() bool {
 	return a > Channel_NONE && a < Channel_MAX
 }
 
-type ChannelIndex = [Channel_MAX]int8
+type ChannelIndex = []int8
 type ChannelMask uint32
 
 func NewChannelMask(arr []uint8) (ChannelMask, error) {
@@ -203,8 +203,8 @@ func (m ChannelMask) SliceInt() []int {
 	return s[:j]
 }
 
-func (m ChannelMask) ChannelIndex() *ChannelIndex {
-	ci := ChannelIndex{}
+func (m ChannelMask) ChannelIndex() ChannelIndex {
+	ci := make(ChannelIndex, Channel_MAX)
 	for i := 0; i < int(Channel_MAX); i++ {
 		ci[i] = -1
 	}
@@ -213,7 +213,7 @@ func (m ChannelMask) ChannelIndex() *ChannelIndex {
 			ci[ch] = int8(i)
 		}
 	}
-	return &ci
+	return ci
 }
 
 var (
