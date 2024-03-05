@@ -5,8 +5,9 @@ Castspeaker 是一个应用于基于以太网/WIFI局域网，C/S 架构，在�
 
 # 编译
 ## 依赖
-- golang / nodejs / make / pkg-config
-- libavcodec / libavformat / libavutil / libswresample
+- `golang` / `nodejs` / `make` / `pkg-config`
+- `libavcodec` / `libavformat` / `libavutil` / `libswresample`
+- linux 下本地播放使用 alsa， 还需依赖 `libasound2-dev`
 
 ## 编译
 $ make
