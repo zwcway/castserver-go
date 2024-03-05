@@ -1,5 +1,4 @@
-#include <sysinfoapi.h>
-#include "./pipeline.h"
+#include "./ele_pipeline.h"
 
 int ele_pipeline_stream(ELE_Pipeline *p, CS_Samples *s)
 {
@@ -49,6 +48,7 @@ CS_Streamer *ele_pipeline_create_streamer(void *ele, int *power, Func_Stream str
 
     return s;
 }
+
 ELE_Pipeline *ele_create_pipeline()
 {
     ELE_Pipeline *p = (ELE_Pipeline *)av_mallocz(sizeof(ELE_Pipeline));
@@ -62,19 +62,19 @@ ELE_Pipeline *ele_create_pipeline()
     return p;
 }
 
-int ele_destory_pipeline(ELE_Pipeline **pp)
+void ele_pipeline_destory(ELE_Pipeline **pp)
 {
     if (!pp || !*pp)
-        return AVERROR(ENOMEM);
+        return;
 
     ELE_Pipeline *p = (ELE_Pipeline *)pp;
 
     if (p->buf)
         av_free(p->buf);
 
-    if (p->eles)
-        av_free(p->eles);
+    while (p->size--)
+        if (p->eles[p->size])
+            av_free(p->eles[p->size]);
 
     *pp = NULL;
-    return 0;
 }

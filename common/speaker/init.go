@@ -58,6 +58,7 @@ func linkLineAndSpeaker() {
 				bus.Dispatch("speaker created", sp)
 			}
 		}
+
 		bus.Dispatch("line created", line)
 	}
 _sp_:

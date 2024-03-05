@@ -1,7 +1,6 @@
 package pipeline
 
 import (
-	"sync"
 	"time"
 
 	"github.com/zwcway/castserver-go/common/audio"
@@ -34,7 +33,6 @@ type PipeLine struct {
 
 	cost    time.Duration
 	maxCost time.Duration
-	locker  sync.Mutex
 }
 
 func (p *PipeLine) Len() int {
@@ -137,12 +135,13 @@ func (p *PipeLine) Stream(sample *stream.Samples) {
 		return
 	}
 
-	p.locker.Lock()
-	defer p.locker.Unlock()
-
 	buf := sample
 	if buf == nil {
 		buf = p.buffer
+	}
+
+	for _, s := range p.wholeStreams {
+		s.stream.OnStarting()
 	}
 
 	var t time.Time
@@ -179,13 +178,6 @@ func (p *PipeLine) LastMaxCost() time.Duration {
 
 func (p *PipeLine) Streamers() []*PipeLineStreamer {
 	return append(p.oneStreams, p.wholeStreams...)
-}
-
-func (p *PipeLine) Lock() {
-	p.locker.Lock()
-}
-func (p *PipeLine) Unlock() {
-	p.locker.Unlock()
 }
 
 func NewPipeLine(format audio.Format, eles ...stream.Element) stream.PipeLiner {

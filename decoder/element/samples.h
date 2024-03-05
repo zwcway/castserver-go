@@ -10,25 +10,23 @@
  */
 #define BUFFER_OFFSET 256
 
-#define CHANNEL_MAX 32
-
 #define SAMPLES_BY_DURATION(r, d) ((r) * (d) / 1000)
 
 int config_buffer_duration;
 
 typedef struct CS_Samples
 {
-    int req_nb_samples; // 当前样本数量
+    int req_nb_samples;  // 当前样本数量
     int last_nb_samples; // 最近一次处理后的样本数量
 
-    CS_Format format;   // 当前格式
+    CS_Format format; // 当前格式
 
     CS_Format real_fmt; // 初始格式
     int real_size;      // 初始字节数
 
     double **data;
     uint8_t **raw_data;
-    uint8_t **ptr;     // 临时保存正在处理中的样本数组
+    uint8_t *ptr[CHANNEL_MAX]; // 临时保存正在处理中的样本数组
 
     int auto_size;
 
@@ -51,22 +49,22 @@ void cs_samples_destory(CS_Samples **s);
 
 /**
  * @brief 复制
- * 
- * @param s 
- * @param src 
- * @param size 
- * @param f 
- * @return int 
+ *
+ * @param s
+ * @param src
+ * @param size
+ * @param f
+ * @return int
  */
-int cs_samples_copy_from(CS_Samples *s, const uint8_t * const src, int nb_samples, const CS_Format f);
+int cs_samples_copy_from(CS_Samples *s, const uint8_t *const src, int nb_samples, const CS_Format f);
 
 /**
- * @brief 
- * 
- * @param s 
- * @param dst 
- * @param ch 
- * @param index 
+ * @brief
+ *
+ * @param s
+ * @param dst
+ * @param ch
+ * @param index
  */
 void cs_samples_copy_step(CS_Samples *s, void *dst, int ch, int index);
 

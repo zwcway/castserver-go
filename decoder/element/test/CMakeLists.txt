@@ -11,9 +11,19 @@ pkg_check_modules(AVUTIL REQUIRED IMPORTED_TARGET libavutil)
 pkg_check_modules(SWRESAMPLE		REQUIRED IMPORTED_TARGET libswresample)
 #pkg_check_modules(SWSCALE		REQUIRED IMPORTED_TARGET libswscale)
 
-find_package(Soundio REQUIRED)
+#find_package(libsoundio REQUIRED)
 
-add_executable(${PROJECT_NAME} speaker_test.c)
+add_executable(${PROJECT_NAME} 
+    speaker_test.c
+    ../ele_decode.c
+    ../ele_equalizer.c
+    ../ele_mixer.c
+    ../ele_pipeline.c
+    ../ele_player.c
+    ../resample.c
+    ../samples.c
+    ../speaker.c
+    )
 target_link_libraries(${PROJECT_NAME} 
     PkgConfig::AVCODEC
     PkgConfig::AVFORMAT

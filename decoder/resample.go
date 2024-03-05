@@ -41,6 +41,14 @@ func (r *Resample) Stream(samples *stream.Samples) {
 }
 
 func (r *Resample) Sample(*float64, int, int) {}
+func (e *Resample) OnStarting() {
+}
+
+func (e *Resample) OnEnding() {
+}
+
+func (e *Resample) OnFormatChanged(newFormat *audio.Format) {
+}
 
 func (r *Resample) On() {
 	r.power = true

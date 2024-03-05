@@ -107,11 +107,11 @@ func (l *Line) syncRoute() {
 	l.Dispatch("line route changed")
 }
 
-func (l *Line) Equalizer() *dsp.DataProcess {
+func (l *Line) Equalizer() *dsp.EqualizerProcessor {
 	return l.EQ.Eq
 }
 
-func (l *Line) SetEqualizer(eq *dsp.DataProcess) (err error) {
+func (l *Line) SetEqualizer(eq *dsp.EqualizerProcessor) (err error) {
 	l.EQ.Eq = eq
 
 	l.syncEqualizer()
@@ -123,12 +123,12 @@ func (l *Line) SetEqualizer(eq *dsp.DataProcess) (err error) {
 
 func (l *Line) syncEqualizer() {
 	if l.EQ.Eq == nil {
-		l.EQ.Eq = dsp.NewDataProcess(0)
+		l.EQ.Eq = dsp.NewPeakingFilterEqualizerProcessor(0)
 	}
 	eq := l.EQ.Eq
 	l.Input.EqualizerEle.SetDelay(eq.Delay)
 	l.Input.EqualizerEle.SetFilterType(eq.Type)
-	l.Input.EqualizerEle.SetEqualizer(eq.FEQ)
+	l.Input.EqualizerEle.SetEqualizer(eq.Filters)
 
 	l.Dispatch("line eq changed")
 }
@@ -149,6 +149,8 @@ func (l *Line) AppendSpeaker(sp *Speaker) {
 	if utils.SliceContains(l.speakers, sp) < 0 {
 		l.speakers = append(l.speakers, sp)
 	}
+
+	l.SetOutput(l.decideOutputFormat())
 
 	BusLineSpeakerAppended.Dispatch(l, sp)
 	l.refresh()
@@ -279,8 +281,6 @@ func (l *Line) Save() {
 func (line *Line) init() {
 	line.spsByCh = make([][]*Speaker, audio.Channel_MAX)
 
-	line.SetOutput(line.decideOutputFormat())
-
 	line.Input.MixerEle = element.NewMixer()
 	line.Input.VolumeEle = element.NewVolume(float64(line.Volume) / 100)
 	line.Input.SpectrumEle = element.NewSpectrum()
@@ -298,6 +298,7 @@ func (line *Line) init() {
 	line.syncEqualizer()
 	line.syncRoute()
 
+	line.SetOutput(line.decideOutputFormat())
 }
 
 func (o *Line) Dispatch(e string, args ...any) error {

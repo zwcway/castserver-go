@@ -1,6 +1,6 @@
 package element
 
 /*
-#include "pipeline.c"
+#include "ele_pipeline.c"
 */
 import "C"

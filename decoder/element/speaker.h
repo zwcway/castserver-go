@@ -29,4 +29,5 @@ typedef struct CS_Speaker
 
 CS_Speaker *cs_create_speaker();
 void cs_speaker_destory(CS_Speaker **s);
+int cs_speaker_setFormat(CS_Speaker *sp, CS_Format f);
 #endif // CS_SPEAKER

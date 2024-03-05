@@ -51,6 +51,15 @@ func (s *Source) ApplySource(f SourceStreamer) {
 	s.MixerEle.Add(f)
 }
 
+func (s *Source) Format() audio.Format {
+	if s.fs != nil {
+		return s.fs.AudioFormat()
+	} else if s.rs != nil {
+		return s.rs.AudioFormat()
+	}
+	return s.MixerEle.Format()
+}
+
 func (s *Source) SetFormat(f audio.Format) {
 	s.MixerEle.SetFormat(f)
 }

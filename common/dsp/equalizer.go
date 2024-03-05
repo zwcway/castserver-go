@@ -4,6 +4,7 @@ import (
 	"time"
 )
 
+// FilterType 滤波器类型
 type FilterType = uint8
 
 const (
@@ -15,97 +16,51 @@ const (
 	HighShelfFilter                       // 高切滤波器
 )
 
-type Equalizer struct {
-	Type      FilterType `jq:"t"`
-	Frequency int        `jp:"freq"`
-	Gain      float64    `jp:"g"` // 增益大小
-	Q         float64    `jp:"q"` // Q 值
-}
-
-func NewLowPass(freq int) Equalizer {
-	return Equalizer{
-		Type:      LowPassFilter,
-		Frequency: freq,
-	}
-}
-
-func NewHighPass(freq int) Equalizer {
-	return Equalizer{
-		Type:      HighPassFilter,
-		Frequency: freq,
-	}
-}
-
-func NewLowShelf(freq int) Equalizer {
-	return Equalizer{
-		Type:      LowShelfFilter,
-		Frequency: freq,
-	}
-}
-
-func NewHighShelf(freq int) Equalizer {
-	return Equalizer{
-		Type:      HighShelfFilter,
-		Frequency: freq,
-	}
-}
-
-func NewFIREqualizer(freq int, gain float64, q float64) *Equalizer {
-	return &Equalizer{
-		Type:      PeakingFilter,
-		Frequency: freq,
-		Gain:      gain,
-		Q:         q,
-	}
-}
-
-func NewIIREqualizer(freq int, gain float64, q float64) *Equalizer {
-	return &Equalizer{
-		Type:      NotchFilter,
-		Frequency: freq,
-		Gain:      gain,
-		Q:         q,
-	}
+// FilterParams 滤波器
+type FilterParams struct {
+	Frequency int     `jp:"freq"`
+	Gain      float64 `jp:"g"` // 增益大小
+	Q         float64 `jp:"q"` // Q 值
 }
 
 const FEQ_MAX_SIZE uint8 = 31
 
-type DataProcess struct {
-	Delay time.Duration `jp:"d"` // 延迟
-	Type  FilterType    `jp:"t"`
-	FEQ   []*Equalizer  `jp:"fs"`
+// EqualizerProcessor 均衡器处理器
+type EqualizerProcessor struct {
+	Delay   time.Duration   `jp:"d"` // 延迟
+	Type    FilterType      `jp:"t"`
+	Filters []*FilterParams `jp:"fs"`
 }
 
-func (d *DataProcess) AddFIR(freq int, gain, q float64) bool {
-	for i, eq := range d.FEQ {
+func (d *EqualizerProcessor) Set(freq int, gain, q float64) {
+	for i, eq := range d.Filters {
 		if eq == nil {
 			continue
 		}
 		if eq.Frequency == freq {
-			d.FEQ[i] = NewFIREqualizer(freq, gain, q)
-			return true
+			d.Filters[i] = &FilterParams{freq, gain, q}
+			return
 		}
 	}
-	for i, eq := range d.FEQ {
+	for i, eq := range d.Filters {
 		if eq == nil {
-			d.FEQ[i] = NewFIREqualizer(freq, gain, q)
-			return true
+			d.Filters[i] = &FilterParams{freq, gain, q}
+			return
 		}
 	}
-	return false
 }
 
-func (d *DataProcess) Clear(size uint8) bool {
+func (d *EqualizerProcessor) Clear(size uint8) bool {
 	if size > FEQ_MAX_SIZE {
 		return false
 	}
-	d.FEQ = make([]*Equalizer, size)
+	d.Filters = make([]*FilterParams, size)
 
 	return true
 }
 
-func NewDataProcess(size uint8) *DataProcess {
-	d := &DataProcess{
+func NewPeakingFilterEqualizerProcessor(size uint8) *EqualizerProcessor {
+	d := &EqualizerProcessor{
 		Delay: 0,
 		Type:  PeakingFilter,
 	}

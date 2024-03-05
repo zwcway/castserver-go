@@ -1,6 +1,8 @@
-#include "../spaeker.h"
+#include "../speaker.h"
 #include <unistd.h>
 #include <libavformat/avformat.h>
+#include "../ele_decode.c"
+#include "../ele_mixer.c"
 
 static char libav_errors[256] = {0};
 
@@ -28,55 +30,51 @@ int main(int argc, char *argv[])
     //     exit(1);
     // }
 
-    GOAVDecoder *ctx = NULL;
-    int rate = 0;
-    int channels = 0;
-    enum AVSampleFormat fmt = 0;
-    int ret = go_init(&ctx, fileName, &rate, &channels, &fmt);
-    if (ret < 0)
-    {
-        av_strerror(ret, libav_errors, 200);
+    ELE_Decoder *decoder = NULL;
+    ELE_Mixer *mixer = NULL;
+    ELE_Pipeline *pipeline = NULL;
+
+    CS_Speaker *speaker = NULL;
+    int err;
+    CS_Format format;
+
+    if (!(decoder = ele_create_decoder()))
         goto _exit_;
-    }
 
-    ret = go_init_resample(ctx, rate, ctx->codecCtx->channel_layout, AV_SAMPLE_FMT_DBLP);
-    if (ret < 0)
-    {
-        av_strerror(ret, libav_errors, 200);
+    if (!(mixer = ele_create_mixer(NULL)))
         goto _exit_;
-    }
 
-    GOResample *rc = NULL;
-    ret = go_swr_init(&rc, rate, ctx->codecCtx->channel_layout, fmt, rate, ctx->codecCtx->channel_layout, AV_SAMPLE_FMT_S16P);
-    if (ret < 0)
-    {
-        av_strerror(ret, libav_errors, 200);
+    if (!(pipeline = ele_create_pipeline()))
         goto _exit_;
-    }
 
-    // go_seek(ctx, 180 * 44100);
-    while (1)
-    {
-        ret = go_decode(ctx);
-        if (ret < 0)
-        {
-            av_strerror(ret, libav_errors, 200);
-            goto _exit_;
-        }
+    if (!(speaker = cs_create_speaker()))
+        goto _exit_;
 
-        rc->in_buffer = ctx->buffer;
-        
-        ret = go_convert(rc, ret);
-        if (ret < 0) {
-            av_strerror(ret, libav_errors, 200);
-            goto _exit_;
-        }
+    ele_mixer_add(mixer, ele_decoder_sourcer(decoder));
+    ele_pipeline_add(pipeline, ele_mixer_streamer(mixer));
 
-        printf("decoded samples count %d\n", ret);
-    }
+    if (err = ele_decoder_open(decoder, fileName))
+        goto _exit_;
+
+
+    ele_decoder_audioFormat(decoder, &format);
+    printf("[%d/%dbit/%dch]%s\n", format.srate, format.bitw * 8, format.chs, fileName);
+
 
 _exit_:
-    printf("error %s\n", libav_errors);
-    go_free(&ctx);
+    if (err)
+    {
+        av_strerror(err, libav_errors, 200);
+        printf("error %s\n", libav_errors);
+    }
+    if (speaker)
+        cs_speaker_destory(&speaker);
+    if (pipeline) 
+        ele_pipeline_destory(&pipeline);
+    if (mixer)
+        ele_mixer_destory(&mixer);
+    if (decoder)
+        ele_decoder_destory(&decoder);
+
     exit(255);
 }

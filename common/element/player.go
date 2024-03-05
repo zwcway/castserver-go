@@ -87,6 +87,14 @@ func (p *Player) Stream(samples *stream.Samples) {
 }
 
 func (v *Player) Sample(sample *float64, ch int, n int) {}
+func (e *Player) OnStarting() {
+}
+
+func (e *Player) OnEnding() {
+}
+
+func (e *Player) OnFormatChanged(newFormat *audio.Format) {
+}
 
 func (p *Player) resampleAll() {
 	if !p.format.IsValid() {

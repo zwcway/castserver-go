@@ -159,6 +159,14 @@ func (e *Element) Stream(samples *stream.Samples) {
 		}
 	}
 }
+func (e *Element) OnStarting() {
+}
+
+func (e *Element) OnEnding() {
+}
+
+func (e *Element) OnFormatChanged(newFormat *audio.Format) {
+}
 
 func (e *Element) PushSpeaker(sp *speaker.Speaker, samples *stream.Samples) {
 	queue := sp.Queue

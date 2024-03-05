@@ -82,11 +82,12 @@ func NewResponseLineSource(line *speaker.Line) *ResponseLineSource {
 	if line == nil {
 		return nil
 	}
+	format := line.Input.MixerEle.Format()
 	return &ResponseLineSource{
-		Rate:     line.Input.Format.Rate.ToInt(),
-		Bits:     line.Input.Format.Bits.String(),
-		Channels: line.Input.Format.Layout.SliceInt(),
-		Layout:   line.Input.Format.Layout.String(),
+		Rate:     format.Rate.ToInt(),
+		Bits:     format.Bits.String(),
+		Channels: format.Layout.SliceInt(),
+		Layout:   format.Layout.String(),
 		Type:     int(line.Input.From),
 		Duration: int(line.Input.Duration().Seconds()),
 		Total:    int(line.Input.TotalDuration().Seconds() - 1),
@@ -131,17 +132,17 @@ type ResponseLineInfo struct {
 }
 
 func NewResponseEqualizer(line *speaker.Line) *ResponseEqualizer {
-	if line == nil || line.EqualizerEle == nil {
+	if line == nil || line.Input.EqualizerEle == nil {
 		return nil
 	}
 	eq := line.Equalizer()
 	list := &ResponseEqualizer{
-		Switch:     line.EqualizerEle.IsOn(),
-		Seg:        uint8(len(eq.FEQ)),
-		Equalizers: make([][3]float32, len(eq.FEQ)),
+		Switch:     line.Input.EqualizerEle.IsOn(),
+		Seg:        uint8(len(eq.Filters)),
+		Equalizers: make([][3]float32, len(eq.Filters)),
 	}
 
-	for i, e := range eq.FEQ {
+	for i, e := range eq.Filters {
 		if e == nil {
 			continue
 		}

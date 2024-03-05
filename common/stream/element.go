@@ -15,15 +15,28 @@ const (
 	ET_OneSample
 )
 
+// Element 音频流元
 type Element interface {
 	Streamer
 	bus.Eventer
 
+	// Type 元类型
 	Type() ElementType
-	Sample(*float64, int, int)
+	// Sample 开始流处理
+	// Sample(*float64, int, int)
+	// Close 释放元
 	Close() error
+
+	// OnStarting 开始处理数据
+	OnStarting()
+	// OnEnding 结束处理数据
+	OnEnding()
+
+	// OnFormatChanged 音频格式被改变后触发
+	OnFormatChanged(*audio.Format)
 }
 
+// SwitchElement 开关元
 type SwitchElement interface {
 	Element
 
@@ -32,6 +45,7 @@ type SwitchElement interface {
 	IsOn() bool
 }
 
+// VolumeElement 音量元
 type VolumeElement interface {
 	SwitchElement
 
@@ -42,6 +56,7 @@ type VolumeElement interface {
 	Mute() bool
 }
 
+// MixerElement 音频混音元
 type MixerElement interface {
 	Element
 
@@ -62,6 +77,7 @@ type MixerElement interface {
 	Buffer() *Samples
 }
 
+// ChannelMixerElement 声道混音元
 type ChannelMixerElement interface {
 	Element
 
@@ -69,7 +85,7 @@ type ChannelMixerElement interface {
 	Route() []audio.ChannelRoute
 }
 
-// 播放临时 pcm 格式
+// RawPlayerElement 临时播放元
 type RawPlayerElement interface {
 	Element
 	SourceStreamer
@@ -78,6 +94,7 @@ type RawPlayerElement interface {
 	AddPCMWithChannel(audio.Channel, audio.Format, []byte)
 }
 
+// ResampleElement 转码元
 type ResampleElement interface {
 	SwitchElement
 
@@ -85,6 +102,7 @@ type ResampleElement interface {
 	Format() audio.Format   // 获取转码目标格式
 }
 
+// SpectrumElement 频谱元
 type SpectrumElement interface {
 	SwitchElement
 
@@ -95,16 +113,19 @@ type SpectrumElement interface {
 	Spectrum() []float64
 }
 
+// EqualizerElement 均衡器元
 type EqualizerElement interface {
 	SwitchElement
 
 	SetFilterType(dsp.FilterType)
 	FilterType() dsp.FilterType
 
-	SetEqualizer([]*dsp.Equalizer)
-	Equalizer() []*dsp.Equalizer
+	SetEqualizer([]*dsp.FilterParams)
+	Equalizer() []*dsp.FilterParams
 
-	Add(int, float64, float64)
+	Set(int, float64, float64)
+
+	Count() int
 
 	SetDelay(time.Duration)
 	Delay() time.Duration
@@ -125,7 +146,4 @@ type PipeLiner interface {
 
 	LastCost() time.Duration
 	LastMaxCost() time.Duration
-
-	Lock()
-	Unlock()
 }

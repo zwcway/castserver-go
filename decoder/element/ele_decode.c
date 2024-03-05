@@ -2,6 +2,7 @@
 #include <libavformat/avformat.h>
 #include <libswresample/swresample.h>
 #include "./samples.h"
+#include "./ele_mixer.h"
 
 static const int64_t _ele_decoder_seek_time(const AVStream *in, int seconds)
 {
@@ -115,7 +116,7 @@ int ele_decoder_open(ELE_Decoder *ctx, const char *fileName)
     }
 
     // 获取音频流
-    ctx->stream = (AVStream *)go_streams_index((const AVStream **)ctx->formatCtx->streams, ctx->streamIndex);
+    ctx->stream = ctx->formatCtx->streams[ctx->streamIndex];
     if (ctx->stream == NULL)
     {
         ret = -255;
@@ -182,7 +183,7 @@ int ele_decoder_open(ELE_Decoder *ctx, const char *fileName)
 
     ctx->fmt.bit = av_get_bytes_per_sample(ctx->codecCtx->sample_fmt);
     ctx->fmt.chs = ctx->codecCtx->channels;
-    ctx->fmt.rate = ctx->codecCtx->sample_rate;
+    ctx->fmt.srate = ctx->codecCtx->sample_rate;
 
     ctx->is_planar = av_get_planar_sample_fmt(ctx->codecCtx->sample_fmt) == ctx->codecCtx->sample_fmt;
 
@@ -214,12 +215,14 @@ _exit_:
  * @param e
  * @param f
  */
-void ele_decoder_audioFormat(void *e, CS_Format *f)
+int ele_decoder_audioFormat(void *e, CS_Format *f)
 {
     if (!e || !f)
-        return;
+        return 1;
 
     *f = ((ELE_Decoder *)e)->fmt;
+
+    return 0;
 }
 
 static int is_realtime(AVFormatContext *s)
@@ -331,68 +334,69 @@ _flush_buffer_:
     return ret;
 }
 
-int ele_decoder_stream(ELE_Decoder *ctx, CS_Samples *s)
+int ele_decoder_stream(void *ctx, CS_Samples *s)
 {
     int need = s->req_nb_samples;
     int ret, c, ch;
+    ELE_Decoder *d = (ELE_Decoder *)ctx;
 
     while (need > 0)
     {
-        if (ctx->left_samples == 0)
+        if (d->left_samples == 0)
         {
             // 继续解码
-            if (ret = _ele_decoder_decode(ctx))
+            if (ret = _ele_decoder_decode(d))
             {
                 return ret;
             }
-            ctx->left_samples = ctx->avFrame->nb_samples;
+            d->left_samples = d->avFrame->nb_samples;
         }
 
-        if (ctx->left_samples > 0)
+        if (d->left_samples > 0)
         {
-            c = need > ctx->left_samples ? ctx->left_samples : need;
-            int copy_size = c * ctx->fmt.bit;
-            int dof = (s->req_nb_samples - need) * ctx->fmt.bit;
+            c = need > d->left_samples ? d->left_samples : need;
+            int copy_size = c * d->fmt.bit;
+            int dof = (s->req_nb_samples - need) * d->fmt.bit;
 
-            if (ctx->is_planar)
+            if (d->is_planar)
             {
                 // planar 格式：声道1所有样本 + 声道2所有样本 ...
 
-                int sof = (ctx->avFrame->nb_samples * ctx->fmt.bit) - ctx->left_samples * ctx->fmt.bit;
+                int sof = (d->avFrame->nb_samples * d->fmt.bit) - d->left_samples * d->fmt.bit;
 
-                for (ch = 0; ch < ctx->avFrame->channels && ch < s->format.chs; ch++)
-                    memcpy(s->raw_data[ch] + dof, ctx->avFrame->extended_data[ch] + sof, copy_size);
+                for (ch = 0; ch < d->avFrame->channels && ch < s->format.chs; ch++)
+                    memcpy(s->raw_data[ch] + dof, d->avFrame->extended_data[ch] + sof, copy_size);
             }
             else
             {
                 // packed 格式：声道1样本1 + 声道2样本1 ... 声道1样本2 + 声道2样本2 ...
-                int offset = (ctx->avFrame->nb_samples - ctx->left_samples) * ctx->fmt.bit * ctx->avFrame->channels;
-                uint8_t *sd = ctx->avFrame->extended_data[0] + offset;
-                int ch_width = ctx->fmt.bit * ctx->avFrame->channels;
+                int offset = (d->avFrame->nb_samples - d->left_samples) * d->fmt.bit * d->avFrame->channels;
+                uint8_t *sd = d->avFrame->extended_data[0] + offset;
+                int ch_width = d->fmt.bit * d->avFrame->channels;
 
-                switch (ctx->fmt.bit)
+                switch (d->fmt.bit)
                 {
                 case 1:
-                    for (int i = 0; i < copy_size; i += ctx->fmt.bit)
+                    for (int i = 0; i < copy_size; i += d->fmt.bit)
                         ((uint8_t *)(s->raw_data[ch] + dof))[i] = ((uint8_t *)(sd + ch_width * i))[0];
                     break;
                 case 2:
-                    for (int i = 0; i < copy_size; i += ctx->fmt.bit)
+                    for (int i = 0; i < copy_size; i += d->fmt.bit)
                         ((uint16_t *)(s->raw_data[ch] + dof))[i] = ((uint16_t *)(sd + ch_width * i))[0];
                     break;
                 case 4:
-                    for (int i = 0; i < copy_size; i += ctx->fmt.bit)
+                    for (int i = 0; i < copy_size; i += d->fmt.bit)
                         ((uint32_t *)(s->raw_data[ch] + dof))[i] = ((uint32_t *)(sd + ch_width * i))[0];
                     break;
                 case 8:
-                    for (int i = 0; i < copy_size; i += ctx->fmt.bit)
+                    for (int i = 0; i < copy_size; i += d->fmt.bit)
                         ((uint64_t *)(s->raw_data[ch] + dof))[i] = ((uint64_t *)(sd + ch_width * i))[0];
                     break;
                 }
             }
 
             need -= c;
-            ctx->left_samples -= c;
+            d->left_samples -= c;
             continue;
         }
         break;
@@ -411,4 +415,9 @@ _exit_:
             memset(s->raw_data[ch] + offset, 0, size);
     }
 #endif
+}
+
+CS_Sourcer *ele_decoder_sourcer(void *ele)
+{
+    return cs_create_sourcer(ele, ele_decoder_stream, ele_decoder_audioFormat);
 }

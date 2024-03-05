@@ -3,6 +3,7 @@ package element
 import (
 	"math"
 
+	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/dsp"
 	"github.com/zwcway/castserver-go/common/stream"
@@ -115,6 +116,14 @@ func (r *Spectrum) Stream(samples *stream.Samples) {
 }
 
 func (r *Spectrum) Sample(*float64, int, int) {}
+func (e *Spectrum) OnStarting() {
+}
+
+func (e *Spectrum) OnEnding() {
+}
+
+func (e *Spectrum) OnFormatChanged(newFormat *audio.Format) {
+}
 
 func (r *Spectrum) On() {
 	r.power = true

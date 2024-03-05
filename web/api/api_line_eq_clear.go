@@ -30,7 +30,7 @@ func apiLineClearEqualizer(c *websockets.WSConnection, req Requester, log log1.L
 	}
 
 	nl.Input.EqualizerEle.Off()
-	nl.SetEqualizer(dsp.NewDataProcess(p.Seg))
+	nl.SetEqualizer(dsp.NewPeakingFilterEqualizerProcessor(p.Seg))
 
 	nl.Dispatch("line eq clean")
 	nl.Dispatch("line eq power", false)

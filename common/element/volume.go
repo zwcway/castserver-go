@@ -3,6 +3,7 @@ package element
 import (
 	"math"
 
+	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/stream"
 )
@@ -36,6 +37,14 @@ func (v *Volume) Stream(samples *stream.Samples) {
 
 func (v *Volume) Sample(sample *float64, ch int, n int) {
 	*sample *= v.gain
+}
+func (e *Volume) OnStarting() {
+}
+
+func (e *Volume) OnEnding() {
+}
+
+func (e *Volume) OnFormatChanged(newFormat *audio.Format) {
 }
 
 func (r *Volume) On() {

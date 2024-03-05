@@ -29,6 +29,93 @@ static const enum SoundIoFormat _cs_speaker_format(CS_Bits bit)
     }
 }
 
+static const struct SoundIoChannelLayout *_cs_speaker_layout(CS_LayoutMask layout)
+{
+    enum SoundIoChannelLayoutId l;
+
+    switch (layout)
+    {
+    case LayoutMask_Mono:
+        l = SoundIoChannelLayoutIdMono;
+        break;
+    default:
+    case LayoutMask_Stereo:
+        l = SoundIoChannelLayoutIdStereo;
+        break;
+    case LayoutMask_21:
+        l = SoundIoChannelLayoutId2Point1;
+        break;
+    case LayoutMask_30:
+        l = SoundIoChannelLayoutId3Point0;
+        break;
+    case AV_CH_LAYOUT_2_1:
+        l = SoundIoChannelLayoutId3Point0Back;
+        break;
+    case AV_CH_LAYOUT_3POINT1:
+        l = SoundIoChannelLayoutId3Point1;
+        break;
+    case AV_CH_LAYOUT_4POINT0:
+        l = SoundIoChannelLayoutId4Point0;
+        break;
+    case AV_CH_LAYOUT_QUAD:
+        l = SoundIoChannelLayoutIdQuad;
+        break;
+    case AV_CH_LAYOUT_2_2:
+        l = SoundIoChannelLayoutIdQuadSide;
+        break;
+    case AV_CH_LAYOUT_4POINT1:
+        l = SoundIoChannelLayoutId4Point1;
+        break;
+    case AV_CH_LAYOUT_5POINT0_BACK:
+        l = SoundIoChannelLayoutId5Point0Back;
+        break;
+    case AV_CH_LAYOUT_5POINT0:
+        l = SoundIoChannelLayoutId5Point0Side;
+        break;
+    case AV_CH_LAYOUT_5POINT1:
+        l = SoundIoChannelLayoutId5Point1;
+        break;
+    case AV_CH_LAYOUT_5POINT1_BACK:
+        l = SoundIoChannelLayoutId5Point1Back;
+        break;
+    case AV_CH_LAYOUT_6POINT0:
+        l = SoundIoChannelLayoutId6Point0Side;
+        break;
+    case AV_CH_LAYOUT_6POINT0_FRONT:
+        l = SoundIoChannelLayoutIdHexagonal;
+        break;
+    case AV_CH_LAYOUT_6POINT1:
+        l = SoundIoChannelLayoutId6Point1;
+        break;
+    case AV_CH_LAYOUT_6POINT1_BACK:
+        l = SoundIoChannelLayoutId6Point1Back;
+        break;
+    case AV_CH_LAYOUT_6POINT1_FRONT:
+        l = SoundIoChannelLayoutId6Point1Front;
+        break;
+    case AV_CH_LAYOUT_7POINT0:
+        l = SoundIoChannelLayoutId7Point0;
+        break;
+    case AV_CH_LAYOUT_7POINT0_FRONT:
+        l = SoundIoChannelLayoutId7Point0Front;
+        break;
+    case AV_CH_LAYOUT_7POINT1:
+        l = SoundIoChannelLayoutId7Point1;
+        break;
+    case AV_CH_LAYOUT_7POINT1_WIDE:
+        l = SoundIoChannelLayoutId7Point1Wide;
+        break;
+    case AV_CH_LAYOUT_7POINT1_WIDE_BACK:
+        l = SoundIoChannelLayoutId7Point1WideBack;
+        break;
+    case AV_CH_LAYOUT_OCTAGONAL:
+        l = SoundIoChannelLayoutIdOctagonal;
+        break;
+    }
+
+    return soundio_channel_layout_get_builtin(l);
+}
+
 int _cs_speaker_index_by_id(CS_Speaker *sp, char *id)
 {
     if (id)
@@ -61,7 +148,6 @@ static void write_callback(struct SoundIoOutStream *outstream, int frame_count_m
     uint8_t *src;
     int offset = (sp->buf->req_nb_samples - sp->samples_left) * sp->buf->format.bitw;
     int channel, i;
-
 
     for (;;)
     {
@@ -176,7 +262,7 @@ int cs_speaker_setFormat(CS_Speaker *sp, CS_Format f)
         return 1;
     }
 
-    if (!soundio_device_supports_sample_rate(device, f.rate))
+    if (!soundio_device_supports_sample_rate(device, f.srate))
     {
         return 1;
     }
@@ -184,13 +270,13 @@ int cs_speaker_setFormat(CS_Speaker *sp, CS_Format f)
     {
         return 1;
     }
-    if (!soundio_device_supports_layout(device, _cs_speaker_format(f.bit)))
+    if (!soundio_device_supports_layout(device, _cs_speaker_layout(f.layout)))
     {
         return 1;
     }
 
     sp->fmt = f;
-    cs_mixer_setOutputFormat(sp->mixer, f);
+    ele_mixer_setOutputFormat(sp->mixer, f);
 }
 
 int cs_speaker_init(CS_Speaker *sp, CS_Format f)
@@ -229,7 +315,7 @@ int cs_speaker_init(CS_Speaker *sp, CS_Format f)
     sp->outstream->underflow_callback = NULL;
     sp->outstream->name = sp->name;
     sp->outstream->software_latency = 0.0f;
-    sp->outstream->sample_rate = sp->fmt.rate;
+    sp->outstream->sample_rate = sp->fmt.srate;
 
     sp->buf = cs_create_samples(sp->fmt);
 

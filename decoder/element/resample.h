@@ -8,6 +8,8 @@ typedef struct CS_Resample
 {
     SwrContext *swrctx;
 
+    int power;
+
     CS_Format in_format;
     enum AVSampleFormat in_fmt;
     int in_buf_size;

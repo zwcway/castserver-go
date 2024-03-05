@@ -224,6 +224,15 @@ func (m *Mixer) Stream(samples *stream.Samples) {
 	// }
 }
 
+func (e *Mixer) OnStarting() {
+}
+
+func (e *Mixer) OnEnding() {
+}
+
+func (e *Mixer) OnFormatChanged(newFormat *audio.Format) {
+}
+
 func (m *Mixer) Sample(*float64, int, int) {}
 
 func (m *Mixer) Close() error {

@@ -2,15 +2,15 @@ package dsp
 
 import (
 	"math"
-
-	"github.com/zwcway/castserver-go/common/audio"
 )
 
 const Pi float64 = math.Pi
 
 // Robert Bristow-Johnson's audio EQ cookbook
 type Filter struct {
-	EQ *Equalizer
+	t FilterType
+
+	FilterParams
 
 	in1  float64
 	in2  float64
@@ -41,20 +41,20 @@ func (f *Filter) Process(input float64) float64 {
 	return output
 }
 
-func (e *Filter) Init(format *audio.Format) {
-	switch e.EQ.Type {
+func (e *Filter) Init(rate int) {
+	switch e.t {
 	case LowPassFilter:
-		e.initLowPass(format)
+		e.initLowPass(rate)
 	case HighPassFilter:
-		e.initHighPass(format)
+		e.initHighPass(rate)
 	case PeakingFilter:
-		e.initPeaking(format)
+		e.initPeaking(rate)
 	}
 }
 
-func (e *Filter) initLowPass(format *audio.Format) {
-	q := e.EQ.Q
-	w0 := 2.0 * Pi * float64(e.EQ.Frequency) / float64(format.Rate.ToInt())
+func (e *Filter) initLowPass(rate int) {
+	q := e.Q
+	w0 := 2.0 * Pi * float64(e.Frequency) / float64(rate)
 	alpha := math.Sin(w0) / (2.0 * q)
 
 	e.a0 = 1.0 + alpha
@@ -65,9 +65,9 @@ func (e *Filter) initLowPass(format *audio.Format) {
 	e.b2 = (1.0 - math.Cos(w0)) / 2.0
 }
 
-func (e *Filter) initHighPass(format *audio.Format) {
-	q := e.EQ.Q
-	w0 := 2.0 * Pi * float64(e.EQ.Frequency) / float64(format.Rate.ToInt())
+func (e *Filter) initHighPass(rate int) {
+	q := e.Q
+	w0 := 2.0 * Pi * float64(e.Frequency) / float64(rate)
 	alpha := math.Sin(w0) / (2.0 * q)
 
 	e.a0 = 1.0 + alpha
@@ -78,11 +78,11 @@ func (e *Filter) initHighPass(format *audio.Format) {
 	e.b2 = (1.0 + math.Cos(w0)) / 2.0
 }
 
-func (e *Filter) initPeaking(format *audio.Format) {
+func (e *Filter) initPeaking(rate int) {
 	width := 0.5
-	w0 := 2.0 * Pi * float64(e.EQ.Frequency) / float64(format.Rate.ToInt())
+	w0 := 2.0 * Pi * float64(e.Frequency) / float64(rate)
 	alpha := math.Sin(w0) * math.Sinh(math.Log(2.0)/2.0*width*w0/math.Sin(w0))
-	a := math.Pow(10.0, (e.EQ.Gain / 40.0))
+	a := math.Pow(10.0, (e.Gain / 40.0))
 
 	e.a0 = 1.0 + alpha/a
 	e.a1 = -2.0 * math.Cos(w0)
@@ -92,8 +92,8 @@ func (e *Filter) initPeaking(format *audio.Format) {
 	e.b2 = 1.0 - alpha*a
 }
 
-func NewFilter(eq *Equalizer, format *audio.Format) *Filter {
-	f := &Filter{EQ: eq}
-	f.Init(format)
+func NewFilter(eq FilterParams, rate int) *Filter {
+	f := &Filter{FilterParams: eq}
+	f.Init(rate)
 	return f
 }

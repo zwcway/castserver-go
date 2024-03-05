@@ -11,9 +11,9 @@ import (
 
 type requestLineEQ struct {
 	ID        uint8   `jp:"id"`
-	Seg       uint8   `jp:"seg"`
-	Frequency int     `jp:"freq"`
-	Gain      float32 `jp:"gain"`
+	Seg       uint8   `jp:"seg"`  // 均衡器数量
+	Frequency int     `jp:"freq"` // 频率
+	Gain      float32 `jp:"gain"` // 增益
 }
 
 func apiLineSetEqualizer(c *websockets.WSConnection, req Requester, log log1.Logger) (any, error) {
@@ -36,11 +36,11 @@ func apiLineSetEqualizer(c *websockets.WSConnection, req Requester, log log1.Log
 
 	eq := nl.Equalizer()
 
-	if len(eq.FEQ) != int(p.Seg) {
+	if len(eq.Filters) != int(p.Seg) {
 		eq.Clear(p.Seg)
 	}
 
-	eq.AddFIR(p.Frequency, float64(p.Gain), 0)
+	eq.Set(p.Frequency, float64(p.Gain), 0)
 
 	if err = nl.SetEqualizer(eq); err != nil {
 		return nil, err

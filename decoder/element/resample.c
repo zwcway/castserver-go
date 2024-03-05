@@ -22,9 +22,7 @@ CS_Resample *cs_create_resample()
 {
     CS_Resample *r = (CS_Resample *)av_mallocz(sizeof(CS_Resample));
     if (r == NULL)
-    {
         return NULL;
-    }
 
     if (r->swrctx == NULL)
     {
@@ -81,8 +79,8 @@ static const int _cs_resample_malloc_buffer(uint8_t **buf, CS_Format f, int nb_s
  */
 static int _cs_resample_output_nb_samples(CS_Resample *ctx, int in_nb_samples)
 {
-    int64_t delay = swr_get_delay(ctx->swrctx, ctx->in_format.rate);
-    return av_rescale_rnd(delay + in_nb_samples, ctx->out_format.rate, ctx->in_format.rate, AV_ROUND_UP);
+    int64_t delay = swr_get_delay(ctx->swrctx, ctx->in_format.srate);
+    return av_rescale_rnd(delay + in_nb_samples, ctx->out_format.srate, ctx->in_format.srate, AV_ROUND_UP);
 }
 
 int cs_resample_setFormat(CS_Resample *r, CS_Format in_format, CS_Format out_format)
@@ -101,12 +99,17 @@ int cs_resample_setFormat(CS_Resample *r, CS_Format in_format, CS_Format out_for
     r->out_fmt = cs_format_bits_to_fmt(out_format.bit);
     r->out_buf_size = _cs_resample_malloc_buffer(&r->out_buffer, out_format, out_nb_samples);
 
+    r->power = cs_format_equal(in_format, out_format);
+
     if (!r->in_buf_size || !r->out_buf_size)
         return AVERROR(ENOMEM);
 
+    if (!r->power)
+        return 0;
+
     swr_alloc_set_opts(r->swrctx,
-                       r->out_format.layout, r->out_fmt, r->out_format.rate,
-                       r->in_format.layout, r->in_fmt, r->in_format.rate,
+                       r->out_format.layout, r->out_fmt, r->out_format.srate,
+                       r->in_format.layout, r->in_fmt, r->in_format.srate,
                        0, NULL);
 
     int ret = swr_init(r->swrctx);
@@ -122,6 +125,9 @@ int cs_resample_setFormat(CS_Resample *r, CS_Format in_format, CS_Format out_for
  */
 int cs_resample_convert(CS_Resample *ctx, CS_Samples *s)
 {
+    if (!ctx->power)
+        return 0;
+
     uint8_t *buf;
     int ret, chs;
     int dst_nb_samples = _cs_resample_output_nb_samples(ctx, s->req_nb_samples);

@@ -217,25 +217,131 @@ func (m ChannelMask) ChannelIndex() ChannelIndex {
 }
 
 var (
-	Layout10  = NewLayout(Channel_FRONT_CENTER)                                         // 前中
-	Layout20  = NewLayout(Channel_FRONT_LEFT, Channel_FRONT_RIGHT)                      // 前左、前右
-	Layout21  = extendLayout(Layout20, Channel_LOW_FREQUENCY)                           // 前左、前右，低音
-	Layout22  = extendLayout(Layout20, Channel_SIDE_LEFT, Channel_SIDE_RIGHT)           // 前左、前右，环左、环右
-	Layout30  = extendLayout(Layout20, Channel_FRONT_CENTER)                            // 前左、前右、前中
-	Layout31  = extendLayout(Layout30, Channel_LOW_FREQUENCY)                           // 前左、前右、前中，低音
-	Layout40  = extendLayout(Layout30, Channel_BACK_CENTER)                             // 前左、前右、前中、后中
-	Layout41  = extendLayout(Layout40, Channel_LOW_FREQUENCY)                           // 前左、前右、前中、后中，低音
-	Layout50  = extendLayout(Layout30, Channel_SIDE_LEFT, Channel_SIDE_RIGHT)           // 前左、前右、前中、环左、环右
-	Layout51  = extendLayout(Layout50, Channel_LOW_FREQUENCY)                           // 前左、前右、前中、环左、环右，低音
-	Layout5B0 = extendLayout(Layout30, Channel_BACK_LEFT, Channel_BACK_RIGHT)           // 前左、前右、前中、后左、后右
-	Layout5B1 = extendLayout(Layout5B0, Channel_LOW_FREQUENCY)                          // 前左、前右、前中、后左、后右，低音
-	Layout60  = extendLayout(Layout50, Channel_BACK_CENTER)                             // 前左、前右、前中、环左、环右、后中
-	Layout61  = extendLayout(Layout51, Channel_BACK_CENTER)                             // 前左、前右、前中、环左、环右、后中，低音
-	Layout70  = extendLayout(Layout50, Channel_BACK_LEFT, Channel_BACK_RIGHT)           // 前左、前右、前中、环左、环右、后左、后右
-	Layout71  = extendLayout(Layout70, Channel_LOW_FREQUENCY)                           // 前左、前右、前中、环左、环右、后左、后右，低音
-	Layout702 = extendLayout(Layout70, Channel_TOP_FRONT_LEFT, Channel_TOP_FRONT_RIGHT) // 前左、前右、前中、环左、环右、后左、后右，上前左、上前右
-	Layout712 = extendLayout(Layout71, Channel_TOP_FRONT_LEFT, Channel_TOP_FRONT_RIGHT) // 前左、前右、前中、环左、环右、后左、后右，低音，上前左、上前右
-	Layout714 = extendLayout(Layout712, Channel_TOP_BACK_LEFT, Channel_TOP_BACK_RIGHT)  // 前左、前右、前中、环左、环右、后左、后右，低音，上前左、上前右、上后左、上后右
+	Layout10 = NewLayout(Channel_FRONT_CENTER) // 前中
+	Layout20 = NewLayout(
+		Channel_FRONT_LEFT,
+		Channel_FRONT_RIGHT) // 前左、前右
+	Layout21 = NewLayout(
+		Channel_FRONT_LEFT,
+		Channel_FRONT_RIGHT,
+		Channel_LOW_FREQUENCY) // 前左、前右，低音
+	Layout22 = NewLayout(
+		Channel_FRONT_LEFT,
+		Channel_FRONT_RIGHT,
+		Channel_SIDE_LEFT,
+		Channel_SIDE_RIGHT) // 前左、前右，环左、环右
+	Layout30 = NewLayout(
+		Channel_FRONT_LEFT,
+		Channel_FRONT_RIGHT,
+		Channel_FRONT_CENTER) // 前左、前右、前中
+	Layout31 = NewLayout(
+		Channel_FRONT_LEFT,
+		Channel_FRONT_RIGHT,
+		Channel_FRONT_CENTER,
+		Channel_LOW_FREQUENCY) // 前左、前右、前中，低音
+	Layout40 = NewLayout(
+		Channel_FRONT_LEFT,
+		Channel_FRONT_RIGHT,
+		Channel_FRONT_CENTER,
+		Channel_BACK_CENTER) // 前左、前右、前中、后中
+	Layout41 = NewLayout(
+		Channel_FRONT_LEFT,
+		Channel_FRONT_RIGHT,
+		Channel_FRONT_CENTER,
+		Channel_BACK_CENTER,
+		Channel_LOW_FREQUENCY) // 前左、前右、前中、后中，低音
+	Layout50 = NewLayout(
+		Channel_FRONT_LEFT,
+		Channel_FRONT_RIGHT,
+		Channel_FRONT_CENTER,
+		Channel_SIDE_LEFT,
+		Channel_SIDE_RIGHT) // 前左、前右、前中、环左、环右
+	Layout51 = NewLayout(
+		Channel_FRONT_LEFT,
+		Channel_FRONT_RIGHT,
+		Channel_FRONT_CENTER,
+		Channel_SIDE_LEFT,
+		Channel_SIDE_RIGHT,
+		Channel_LOW_FREQUENCY) // 前左、前右、前中、环左、环右，低音
+	Layout5B0 = NewLayout(
+		Channel_FRONT_LEFT,
+		Channel_FRONT_RIGHT,
+		Channel_FRONT_CENTER,
+		Channel_BACK_LEFT,
+		Channel_BACK_RIGHT) // 前左、前右、前中、后左、后右
+	Layout5B1 = NewLayout(
+		Channel_FRONT_LEFT,
+		Channel_FRONT_RIGHT,
+		Channel_FRONT_CENTER,
+		Channel_BACK_LEFT,
+		Channel_BACK_RIGHT,
+		Channel_LOW_FREQUENCY) // 前左、前右、前中、后左、后右，低音
+	Layout60 = NewLayout(
+		Channel_FRONT_LEFT,
+		Channel_FRONT_RIGHT,
+		Channel_FRONT_CENTER,
+		Channel_SIDE_LEFT,
+		Channel_SIDE_RIGHT,
+		Channel_BACK_CENTER) // 前左、前右、前中、环左、环右、后中
+	Layout61 = NewLayout(
+		Channel_FRONT_LEFT,
+		Channel_FRONT_RIGHT,
+		Channel_FRONT_CENTER,
+		Channel_SIDE_LEFT,
+		Channel_SIDE_RIGHT,
+		Channel_LOW_FREQUENCY,
+		Channel_BACK_CENTER) // 前左、前右、前中、环左、环右、后中，低音
+	Layout70 = NewLayout(
+		Channel_FRONT_LEFT,
+		Channel_FRONT_RIGHT,
+		Channel_FRONT_CENTER,
+		Channel_SIDE_LEFT,
+		Channel_SIDE_RIGHT,
+		Channel_BACK_LEFT,
+		Channel_BACK_RIGHT) // 前左、前右、前中、环左、环右、后左、后右
+	Layout71 = NewLayout(
+		Channel_FRONT_LEFT,
+		Channel_FRONT_RIGHT,
+		Channel_FRONT_CENTER,
+		Channel_SIDE_LEFT,
+		Channel_SIDE_RIGHT,
+		Channel_BACK_LEFT,
+		Channel_BACK_RIGHT,
+		Channel_LOW_FREQUENCY) // 前左、前右、前中、环左、环右、后左、后右，低音
+	Layout702 = NewLayout(
+		Channel_FRONT_LEFT,
+		Channel_FRONT_RIGHT,
+		Channel_FRONT_CENTER,
+		Channel_SIDE_LEFT,
+		Channel_SIDE_RIGHT,
+		Channel_BACK_LEFT,
+		Channel_BACK_RIGHT,
+		Channel_TOP_FRONT_LEFT,
+		Channel_TOP_FRONT_RIGHT) // 前左、前右、前中、环左、环右、后左、后右，上前左、上前右
+	Layout712 = NewLayout(
+		Channel_FRONT_LEFT,
+		Channel_FRONT_RIGHT,
+		Channel_FRONT_CENTER,
+		Channel_SIDE_LEFT,
+		Channel_SIDE_RIGHT,
+		Channel_BACK_LEFT,
+		Channel_BACK_RIGHT,
+		Channel_LOW_FREQUENCY,
+		Channel_TOP_FRONT_LEFT,
+		Channel_TOP_FRONT_RIGHT) // 前左、前右、前中、环左、环右、后左、后右，低音，上前左、上前右
+	Layout714 = NewLayout(
+		Channel_FRONT_LEFT,
+		Channel_FRONT_RIGHT,
+		Channel_FRONT_CENTER,
+		Channel_SIDE_LEFT,
+		Channel_SIDE_RIGHT,
+		Channel_BACK_LEFT,
+		Channel_BACK_RIGHT,
+		Channel_LOW_FREQUENCY,
+		Channel_TOP_FRONT_LEFT,
+		Channel_TOP_FRONT_RIGHT,
+		Channel_TOP_BACK_LEFT,
+		Channel_TOP_BACK_RIGHT) // 前左、前右、前中、环左、环右、后左、后右，低音，上前左、上前右、上后左、上后右
 
 	LayoutMono   = Layout10
 	LayoutStereo = Layout20

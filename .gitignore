@@ -9,3 +9,4 @@ build/
 *.css
 *.vsdx
 doc/*.xls*
+castserver*

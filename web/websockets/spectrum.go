@@ -116,7 +116,7 @@ func lineSpectrum(es *eventService) {
 	if line == nil {
 		return
 	}
-	if es.se = line.SpectrumEle; es.se == nil {
+	if es.se = line.Input.SpectrumEle; es.se == nil {
 		return
 	}
 	if es.se.IsOn() {

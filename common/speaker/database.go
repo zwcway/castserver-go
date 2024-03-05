@@ -11,7 +11,7 @@ import (
 )
 
 type DBeqData struct {
-	Eq *dsp.DataProcess
+	Eq *dsp.EqualizerProcessor
 }
 
 func (j *DBeqData) GormDataType() string {
@@ -25,10 +25,10 @@ func (j *DBeqData) Scan(value interface{}) error {
 		return errors.New(fmt.Sprint("Failed to unmarshal value", value))
 	}
 
-	result := dsp.DataProcess{}
+	result := dsp.EqualizerProcessor{}
 	err := jsonpack.Unmarshal(bytes, &result)
 	if err != nil {
-		j.Eq = dsp.NewDataProcess(0)
+		j.Eq = dsp.NewPeakingFilterEqualizerProcessor(0)
 		return err
 	}
 	j.Eq = &result
