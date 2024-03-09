@@ -50,25 +50,26 @@ void cs_samples_reset(CS_Samples *s)
 
 void cs_samples_copy_step(CS_Samples *s, void *dst, int ch, int index)
 {
+    uint8_t *sd;
     switch (s->format.bitw)
     {
     case 1:
-        *((uint8_t *)dst) = ((uint8_t *)s->raw_data[ch])[index];
+        *((uint8_t *)dst) = ((uint8_t *)(s->raw_data[ch]))[index];
         break;
     case 2:
-        *((uint16_t *)dst) = ((uint16_t *)s->raw_data[ch])[index];
+        *((uint16_t *)dst) = ((uint16_t *)(s->raw_data[ch]))[index];
         break;
     case 3:
-        uint8_t *sd = ((uint8_t *)s->raw_data[ch]) + index * 3;
+        sd = ((uint8_t *)(s->raw_data[ch])) + index * 3;
         *((uint8_t *)dst) = *sd;
         *(((uint8_t *)dst) + 1) = *(sd + 1);
         *(((uint8_t *)dst) + 2) = *(sd + 2);
         break;
     case 4:
-        *((uint32_t *)dst) = ((uint32_t *)s->raw_data[ch])[index];
+        *((uint32_t *)dst) = ((uint32_t *)(s->raw_data[ch]))[index];
         break;
     case 8:
-        *((uint64_t *)dst) = ((uint64_t *)s->raw_data[ch])[index];
+        *((uint64_t *)dst) = ((uint64_t *)(s->raw_data[ch]))[index];
         break;
     }
 }

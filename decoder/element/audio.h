@@ -294,6 +294,7 @@ inline CS_Channel cs_format_avch_to_channel(int64_t c)
     case AV_CH_STEREO_RIGHT:
     case AV_CH_WIDE_LEFT:
     case AV_CH_WIDE_RIGHT:
+        break;
     };
     return Channel_NONE;
 }
