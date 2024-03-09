@@ -164,6 +164,23 @@ func NewAudioBitsMask(arr []uint8) (BitsMask, error) {
 	return a, err
 }
 
+func NewAudioBitsMaskFromNames(arr []string) (BitsMask, error) {
+	var (
+		a   BitsMask
+		bit Bits
+	)
+	barr := make([]uint8, 0)
+	for _, b := range arr {
+		bit.FromName(b)
+		if !bit.IsValid() {
+			continue
+		}
+		barr = append(barr, uint8(bit))
+	}
+	err := a.FromSlice(barr)
+	return a, err
+}
+
 func (m *BitsMask) FromSlice(arr []uint8) error {
 	if len(arr) > 16 {
 		return errors.New("bits too large")

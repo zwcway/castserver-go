@@ -45,7 +45,7 @@ func Init(ctx utils.Context, d *gorm.DB) {
 
 	bus.Register("get speakers", getSpeakers)
 	bus.Register("get speaker", getSpeaker)
-	bus.Register("save speaker", saveSpeaker).ASync()
+	bus.Register("save speaker", saveSpeaker)
 	bus.Register("speaker deleted", deleteSpeaker).ASync()
 	speaker.BusSpeakerEdited.Register(func(sp *speaker.Speaker, a ...any) error {
 		um := map[string]any{}
@@ -130,7 +130,7 @@ func getSpeaker(o any, a ...any) error {
 }
 
 func saveSpeaker(o any, a ...any) error {
-	sp := a[0].(*speaker.Speaker)
+	sp := o.(*speaker.Speaker)
 	result := db.Session(&gorm.Session{FullSaveAssociations: true}).Save(sp)
 	if result.Error != nil {
 		log.Fatal("save speaker error", lg.Uint("speaker", uint64(sp.ID)), lg.Error(result.Error))
@@ -139,7 +139,7 @@ func saveSpeaker(o any, a ...any) error {
 }
 
 func deleteSpeaker(o any, a ...any) error {
-	sp := a[0].(*speaker.Speaker)
+	sp := o.(*speaker.Speaker)
 	result := db.Delete(sp)
 	if result.Error != nil {
 		log.Fatal("delete speaker error", lg.Uint("speaker", uint64(sp.ID)), lg.Error(result.Error))

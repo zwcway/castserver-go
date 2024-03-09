@@ -83,41 +83,15 @@ func Dispatch(e string, args ...any) error {
 func DispatchObj(obj any, e string, args ...any) error {
 	var (
 		err   error
+		ll    []*HandlerData
+		ok    bool
 		count int = 0
 	)
-
-	if ll, ok := list[e]; ok {
-		count = len(ll)
-
-		for _, hd := range ll {
-			if hd.obj != nil && hd.obj != obj {
-				// 过滤指定对象的事件，不符合就跳过该回调
-				continue
-			}
-
-			if hd.async {
-				hd = hd.clone()
-				hd.a = append([]any{obj}, args...)
-				queue <- hd
-				continue
-			}
-			if hd.once > 1 {
-				continue
-			} else if hd.once == 1 {
-				hd.once = 2
-				removeHandler(hd)
-			}
-
-			e := hd.h(obj, args...)
-			if e != nil {
-				if err != nil {
-					err = errors.Wrap(e, "")
-				} else {
-					err = e
-				}
-			}
-		}
+	if ll, ok = list[e]; !ok {
+		return err
 	}
+
+	count = len(ll)
 
 	lf := []lg.Field{lg.String("event", e), lg.Int("count", int64(count))}
 	if obj != nil {
@@ -134,6 +108,40 @@ func DispatchObj(obj any, e string, args ...any) error {
 		lf = append(lf, lg.Any(logArgs[i], arg))
 	}
 	log.Debug("dispatch", lf...)
+
+	for i := 0; i < len(ll); i++ {
+		hd := ll[i]
+
+		if hd.obj != nil && hd.obj != obj {
+			// 过滤指定对象的事件，不符合就跳过该回调
+			continue
+		}
+
+		if hd.once > 1 {
+			continue
+		} else if hd.once == 1 {
+			hd.once = 2
+			if removeHandler(hd) {
+				i--
+			}
+		}
+
+		if hd.async {
+			hd = hd.clone()
+			hd.a = append([]any{obj}, args...)
+			queue <- hd
+			continue
+		}
+
+		e := hd.h(obj, args...)
+		if e != nil {
+			if err != nil {
+				err = errors.Wrap(e, "")
+			} else {
+				err = e
+			}
+		}
+	}
 
 	return err
 }
@@ -167,9 +175,9 @@ func asyncCall(hd *HandlerData) {
 	}
 }
 
-func removeHandler(h *HandlerData) {
+func removeHandler(h *HandlerData) bool {
 	if h == nil {
-		return
+		return false
 	}
 
 	for i, sp := range list[h.e] {
@@ -181,9 +189,10 @@ func removeHandler(h *HandlerData) {
 			} else {
 				list[h.e] = s
 			}
-			return
+			return true
 		}
 	}
+	return false
 }
 
 func Init(ctx utils.Context) {

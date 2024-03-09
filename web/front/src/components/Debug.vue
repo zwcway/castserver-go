@@ -16,7 +16,47 @@
         </a-select>
       </p>
       <p>
-        <a-button size="small" type="" @click="onSpeakerDetect">发现设备</a-button>
+        <a-button size="small" type="" @click="onSpeakerDetect">发现虚拟设备</a-button>
+        <a-button size="small" type="" @click="onSpeakerCreate">创建虚拟设备...</a-button>
+        <a-modal v-model:open="isShowSpeakerCreate" width="fit-content" title="创建设备"
+          @cancel="isShowSpeakerCreate = false" @ok="onSpeakerCreateOk" okText="创建" okType="primary">
+          <a-form :model="speakerCreateForm" layout="horizontal" :label-col="{ span: 3 }" :wrapper-col="{ span: 16 }"
+            :rules="speakerCreateFormRules">
+            <a-form-item label="名称">
+              <a-input v-model:value="speakerCreateForm.name" />
+            </a-form-item>
+            <a-form-item label="ID">
+              <a-input v-model:value="speakerCreateForm.id" />
+            </a-form-item>
+            <a-form-item label="IP">
+              <a-input v-model:value="speakerCreateForm.ip" />
+            </a-form-item>
+            <a-form-item label="MAC">
+              <a-input v-model:value="speakerCreateForm.mac" />
+            </a-form-item>
+            <a-form-item label="绝对音量">
+              <a-switch v-model:checked="speakerCreateForm.avol" />
+            </a-form-item>
+            <a-form-item label="采样率">
+              <a-checkbox-group v-model:value="speakerCreateForm.rate">
+                <a-checkbox value="44100" name="rate">44.1KHz</a-checkbox>
+                <a-checkbox value="48000" name="rate">48KHz</a-checkbox>
+                <a-checkbox value="96000" name="rate">96KHz</a-checkbox>
+                <a-checkbox value="192000" name="rate">192KHz</a-checkbox>
+                <a-checkbox value="384000" name="rate">384KHz</a-checkbox>
+              </a-checkbox-group>
+            </a-form-item>
+            <a-form-item label="位宽">
+              <a-checkbox-group v-model:value="speakerCreateForm.bits">
+                <a-checkbox value="s16le" name="bits">16位整数</a-checkbox>
+                <a-checkbox value="s24le" name="bits">24位整数</a-checkbox>
+                <a-checkbox value="s32le" name="bits">32位整数</a-checkbox>
+                <a-checkbox value="f32le" name="bits">32位浮点</a-checkbox>
+                <a-checkbox value="f64le" name="bits">64位浮点</a-checkbox>
+              </a-checkbox-group>
+            </a-form-item>
+          </a-form>
+        </a-modal>
       </p>
 
       <div v-if="speakerId >= 0">
@@ -47,10 +87,10 @@
           <a-table-column key="name" title="名称">
             <template slot-scope="text, record">
               {{ record.name }}
-              <a-switch v-if="lineId > 0 && record.on >= 0" size="small" :checked="!!record.on" checked-children="开" un-checked-children="关"
-                @change="onLineElementPower(record, $event)" />
-              <a-switch v-else-if="record.on >= 0" size="small" :checked="!!record.on" checked-children="开" un-checked-children="关"
-                @change="onSpeakerElementPower(record, $event)" />
+              <a-switch v-if="lineId > 0 && record.on >= 0" size="small" :checked="!!record.on" checked-children="开"
+                un-checked-children="关" @change="onLineElementPower(record, $event)" />
+              <a-switch v-else-if="record.on >= 0" size="small" :checked="!!record.on" checked-children="开"
+                un-checked-children="关" @change="onSpeakerElementPower(record, $event)" />
             </template>
           </a-table-column>
           <a-table-column key="cost" title="耗时">
@@ -71,6 +111,11 @@ import { socket } from '@/common/request';
 import mock from 'mockjs';
 window.mock = mock;
 
+function generateMAC() {
+  return (mock.Random.hex() + mock.Random.hex())
+          .replaceAll('#', '')
+          .replace(/(.{2})(?=.)/g, '$1:')
+}
 export default {
   data() {
     return {
@@ -85,7 +130,35 @@ export default {
       elementColums: [
         { title: '名称', dataIndex: 'name' },
         { title: '耗时', dataIndex: 'cost' },
-      ]
+      ],
+      isShowSpeakerCreate: false,
+      speakerCreateForm: {
+        name: '',
+        v: 1,
+        id: mock.Random.integer(1, 99999999),
+        ip: mock.Random.ip(),
+        mac: generateMAC(),
+        port: mock.Random.natural(1, 65535),
+        bits: ["s16le"],
+        rate: ["44100"],
+        avol: false,
+      },
+      speakerCreateFormRules: {
+        name: [
+          { required: true, trigger: 'change' },
+          { min: 1, max: 5, trigger: 'blur' },
+        ],
+        id: [
+          { required: true, trigger: 'change' },
+          { min: 1, max: 5, trigger: 'blur' },
+        ],
+        bits: [
+          { required: true, type: 'array', trigger: 'change' },
+        ],
+        rate: [
+          { required: true, type: 'array', trigger: 'change' },
+        ],
+      }
     };
   },
   computed: {
@@ -170,13 +243,26 @@ export default {
         Ver: 1,
         ID: mock.Random.integer(1, 99999999),
         IP: mock.Random.ip(),
-        MAC: (mock.Random.hex() + mock.Random.hex())
-          .replaceAll('#', '')
-          .replace(/(.{2})(?=.)/g, '$1:'),
+        MAC: generateMAC(),
         DataPort: mock.Random.natural(1, 65535),
-        BitsMask: [1, 2, 3],
-        RateMask: [1, 2, 3],
+        BitsMask: ["s16le", "s24le", "s32le"],
+        RateMask: ["44100"].map(r => parseInt(r)),
         AVol: mock.Random.boolean(),
+      });
+    },
+    onSpeakerCreate() {
+      this.isShowSpeakerCreate = true
+    },
+    onSpeakerCreateOk() {
+      this.send('addSpeaker', {
+        Ver: 1,
+        ID: this.speakerCreateForm.id,
+        IP: this.speakerCreateForm.id,
+        MAC: this.speakerCreateForm.mac,
+        DataPort: mock.Random.natural(1, 65535),
+        BitsMask: this.speakerCreateForm.bits,
+        RateMask: this.speakerCreateForm.rate.map(r => parseInt(r)),
+        AVol: this.speakerCreateForm.avol,
       });
     },
     speakerSendServerInfo() {
@@ -217,6 +303,12 @@ export default {
     width: 32px;
     height: 32px;
     z-index: 9999;
+  }
+}
+
+.ant-modal-body {
+  .ant-form-item {
+    margin: 0;
   }
 }
 

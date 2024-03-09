@@ -20,7 +20,7 @@ var spectrumRunning = false
 
 type eventService struct {
 	arg int
-	evt uint8
+	evt Event
 	se  stream.SpectrumElement
 }
 
@@ -55,7 +55,7 @@ func stopSpectumRoutine() {
 	spectrumRunning = false
 }
 
-func appendSpectrum(evt uint8, arg int) {
+func appendSpectrum(evt Event, arg int) {
 	locker.Lock()
 	defer locker.Unlock()
 
@@ -81,7 +81,7 @@ func appendSpectrum(evt uint8, arg int) {
 	services = append(services, &es)
 }
 
-func removeSpectrum(evt uint8, arg int) {
+func removeSpectrum(evt Event, arg int) {
 	locker.Lock()
 	defer locker.Unlock()
 	var (

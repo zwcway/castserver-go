@@ -52,7 +52,7 @@ func (speakerDetected) Dispatch(sp *Speaker) error {
 }
 func (speakerDetected) Register(c func(sp *Speaker) error) *bus.HandlerData {
 	return bus.Register("speaker detected", func(o any, a ...any) error {
-		return c(a[0].(*Speaker))
+		return c(o.(*Speaker))
 	})
 }
 

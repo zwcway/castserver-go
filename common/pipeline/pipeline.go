@@ -144,7 +144,10 @@ func (p *PipeLine) Stream(sample *stream.Samples) {
 		s.stream.OnStarting()
 	}
 
-	var t time.Time
+	var (
+		t time.Time
+		mt time.Time = time.Now()
+	)
 	for _, s := range p.wholeStreams {
 		t = time.Now()
 		s.stream.Stream(buf)
@@ -162,7 +165,7 @@ func (p *PipeLine) Stream(sample *stream.Samples) {
 	// for _, s := range p.oneStreams {
 	// 	s.cost = time.Since(t)
 	// }
-	p.cost = time.Since(t)
+	p.cost = time.Since(mt)
 	if p.cost > p.maxCost {
 		p.maxCost = p.cost
 	}

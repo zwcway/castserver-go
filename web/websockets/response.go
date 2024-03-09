@@ -6,7 +6,7 @@ import (
 )
 
 type ResponseSpeakerInfo struct {
-	ResponseSpeakerList
+	ResponseSpeakerItem
 
 	Statistic speaker.Statistic `jp:"statistic"`
 }
@@ -14,12 +14,12 @@ type ResponseSpeakerInfo struct {
 func NewResponseSpeakerInfo(sp *speaker.Speaker) *ResponseSpeakerInfo {
 
 	return &ResponseSpeakerInfo{
-		ResponseSpeakerList: *NewResponseSpeakerList(sp),
+		ResponseSpeakerItem: *NewResponseSpeakerItem(sp),
 		Statistic:           sp.Statistic,
 	}
 }
 
-type ResponseSpeakerList struct {
+type ResponseSpeakerItem struct {
 	ID          int32             `jp:"id"`
 	Name        string            `jp:"name"`
 	IP          string            `jp:"ip"`
@@ -37,7 +37,7 @@ type ResponseSpeakerList struct {
 	ConnectTime int               `jp:"cTime,omitempty"`
 }
 
-func NewResponseSpeakerList(sp *speaker.Speaker) *ResponseSpeakerList {
+func NewResponseSpeakerItem(sp *speaker.Speaker) *ResponseSpeakerItem {
 	power := int(sp.PowerState)
 	if !sp.Config.PowerSave {
 		power = -1
@@ -46,7 +46,7 @@ func NewResponseSpeakerList(sp *speaker.Speaker) *ResponseSpeakerList {
 	if !sp.ConnTime.IsZero() {
 		ct = int(sp.ConnTime.Unix())
 	}
-	return &ResponseSpeakerList{
+	return &ResponseSpeakerItem{
 		ID:          int32(sp.ID),
 		Name:        sp.SpeakerName,
 		IP:          sp.Ip,
@@ -126,7 +126,7 @@ type ResponseLineInfo struct {
 
 	Channels   []int                  `jp:"chlist"`
 	Layout     string                 `jp:"layout"`
-	Speakers   []*ResponseSpeakerList `jp:"speakers,omitempty"`
+	Speakers   []*ResponseSpeakerItem `jp:"speakers,omitempty"`
 	Input      *ResponseLineSource    `jp:"source,omitempty"`
 	Equalizers *ResponseEqualizer     `jp:"eq,omitempty"`
 }
@@ -160,13 +160,13 @@ func NewResponseLineInfo(line *speaker.Line) *ResponseLineInfo {
 
 		Channels:   line.Layout().SliceInt(),
 		Layout:     line.Layout().String(),
-		Speakers:   make([]*ResponseSpeakerList, line.SpeakerCount()),
+		Speakers:   make([]*ResponseSpeakerItem, line.SpeakerCount()),
 		Input:      NewResponseLineSource(line),
 		Equalizers: NewResponseEqualizer(line),
 	}
 
 	for i, s := range line.Speakers() {
-		info.Speakers[i] = NewResponseSpeakerList(s)
+		info.Speakers[i] = NewResponseSpeakerItem(s)
 	}
 
 	return info

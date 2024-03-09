@@ -7,10 +7,10 @@ import (
 )
 
 func apiSpeakerList(c *websockets.WSConnection, req Requester, log lg.Logger) (any, error) {
-	list := []*websockets.ResponseSpeakerList{}
+	list := []*websockets.ResponseSpeakerItem{}
 
 	speaker.All(func(s *speaker.Speaker) {
-		list = append(list, websockets.NewResponseSpeakerList(s))
+		list = append(list, websockets.NewResponseSpeakerItem(s))
 	})
 
 	return list, nil

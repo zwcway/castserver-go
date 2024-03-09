@@ -43,7 +43,8 @@ func BroadcastSpeakerLineMovedEvent(sp *speaker.Speaker, from speaker.LineID, to
 	return Broadcast(Event_SP_Moved, 0, resp.Speaker, msg)
 }
 
-func BroadcastSpeakerEvent(sp *speaker.Speaker, evt uint8) error {
+// BroadcastSpeakerEvent 向所有客户端发送扬声器事件
+func BroadcastSpeakerEvent(sp *speaker.Speaker, evt Event) error {
 	msg, err := jsonpack.Marshal(NewResponseSpeakerInfo(sp))
 	if err != nil {
 		return err
@@ -54,7 +55,8 @@ func BroadcastSpeakerEvent(sp *speaker.Speaker, evt uint8) error {
 	return Broadcast(evt, 0, int(sp.ID), msg)
 }
 
-func BroadcastLineEvent(line *speaker.Line, evt uint8) error {
+// BroadcastLineEvent 广播线路事件
+func BroadcastLineEvent(line *speaker.Line, evt Event) error {
 	msg, err := jsonpack.Marshal(NewResponseLineInfo(line))
 	if err != nil {
 		return err
@@ -63,6 +65,7 @@ func BroadcastLineEvent(line *speaker.Line, evt uint8) error {
 	return Broadcast(evt, 0, int(line.ID), msg)
 }
 
+// BroadcastLineInputEvent 广播音频接入事件
 func BroadcastLineInputEvent(line *speaker.Line) error {
 	msg, err := jsonpack.Marshal(NewResponseLineSource(line))
 	if err != nil {
@@ -72,21 +75,20 @@ func BroadcastLineInputEvent(line *speaker.Line) error {
 	return Broadcast(Event_Line_Input, 0, int(line.ID), msg)
 }
 
-func Broadcast(evt uint8, sub uint8, arg int, msg []byte) error {
+// Broadcast 开始广播事件
+func Broadcast(evt Event, sub Event, arg int, msg []byte) error {
 	// 格式： event+cmd+evt+data
-	id := make([]byte, 8+len(msg))
-	id[0] = 'e'
-	id[1] = 'v'
-	id[2] = 'e'
-	id[3] = 'n'
-	id[4] = 't'
-	id[5] = byte(evt)
-	id[6] = byte(sub)
-	id[7] = byte(arg)
+	eventMsg := make([]byte, 8+len(msg))
+	eventMsg[0] = 'e'
+	eventMsg[1] = 'v'
+	eventMsg[2] = 'e'
+	eventMsg[3] = 'n'
+	eventMsg[4] = 't'
+	eventMsg[5] = byte(evt)
+	eventMsg[6] = byte(sub)
+	eventMsg[7] = byte(arg)
 
-	for i, v := range msg {
-		id[8+i] = v
-	}
+	copy(eventMsg[8:], msg)
 
 	// log.Debug("broadcast event",
 	// 	lg.Uint8("cmd", cmd),
@@ -95,17 +97,17 @@ func Broadcast(evt uint8, sub uint8, arg int, msg []byte) error {
 	// 	lg.Int("length", len(msg)),
 	// )
 
-	for c, b := range WSHub.broadcast {
-		for _, e := range b {
+	for c, evts := range WSHub.broadcast {
+		for _, e := range evts {
 			if e.evt == evt {
-				c.Write(id)
+				c.Write(eventMsg)
 			}
 		}
 	}
 	return nil
 }
 
-func Subscribe(c *WSConnection, evt []uint8, sub uint8, arg int) {
+func Subscribe(c *WSConnection, evt []Event, sub Event, arg int) {
 	ses, ok := WSHub.broadcast[c]
 	if !ok { // 设备已断开
 		return
@@ -113,7 +115,7 @@ func Subscribe(c *WSConnection, evt []uint8, sub uint8, arg int) {
 	if len(evt) == 0 {
 		return
 	}
-	addEvts := []uint8{}
+	addEvts := []Event{}
 	for _, ee := range evt {
 		// 检查已经已经订阅过
 		if findBEvent(ses, ee, sub, arg) {
@@ -151,7 +153,7 @@ func Subscribe(c *WSConnection, evt []uint8, sub uint8, arg int) {
 	}
 }
 
-func Unsubscribe(c *WSConnection, evt []uint8, sub uint8, arg int) {
+func Unsubscribe(c *WSConnection, evt []Event, sub Event, arg int) {
 	ses, ok := WSHub.broadcast[c]
 	if !ok {
 		return

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"gorm.io/gorm/logger"
 )
 
@@ -82,7 +83,11 @@ func (l *Log) Name(f string) Logger {
 func (l *Log) zfields(fields ...Field) []zap.Field {
 	size := len(fields)
 	if len(l.zf) < size {
-		l.zf = make([]zap.Field, size*2)
+		if len(l.zf) == 0 {
+			l.zf = make([]zapcore.Field, 5)
+		} else {
+			l.zf = append(l.zf, l.zf...)
+		}
 	}
 	for i := 0; i < len(fields); i++ {
 		l.zf[i] = fields[i].Field

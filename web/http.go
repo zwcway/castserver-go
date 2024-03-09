@@ -78,7 +78,12 @@ func stopServer() error {
 func requestHandle(ctx *fasthttp.RequestCtx) {
 	uri := string(ctx.Path())
 
-	log.Info("request", lg.String("path", uri), lg.String("src", ctx.RemoteAddr().String()))
+	defer func() {
+		log.Info("request",
+			lg.Int("status", int64(ctx.Response.StatusCode())),
+			lg.String("path", uri),
+			lg.String("src", ctx.RemoteAddr().String()))
+	}()
 
 	if api.ApiDispatchDevel(ctx) {
 		return

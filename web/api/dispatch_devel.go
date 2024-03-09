@@ -24,6 +24,10 @@ import (
 	"github.com/zwcway/castserver-go/web/websockets"
 )
 
+var (
+	errNoLine = errors.New("no line")
+)
+
 type jsonReqMessage struct {
 	body []byte
 }
@@ -82,16 +86,17 @@ func initDebug() {
 }
 
 type requestSpeakerCreate struct {
-	Ver      uint8
-	ID       uint32
-	IP       string
-	MAC      string
-	DataPort uint16
-	BitsMask []uint8
-	RateMask []uint8
-	AVol     bool
+	Ver      uint8    `jq:"v"`
+	ID       uint32   `jq:"id"`
+	IP       string   `jq:"ip"`
+	MAC      string   `jq:"mac"`
+	DataPort uint16   `jq:"port"`
+	BitsMask []string `jq:"bits"`
+	RateMask []uint32 `jq:"rate"`
+	AVol     bool     `jq:"avol"`
 }
 
+// apiSpeakerCreate 创建扬声器
 func apiSpeakerCreate(c *websockets.WSConnection, req Requester, log lg.Logger) (any, error) {
 	p := requestSpeakerCreate{}
 	if err := req.Unmarshal(&p); err != nil {
@@ -102,11 +107,11 @@ func apiSpeakerCreate(c *websockets.WSConnection, req Requester, log lg.Logger) 
 	if err != nil {
 		return nil, err
 	}
-	rm, err := audio.NewAudioRateMask(p.RateMask)
+	rm, err := audio.NewAudioRateMaskFromInt(p.RateMask)
 	if err != nil {
 		return nil, err
 	}
-	bm, err := audio.NewAudioBitsMask(p.BitsMask)
+	bm, err := audio.NewAudioBitsMaskFromNames(p.BitsMask)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +127,10 @@ func apiSpeakerCreate(c *websockets.WSConnection, req Requester, log lg.Logger) 
 		AbsoluteVol: p.AVol,
 		PowerSave:   true,
 	}
-	detector.CheckSpeaker(res)
+	err = detector.CheckSpeaker(res)
+	if err != nil {
+		return nil, err
+	}
 
 	return true, nil
 }
@@ -174,8 +182,9 @@ func apiControlSpeakerFormat(c *websockets.WSConnection, req Requester, log lg.L
 	return true, nil
 }
 
+// apiEventDebug 模拟事件广播
 func apiEventDebug(c *websockets.WSConnection, req Requester, log lg.Logger) (ret any, err error) {
-	var evt uint8
+	var evt websockets.Event
 
 	err = req.Unmarshal(&evt)
 	if err != nil {
@@ -210,6 +219,7 @@ func apiEventDebug(c *websockets.WSConnection, req Requester, log lg.Logger) (re
 	return
 }
 
+// apiLocalSpeaker 设置本地播放器开关
 func apiLocalSpeaker(c *websockets.WSConnection, req Requester, log lg.Logger) (ret any, err error) {
 	var power bool
 	err = req.Unmarshal(&power)
@@ -233,6 +243,7 @@ func apiLocalSpeaker(c *websockets.WSConnection, req Requester, log lg.Logger) (
 	return true, nil
 }
 
+// apiPlayFile 播放音频文件
 func apiPlayFile(c *websockets.WSConnection, req Requester, log lg.Logger) (ret any, err error) {
 	var file struct {
 		Line int
@@ -245,7 +256,7 @@ func apiPlayFile(c *websockets.WSConnection, req Requester, log lg.Logger) (ret 
 	}
 	line := speaker.FindLineByID(speaker.LineID(file.Line))
 	if line == nil {
-		err = errors.New("no line")
+		err = errNoLine
 		return
 	}
 	audio := decoder.FileStreamer(line.UUID)
@@ -259,6 +270,7 @@ func apiPlayFile(c *websockets.WSConnection, req Requester, log lg.Logger) (ret 
 	return
 }
 
+// apiPlayPause 暂停播放
 func apiPlayPause(c *websockets.WSConnection, req Requester, log lg.Logger) (ret any, err error) {
 	var p struct {
 		Line  int
@@ -270,7 +282,7 @@ func apiPlayPause(c *websockets.WSConnection, req Requester, log lg.Logger) (ret
 	}
 	line := speaker.FindLineByID(speaker.LineID(p.Line))
 	if line == nil {
-		err = errors.New("no line")
+		err = errNoLine
 		return
 	}
 	audio := decoder.FileStreamer(line.UUID)
@@ -278,28 +290,34 @@ func apiPlayPause(c *websockets.WSConnection, req Requester, log lg.Logger) (ret
 	return true, nil
 }
 
+type elementStatus struct {
+	Name  string `jp:"name"`
+	Power int8   `jp:"on"`
+	Cost  int32  `jp:"cost"`
+}
+
+type debugStatusReq struct {
+	Line *int `jp:"line,omitempty"`
+}
+
+type debugStatusRsp struct {
+	LocalSpeaker bool            `jp:"local"`
+	LocalPlaying bool            `jp:"lplay"`
+	FilePlaying  bool            `jp:"fplay"`
+	FileName     string          `jp:"furl"`
+	SpectrumLog  bool            `jp:"sl"`
+	Elements     []elementStatus `jp:"eles"`
+}
+
+// apiDebugStatus 状态
 func apiDebugStatus(c *websockets.WSConnection, req Requester, log lg.Logger) (ret any, err error) {
-	var p struct {
-		Line *int `jp:"line,omitempty"`
-	}
+	var p debugStatusReq
 	err = req.Unmarshal(&p)
 	if err != nil {
 		return
 	}
-	type r struct {
-		Name  string `jp:"name"`
-		Power int    `jp:"on"`
-		Cost  int    `jp:"cost"`
-	}
 
-	resp := struct {
-		LocalSpeaker bool   `jp:"local"`
-		LocalPlaying bool   `jp:"lplay"`
-		FilePlaying  bool   `jp:"fplay"`
-		FileName     string `jp:"furl"`
-		SpectrumLog  bool   `jp:"sl"`
-		Elements     []r    `jp:"eles"`
-	}{
+	resp := debugStatusRsp{
 		LocalSpeaker: localspeaker.IsOpened(),
 		LocalPlaying: localspeaker.IsPlaying(),
 	}
@@ -308,7 +326,7 @@ func apiDebugStatus(c *websockets.WSConnection, req Requester, log lg.Logger) (r
 	if p.Line != nil {
 		line := speaker.FindLineByID(speaker.LineID(*p.Line))
 		if line == nil {
-			err = errors.New("no line")
+			err = errNoLine
 			return
 		}
 		fs := line.Input.FileStreamer()
@@ -324,9 +342,9 @@ func apiDebugStatus(c *websockets.WSConnection, req Requester, log lg.Logger) (r
 
 	if pl != nil {
 		for _, s := range pl.Streamers() {
-			res := r{
+			res := elementStatus{
 				Name: s.Name(),
-				Cost: int(s.Cost().Microseconds()),
+				Cost: int32(s.Cost().Microseconds()),
 			}
 			ele := s.Element()
 			if ele, ok := ele.(stream.SwitchElement); ok {
@@ -346,13 +364,16 @@ func apiDebugStatus(c *websockets.WSConnection, req Requester, log lg.Logger) (r
 	return resp, nil
 }
 
+type elementSwitchReq struct {
+	Line    *int   `jp:"line,omitempty"`
+	Speaker *int   `jp:"sp,omitempty"`
+	Name    string `jp:"n"`
+	Power   *bool  `jp:"on"`
+}
+
+// apiElementPower 管道元开关
 func apiElementPower(c *websockets.WSConnection, req Requester, log lg.Logger) (ret any, err error) {
-	var p struct {
-		Line    *int   `jp:"line,omitempty"`
-		Speaker *int   `jp:"sp,omitempty"`
-		Name    string `jp:"n"`
-		Power   *bool  `jp:"on"`
-	}
+	var p elementSwitchReq
 	err = req.Unmarshal(&p)
 	if err != nil {
 		return
@@ -362,7 +383,7 @@ func apiElementPower(c *websockets.WSConnection, req Requester, log lg.Logger) (
 	if p.Line != nil {
 		line := speaker.FindLineByID(speaker.LineID(*p.Line))
 		if line == nil {
-			err = errors.New("no line")
+			err = errNoLine
 			return
 		}
 		pl = line.Input.PipeLine

@@ -101,6 +101,23 @@ func NewAudioRateMask(arr []uint8) (RateMask, error) {
 	return a, err
 }
 
+func NewAudioRateMaskFromInt(arr []uint32) (RateMask, error) {
+	var (
+		a    RateMask
+		rate Rate
+	)
+	rarr := make([]uint8, 0)
+	for _, r := range arr {
+		rate.FromInt(int(r))
+		if !rate.IsValid() {
+			continue
+		}
+		rarr = append(rarr, uint8(rate))
+	}
+	err := a.FromSlice(rarr)
+	return a, err
+}
+
 func (m *RateMask) FromSlice(arr []uint8) error {
 	if len(arr) > 16 {
 		return errors.New("rates too large")
