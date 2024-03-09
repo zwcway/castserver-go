@@ -81,10 +81,10 @@ func (lineDeleted) Register(c func(src *Line, dst *Line) error) *bus.HandlerData
 type lineInputChanged struct{}
 
 func (lineInputChanged) Dispatch(l *Line, newSS stream.SourceStreamer) error {
-	return bus.DispatchObj(l, "line output changed", newSS)
+	return bus.DispatchObj(l, "line input changed", newSS)
 }
 func (lineInputChanged) Register(c func(l *Line, newSS stream.SourceStreamer) error) *bus.HandlerData {
-	return bus.Register("line output changed", func(o any, a ...any) error {
+	return bus.Register("line input changed", func(o any, a ...any) error {
 		return c(o.(*Line), a[0].(stream.SourceStreamer))
 	})
 }

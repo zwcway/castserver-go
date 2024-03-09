@@ -3,7 +3,7 @@ package control
 import (
 	"time"
 
-	log1 "github.com/zwcway/castserver-go/common/log"
+	lg "github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/common/protocol"
 	"github.com/zwcway/castserver-go/common/speaker"
 )
@@ -30,13 +30,13 @@ func ControlTime(sp *speaker.Speaker) {
 	}
 	p, err := t.Pack()
 	if err != nil {
-		log.Error("encode time package error", log1.Uint("speaker", uint64(sp.ID)), log1.Error(err))
+		log.Error("encode time package error", lg.Uint("speaker", uint64(sp.ID)), lg.Error(err))
 		return
 	}
 
 	err = sp.WriteUDP(p.Bytes())
 	if err != nil {
-		log.Error("write speaker error", log1.Uint("speaker", uint64(sp.ID)), log1.Error(err))
+		log.Error("write speaker error", lg.Uint("speaker", uint64(sp.ID)), lg.Error(err))
 		return
 	}
 }

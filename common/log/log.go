@@ -27,7 +27,7 @@ func Error(v error) Field                      { return Field{zap.Error(v)} }
 func Time(k string, v time.Time) Field         { return Field{zap.Time(k, v)} }
 
 func Any(k string, v any) Field {
-	if s, ok := v.(fmt.Stringer); ok {
+	if s, ok := v.(fmt.Stringer); ok && s != nil {
 		return Field{zap.String(k, s.String())}
 	}
 	return Field{zap.Any(k, v)}

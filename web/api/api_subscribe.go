@@ -1,7 +1,7 @@
 package api
 
 import (
-	log1 "github.com/zwcway/castserver-go/common/log"
+	lg "github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/web/websockets"
 )
 
@@ -15,7 +15,7 @@ type reqSubscribe struct {
 var SubscribeFunction func(c *websockets.WSConnection, evt int)
 var UnsubscribeFunction func(c *websockets.WSConnection, evt int)
 
-func apiSubscribe(c *websockets.WSConnection, req Requester, log log1.Logger) (any, error) {
+func apiSubscribe(c *websockets.WSConnection, req Requester, log lg.Logger) (any, error) {
 	if c == nil {
 		return nil, nil
 	}

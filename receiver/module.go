@@ -1,14 +1,14 @@
 package receiver
 
 import (
-	log1 "github.com/zwcway/castserver-go/common/log"
+	lg "github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/common/utils"
 	"github.com/zwcway/castserver-go/receiver/dlna"
 )
 
 var (
 	ctx    utils.Context
-	log    log1.Logger
+	log    lg.Logger
 	Module receiveModel
 
 	dlnaInstance *dlna.DLNAServer

@@ -12,7 +12,10 @@ type Format struct {
 	Layout // 声道数量
 }
 
-func (s Format) String() string {
+func (s *Format) String() string {
+	if s == nil {
+		return "nil"
+	}
 	return fmt.Sprintf("%d/%d/%s", s.Sample.Rate.ToInt(), s.Layout.Count, s.Sample.Bits.String())
 }
 

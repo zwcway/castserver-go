@@ -5,7 +5,7 @@ import (
 
 	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/bus"
-	log1 "github.com/zwcway/castserver-go/common/log"
+	lg "github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/common/stream"
 )
@@ -175,7 +175,7 @@ func (e *Element) PushSpeaker(sp *speaker.Speaker, samples *stream.Samples) {
 		return
 	}
 	if len(queue) == cap(queue) {
-		log.Error("send queue full", log1.Uint("speaker", uint64(sp.ID)), log1.Int("size", int64(len(queue))))
+		log.Error("send queue full", lg.Uint("speaker", uint64(sp.ID)), lg.Int("size", int64(len(queue))))
 		return
 	}
 

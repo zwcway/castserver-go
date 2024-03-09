@@ -180,8 +180,6 @@ func (l *Line) SetOutput(f audio.Format) {
 	old := l.Output
 	l.Output = f
 
-	l.Input.SetFormat(f)
-
 	for _, sp := range l.speakers {
 		sp.SetSample(f.Sample)
 	}

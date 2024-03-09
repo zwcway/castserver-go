@@ -87,6 +87,7 @@ func (m *Mixer) decideFormat() {
 	}
 
 	format := audio.InternalFormat()
+	format.InitFrom(audio.DefaultFormat())
 
 	for i := 0; i < len(m.streamers); i++ {
 		s := m.streamers[i].streamer

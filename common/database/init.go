@@ -2,7 +2,7 @@ package database
 
 import (
 	"github.com/zwcway/castserver-go/common/bus"
-	log1 "github.com/zwcway/castserver-go/common/log"
+	lg "github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/common/utils"
 	"gorm.io/gorm"
@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	log log1.Logger
+	log lg.Logger
 	db  *gorm.DB
 )
 
@@ -37,7 +37,7 @@ func Init(ctx utils.Context, d *gorm.DB) {
 		}
 		result := db.Model(line).UpdateColumns(um)
 		if result.Error != nil {
-			log.Fatal("save line error", log1.Error(result.Error))
+			log.Fatal("save line error", lg.Error(result.Error))
 			return result.Error
 		}
 		return nil
@@ -54,7 +54,7 @@ func Init(ctx utils.Context, d *gorm.DB) {
 		}
 		result := db.Model(sp).UpdateColumns(um)
 		if result.Error != nil {
-			log.Fatal("save speaker error", log1.Error(result.Error))
+			log.Fatal("save speaker error", lg.Error(result.Error))
 			return result.Error
 		}
 		return nil
@@ -71,7 +71,7 @@ func getLines(lineList *[]*speaker.Line) error {
 		return nil
 	}
 	if result.Error != nil {
-		log.Fatal("read all lines error", log1.Error(result.Error))
+		log.Fatal("read all lines error", lg.Error(result.Error))
 	}
 	return result.Error
 }
@@ -80,7 +80,7 @@ func getLine(o any, a ...any) error {
 	line := a[0].(*speaker.Line)
 	result := db.Take(line)
 	if result.Error != nil {
-		log.Fatal("read line error", log1.Uint("line", uint64(line.ID)), log1.Error(result.Error))
+		log.Fatal("read line error", lg.Uint("line", uint64(line.ID)), lg.Error(result.Error))
 	}
 	return result.Error
 }
@@ -90,7 +90,7 @@ func saveLine(o any, a ...any) error {
 	result := db.Save(line)
 
 	if result.Error != nil {
-		log.Fatal("save line error", log1.Uint("line", uint64(line.ID)), log1.Error(result.Error))
+		log.Fatal("save line error", lg.Uint("line", uint64(line.ID)), lg.Error(result.Error))
 	}
 	return result.Error
 }
@@ -99,7 +99,7 @@ func deleteLine(o any, a ...any) error {
 	line := o.(*speaker.Line)
 	result := db.Delete(line)
 	if result.Error != nil {
-		log.Fatal("delete line error", log1.Uint("line", uint64(line.ID)), log1.Error(result.Error))
+		log.Fatal("delete line error", lg.Uint("line", uint64(line.ID)), lg.Error(result.Error))
 	}
 	return result.Error
 }
@@ -115,7 +115,7 @@ func getSpeakers(o any, a ...any) error {
 		return nil
 	}
 	if result.Error != nil {
-		log.Fatal("read all lines error", log1.Error(result.Error))
+		log.Fatal("read all lines error", lg.Error(result.Error))
 	}
 	return result.Error
 }
@@ -124,7 +124,7 @@ func getSpeaker(o any, a ...any) error {
 	sp := a[0].(*speaker.Speaker)
 	result := db.Take(sp)
 	if result.Error != nil {
-		log.Fatal("read speaker error", log1.Uint("speaker", uint64(sp.ID)), log1.Error(result.Error))
+		log.Fatal("read speaker error", lg.Uint("speaker", uint64(sp.ID)), lg.Error(result.Error))
 	}
 	return result.Error
 }
@@ -133,7 +133,7 @@ func saveSpeaker(o any, a ...any) error {
 	sp := a[0].(*speaker.Speaker)
 	result := db.Session(&gorm.Session{FullSaveAssociations: true}).Save(sp)
 	if result.Error != nil {
-		log.Fatal("save speaker error", log1.Uint("speaker", uint64(sp.ID)), log1.Error(result.Error))
+		log.Fatal("save speaker error", lg.Uint("speaker", uint64(sp.ID)), lg.Error(result.Error))
 	}
 	return result.Error
 }
@@ -142,7 +142,7 @@ func deleteSpeaker(o any, a ...any) error {
 	sp := a[0].(*speaker.Speaker)
 	result := db.Delete(sp)
 	if result.Error != nil {
-		log.Fatal("delete speaker error", log1.Uint("speaker", uint64(sp.ID)), log1.Error(result.Error))
+		log.Fatal("delete speaker error", lg.Uint("speaker", uint64(sp.ID)), lg.Error(result.Error))
 	}
 	return result.Error
 }

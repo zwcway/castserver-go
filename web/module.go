@@ -2,14 +2,14 @@ package web
 
 import (
 	"github.com/zwcway/castserver-go/common/config"
-	log1 "github.com/zwcway/castserver-go/common/log"
+	lg "github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/common/utils"
 	"github.com/zwcway/castserver-go/web/api"
 	"github.com/zwcway/castserver-go/web/websockets"
 )
 
 var (
-	log    log1.Logger
+	log    lg.Logger
 	Module = webModule{}
 )
 

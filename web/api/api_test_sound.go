@@ -2,7 +2,7 @@ package api
 
 import (
 	"github.com/zwcway/castserver-go/common/audio"
-	log1 "github.com/zwcway/castserver-go/common/log"
+	lg "github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/common/sounds"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/web/websockets"
@@ -14,7 +14,7 @@ type requestTestInfo struct {
 	Speaker *uint32 `jp:"sp,omitempty"`
 }
 
-func apiTestSound(c *websockets.WSConnection, req Requester, log log1.Logger) (ret any, err error) {
+func apiTestSound(c *websockets.WSConnection, req Requester, log lg.Logger) (ret any, err error) {
 	var p requestTestInfo
 	err = req.Unmarshal(&p)
 	if err != nil {

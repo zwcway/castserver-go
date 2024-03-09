@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/zwcway/castserver-go/common/config"
-	log1 "github.com/zwcway/castserver-go/common/log"
+	lg "github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/common/protocol"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/common/utils"
@@ -23,7 +23,7 @@ type recvData struct {
 var (
 	conn        *net.UDPConn
 	ctx         utils.Context
-	log         log1.Logger
+	log         lg.Logger
 	recvMessage chan *recvData
 	wg          utils.WaitGroup
 )
@@ -40,23 +40,23 @@ func ResponseServerInfo(sp *speaker.Speaker) {
 	}
 	p, err := sr.Pack()
 	if err != nil {
-		log.Error("send server info package invalid", log1.Error(err))
+		log.Error("send server info package invalid", lg.Error(err))
 		return
 	}
 	addr, err := netip.ParseAddr(sp.Ip)
 	if err != nil {
-		log.Error("speaker ip invalid", log1.String("speaker", sp.String()), log1.String("ip", sp.Ip), log1.Error(err))
+		log.Error("speaker ip invalid", lg.String("speaker", sp.String()), lg.String("ip", sp.Ip), lg.Error(err))
 		return
 	}
 	addrPort := netip.AddrPortFrom(addr, config.MulticastPort)
 
 	n, err := conn.WriteToUDPAddrPort(p.Bytes(), addrPort)
 	if err != nil {
-		log.Error("send server info failed", log1.Error(err))
+		log.Error("send server info failed", lg.Error(err))
 		return
 	}
 	if n != p.DataSize() {
-		log.Error("send server info error", log1.Int("sended", int64(n)), log1.Int("size", int64(p.DataSize())))
+		log.Error("send server info error", lg.Int("sended", int64(n)), lg.Int("size", int64(p.DataSize())))
 	}
 }
 
@@ -69,18 +69,18 @@ func MulicastServerInfo(st ServerType) {
 	}
 	p, err := sr.Pack()
 	if err != nil {
-		log.Error("send server info package invalid", log1.Error(err))
+		log.Error("send server info package invalid", lg.Error(err))
 		return
 	}
 
 	addrPort := netip.AddrPortFrom(config.MulticastAddress, config.MulticastPort)
 	n, err := conn.WriteToUDPAddrPort(p.Bytes(), addrPort)
 	if err != nil {
-		log.Error("send server info failed", log1.Error(err))
+		log.Error("send server info failed", lg.Error(err))
 		return
 	}
 	if n != p.DataSize() {
-		log.Error("send server info error", log1.Int("sended", int64(n)), log1.Int("size", int64(p.DataSize())))
+		log.Error("send server info error", lg.Int("sended", int64(n)), lg.Int("size", int64(p.DataSize())))
 	}
 }
 
@@ -101,16 +101,16 @@ func readUDP(p *recvData) {
 	res := &SpeakerResponse{}
 	err := res.Unpack(p.pack)
 	if err != nil {
-		log.Error("receive data is invalid", log1.Int("len", int64(p.pack.Size())), log1.String("from", p.src.String()), log1.Error(err))
+		log.Error("receive data is invalid", lg.Int("len", int64(p.pack.Size())), lg.String("from", p.src.String()), lg.Error(err))
 		return
 	}
 	if res.Addr.String() != p.src.IP.String() {
-		log.Error("receive ip is wrong", log1.String("need", res.Addr.String()), log1.String("real", p.src.String()))
+		log.Error("receive ip is wrong", lg.String("need", res.Addr.String()), lg.String("real", p.src.String()))
 		return
 	}
 
 	if err = CheckSpeaker(res); err != nil {
-		log.Error("invalid speaker", log1.String("from", p.src.String()))
+		log.Error("invalid speaker", lg.String("from", p.src.String()))
 	}
 
 }
@@ -145,7 +145,7 @@ func readUDPRoutine(buferSize int) {
 				log.Info("connection closed")
 				return
 			}
-			log.Error("ReadFromUDP failed", log1.Error(err))
+			log.Error("ReadFromUDP failed", lg.Error(err))
 			return
 		}
 
@@ -154,7 +154,7 @@ func readUDPRoutine(buferSize int) {
 			continue
 		}
 
-		log.Debug("receive data", log1.String("from", src.String()), log1.Binary("data", buffer[:numBytes]))
+		log.Debug("receive data", lg.String("from", src.String()), lg.Binary("data", buffer[:numBytes]))
 		recvMessage <- &recvData{protocol.FromBinary(buffer[:numBytes]), src}
 	}
 }
@@ -169,7 +169,7 @@ func listenUDP(ctx utils.Context) error {
 	pc := ipv4.NewPacketConn(conn)
 
 	if err := pc.SetMulticastLoopback(true); err != nil {
-		log.Error("SetMulticastLoopback error:%v\n", log1.Error(err))
+		log.Error("SetMulticastLoopback error:%v\n", lg.Error(err))
 	}
 
 	log.Info("start listen on " + config.ServerListen.AddrPort.String())
@@ -212,7 +212,7 @@ func onlineCheckRoutine(ctx utils.Context, done <-chan struct{}) {
 				return
 			}
 
-			log.Info("speaker is offline.", log1.String("speaker", sp.String()))
+			log.Info("speaker is offline.", lg.String("speaker", sp.String()))
 			sp.SetOffline()
 			pusher.Disconnect(sp)
 

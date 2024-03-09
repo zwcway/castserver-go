@@ -401,9 +401,6 @@ func sampleSize(duration time.Duration, format *audio.Format) int {
 }
 
 func NewSamplesDuration(duration time.Duration, format audio.Format) (s *Samples) {
-	if !format.IsValid() {
-		return nil
-	}
 	samples := sampleSize(duration, &format)
 	s = newSamples(samples, format)
 	s.autoSize = duration == 0
@@ -411,9 +408,6 @@ func NewSamplesDuration(duration time.Duration, format audio.Format) (s *Samples
 }
 
 func NewSamples(samples int, format audio.Format) (s *Samples) {
-	if !format.IsValid() {
-		return nil
-	}
 	s = newSamples(samples, format)
 	return
 }

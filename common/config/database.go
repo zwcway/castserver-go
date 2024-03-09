@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/go-ini/ini"
-	log1 "github.com/zwcway/castserver-go/common/log"
+	lg "github.com/zwcway/castserver-go/common/log"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/driver/sqlserver"
@@ -31,7 +31,7 @@ func parseDatabase(cfg reflect.Value, k *ini.Key, ck *CfgKey) {
 func openDatabase(dbstr string) *gorm.DB {
 	dbUrl, err := url.Parse(dbstr)
 	if err != nil {
-		log.Panic("database invalid", log1.String("url", dbstr), log1.Error(err))
+		log.Panic("database invalid", lg.String("url", dbstr), lg.Error(err))
 		return nil
 	}
 	scheme := strings.ToLower(dbUrl.Scheme)
@@ -54,10 +54,10 @@ func openDatabase(dbstr string) *gorm.DB {
 	}
 
 	db, err := gorm.Open(dialector, &gorm.Config{
-		Logger: log1.NewDBLog(log1.DebugLevel),
+		Logger: lg.NewDBLog(lg.DebugLevel),
 	})
 	if err != nil {
-		log.Panic("database connect failed", log1.String("url", dbstr), log1.Error(err))
+		log.Panic("database connect failed", lg.String("url", dbstr), lg.Error(err))
 		return nil
 	}
 	return db

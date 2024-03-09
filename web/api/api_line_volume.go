@@ -3,12 +3,12 @@ package api
 import (
 	"fmt"
 
-	log1 "github.com/zwcway/castserver-go/common/log"
+	lg "github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/web/websockets"
 )
 
-func apiLineVolume(c *websockets.WSConnection, req Requester, log log1.Logger) (any, error) {
+func apiLineVolume(c *websockets.WSConnection, req Requester, log lg.Logger) (any, error) {
 	var p requestVolume
 	err := req.Unmarshal(&p)
 	if err != nil {
