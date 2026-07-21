@@ -1,0 +1,11 @@
+["start http on "]
+hash = "sha1-1"
+other = "start http on "
+
+["you can open http://"]
+hash = "sha1-2"
+other = "you can open http://"
+
+[request]
+hash = "sha1-3"
+other = "request"

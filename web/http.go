@@ -12,6 +12,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/valyala/fasthttp"
 	"github.com/zwcway/castserver-go/common/config"
@@ -77,12 +78,13 @@ func stopServer() error {
 
 func requestHandle(ctx *fasthttp.RequestCtx) {
 	uri := string(ctx.Path())
-
+	ts := time.Now()
 	defer func() {
 		log.Info("request",
 			lg.Int("status", int64(ctx.Response.StatusCode())),
 			lg.String("path", uri),
-			lg.String("src", ctx.RemoteAddr().String()))
+			lg.String("src", ctx.RemoteAddr().String()),
+			lg.Duration("cost", time.Since(ts)))
 	}()
 
 	if api.ApiDispatchDevel(ctx) {

@@ -1,0 +1,11 @@
+["start http on "]
+hash = "sha1-1"
+other = "启动 HTTP 服务于 "
+
+["you can open http://"]
+hash = "sha1-2"
+other = "你可以在浏览器中打开 http://"
+
+[request]
+hash = "sha1-3"
+other = "请求"

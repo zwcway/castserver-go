@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime/debug"
 	"syscall"
 
 	"github.com/go-ini/ini"
 	"github.com/zwcway/castserver-go/common/config"
 	"github.com/zwcway/castserver-go/common/database"
+	"github.com/zwcway/castserver-go/common/i18n"
 	"github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/common/utils"
 )
@@ -35,7 +37,7 @@ func init() {
 		optNetInterface    string
 		optDetectInterface string
 	)
-	flag.StringVar(&optConfigFile, "c", "castserver.conf", "specify configuration file")
+	flag.StringVar(&optConfigFile, "c", "", "specify configuration file")
 	flag.StringVar(&optNetInterface, "i", "", "listen interface")
 	flag.StringVar(&optDetectInterface, "detect-interface", "", "detect listen interface")
 	flag.BoolVar(&optIsIPV6, "6", false, "use IPV6 net")
@@ -89,6 +91,12 @@ func main() {
 	options = make(map[string]string)
 	flag.Visit(func(f *flag.Flag) { options[f.Name] = f.Value.String() })
 
+	configDir := filepath.Dir(optConfigFile)
+	if configDir == "" {
+		configDir = "."
+	}
+	_ = i18n.Load(filepath.Join(configDir, "locales"))
+
 	if optVersion {
 		exit(exitCode, false, "Version: %s", config.VERSION)
 	}
@@ -96,7 +104,7 @@ func main() {
 		exit(exitCode, true, "")
 	}
 
-	log, logClose, err := log.NewLogger(optLogFile, optDaemon)
+	logger, logClose, err := log.NewLogger(optLogFile, optDaemon)
 	if err != nil {
 		exit(2, true, "%s", err.Error())
 	}
@@ -105,11 +113,17 @@ func main() {
 		exit(2, false, "%s", err.Error())
 	}
 
+	if v, ok := options["language"]; ok && v != "" {
+		i18n.SetLanguage(v)
+	} else {
+		i18n.SetLanguage("en")
+	}
+
 	// 用于通知主程序退出
 	signalChannel := make(chan os.Signal, 2)
 
 	// 用于通知子协程退出
-	rootCtx, ctxCancel := utils.NewContext().WithSignal(signalChannel).WithLogger(log).WithCancel()
+	rootCtx, ctxCancel := utils.NewContext().WithSignal(signalChannel).WithLogger(logger).WithCancel()
 
 	err = config.FromOptions(rootCtx, options)
 	if err != nil {
@@ -143,7 +157,7 @@ func main() {
 	ctxCancel()
 	close(signalChannel)
 
-	log.Info("exit")
+	logger.Info("exit")
 
 __exit__:
 	if err != nil {

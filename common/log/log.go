@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/zwcway/castserver-go/common/i18n"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gorm.io/gorm/logger"
@@ -15,17 +16,31 @@ type Field struct {
 	zap.Field
 }
 
-func String(k string, v string) Field          { return Field{zap.String(k, v)} }
-func Int(k string, v int64) Field              { return Field{zap.Int64(k, v)} }
-func Uint(k string, v uint64) Field            { return Field{zap.Uint64(k, v)} }
-func Binary(k string, v []byte) Field          { return Field{zap.Binary(k, v)} }
-func ByteString(k string, v []byte) Field      { return Field{zap.ByteString(k, v)} }
-func Bool(k string, v bool) Field              { return Field{zap.Bool(k, v)} }
-func Duration(k string, v time.Duration) Field { return Field{zap.Duration(k, v)} }
-func Float32(k string, v float32) Field        { return Field{zap.Float32(k, v)} }
-func Float64(k string, v float64) Field        { return Field{zap.Float64(k, v)} }
-func Error(v error) Field                      { return Field{zap.Error(v)} }
-func Time(k string, v time.Time) Field         { return Field{zap.Time(k, v)} }
+func String(k string, v string) Field     { return Field{zap.String(k, v)} }
+func Int(k string, v int64) Field         { return Field{zap.Int64(k, v)} }
+func Uint(k string, v uint64) Field       { return Field{zap.Uint64(k, v)} }
+func Binary(k string, v []byte) Field     { return Field{zap.Binary(k, v)} }
+func ByteString(k string, v []byte) Field { return Field{zap.ByteString(k, v)} }
+func Bool(k string, v bool) Field         { return Field{zap.Bool(k, v)} }
+func Duration(k string, v time.Duration) Field {
+	t := float64(v)
+	if t > float64(time.Hour) {
+		return Field{zap.String(k, fmt.Sprintf("%gh", t/float64(time.Hour)))}
+	} else if t > float64(time.Minute) {
+		return Field{zap.String(k, fmt.Sprintf("%gm", t/float64(time.Minute)))}
+	} else if t > float64(time.Second) {
+		return Field{zap.String(k, fmt.Sprintf("%gs", t/float64(time.Second)))}
+	} else if t > float64(time.Microsecond) {
+		return Field{zap.String(k, fmt.Sprintf("%gms", t/float64(time.Microsecond)))}
+	} else if t > float64(time.Millisecond) {
+		return Field{zap.String(k, fmt.Sprintf("%gus", t/float64(time.Millisecond)))}
+	}
+	return Field{zap.Duration(k, v)}
+}
+func Float32(k string, v float32) Field { return Field{zap.Float32(k, v)} }
+func Float64(k string, v float64) Field { return Field{zap.Float64(k, v)} }
+func Error(v error) Field               { return Field{zap.Error(v)} }
+func Time(k string, v time.Time) Field  { return Field{zap.Time(k, v)} }
 
 func Any(k string, v any) Field {
 	if s, ok := v.(fmt.Stringer); ok && s != nil {
@@ -51,27 +66,27 @@ type Log struct {
 }
 
 func (l *Log) Debug(msg string, feilds ...Field) {
-	l.l.Debug(msg, l.zfields(feilds...)...)
+	l.l.Debug(i18n.T(msg), l.zfields(feilds...)...)
 }
 
 func (l *Log) Info(msg string, feilds ...Field) {
-	l.l.Info(msg, l.zfields(feilds...)...)
+	l.l.Info(i18n.T(msg), l.zfields(feilds...)...)
 }
 
 func (l *Log) Warn(msg string, feilds ...Field) {
-	l.l.Warn(msg, l.zfields(feilds...)...)
+	l.l.Warn(i18n.T(msg), l.zfields(feilds...)...)
 }
 
 func (l *Log) Error(msg string, feilds ...Field) {
-	l.l.Error(msg, l.zfields(feilds...)...)
+	l.l.Error(i18n.T(msg), l.zfields(feilds...)...)
 }
 
 func (l *Log) Fatal(msg string, feilds ...Field) {
-	l.l.Fatal(msg, l.zfields(feilds...)...)
+	l.l.Fatal(i18n.T(msg), l.zfields(feilds...)...)
 }
 
 func (l *Log) Panic(msg string, feilds ...Field) {
-	l.l.Panic(msg, l.zfields(feilds...)...)
+	l.l.Panic(i18n.T(msg), l.zfields(feilds...)...)
 }
 
 func (l *Log) Name(f string) Logger {
