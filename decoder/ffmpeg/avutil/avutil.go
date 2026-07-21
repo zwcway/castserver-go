@@ -7,6 +7,7 @@ package avutil
 */
 import "C"
 import (
+	"errors"
 	"fmt"
 	"unsafe"
 
@@ -58,96 +59,98 @@ func (e *AllocError) Error() string {
 }
 
 func IsEof(err error) bool {
-	_, ok := err.(*EofError)
+	var eofError *EofError
+	ok := errors.As(err, &eofError)
 	return ok
 }
 
-func channelFromAV(ch C.uint64_t) audio.Channel {
-	switch ch {
-	case C.AV_CH_FRONT_LEFT:
-		return audio.Channel_FRONT_LEFT
-	case C.AV_CH_FRONT_RIGHT:
-		return audio.Channel_FRONT_RIGHT
-	case C.AV_CH_FRONT_CENTER:
-		return audio.Channel_FRONT_CENTER
-	case C.AV_CH_LOW_FREQUENCY:
-		return audio.Channel_LOW_FREQUENCY
-	case C.AV_CH_BACK_LEFT:
-		return audio.Channel_BACK_LEFT
-	case C.AV_CH_BACK_RIGHT:
-		return audio.Channel_BACK_RIGHT
-	case C.AV_CH_FRONT_LEFT_OF_CENTER:
-		return audio.Channel_FRONT_LEFT_OF_CENTER
-	case C.AV_CH_FRONT_RIGHT_OF_CENTER:
-		return audio.Channel_FRONT_RIGHT_OF_CENTER
-	case C.AV_CH_BACK_CENTER:
-		return audio.Channel_BACK_CENTER
-	case C.AV_CH_SIDE_LEFT:
-		return audio.Channel_SIDE_LEFT
-	case C.AV_CH_SIDE_RIGHT:
-		return audio.Channel_SIDE_RIGHT
-	// case C.AV_CH_TOP_CENTER:
+func ChannelFromAV(ch int) audio.Channel {
+	switch C.enum_AVChannel(ch) {
+	case C.AV_CHAN_FRONT_LEFT:
+		return audio.ChannelFrontLeft
+	case C.AV_CHAN_FRONT_RIGHT:
+		return audio.ChannelFrontRight
+	case C.AV_CHAN_FRONT_CENTER:
+		return audio.ChannelFrontCenter
+	case C.AV_CHAN_LOW_FREQUENCY:
+		return audio.ChannelLowFrequency
+	case C.AV_CHAN_BACK_LEFT:
+		return audio.ChannelBackLeft
+	case C.AV_CHAN_BACK_RIGHT:
+		return audio.ChannelBackRight
+	case C.AV_CHAN_FRONT_LEFT_OF_CENTER:
+		return audio.ChannelFrontLeftOfCenter
+	case C.AV_CHAN_FRONT_RIGHT_OF_CENTER:
+		return audio.ChannelFrontRightOfCenter
+	case C.AV_CHAN_BACK_CENTER:
+		return audio.ChannelBackCenter
+	case C.AV_CHAN_SIDE_LEFT:
+		return audio.ChannelSideLeft
+	case C.AV_CHAN_SIDE_RIGHT:
+		return audio.ChannelSideRight
+	// case C.AV_CHAN_TOP_CENTER:
 	// 	return audio.Channel_TOP_CENTER
-	case C.AV_CH_TOP_FRONT_LEFT:
-		return audio.Channel_TOP_FRONT_LEFT
-	case C.AV_CH_TOP_FRONT_CENTER:
-		return audio.Channel_TOP_FRONT_CENTER
-	case C.AV_CH_TOP_FRONT_RIGHT:
-		return audio.Channel_TOP_FRONT_RIGHT
-	case C.AV_CH_TOP_BACK_LEFT:
-		return audio.Channel_TOP_BACK_LEFT
-	case C.AV_CH_TOP_BACK_CENTER:
-		return audio.Channel_TOP_BACK_CENTER
-	case C.AV_CH_TOP_BACK_RIGHT:
-		return audio.Channel_TOP_BACK_RIGHT
-	case C.AV_CH_STEREO_LEFT:
-	case C.AV_CH_STEREO_RIGHT:
-	case C.AV_CH_WIDE_LEFT:
-	case C.AV_CH_WIDE_RIGHT:
+	case C.AV_CHAN_TOP_FRONT_LEFT:
+		return audio.ChannelTopFrontLeft
+	case C.AV_CHAN_TOP_FRONT_CENTER:
+		return audio.ChannelTopFrontCenter
+	case C.AV_CHAN_TOP_FRONT_RIGHT:
+		return audio.ChannelTopFrontRight
+	case C.AV_CHAN_TOP_BACK_LEFT:
+		return audio.ChannelTopBackLeft
+	case C.AV_CHAN_TOP_BACK_CENTER:
+		return audio.ChannelTopBackCenter
+	case C.AV_CHAN_TOP_BACK_RIGHT:
+		return audio.ChannelTopBackRight
+	case C.AV_CHAN_STEREO_LEFT:
+	case C.AV_CHAN_STEREO_RIGHT:
+	case C.AV_CHAN_WIDE_LEFT:
+	case C.AV_CHAN_WIDE_RIGHT:
 	}
-	return audio.Channel_NONE
+	return audio.ChannelNone
 }
 
-func avFromChannel(ch audio.Channel) C.uint64_t {
+func avFromChannel(ch audio.Channel) uint64 {
 	switch ch {
-	case audio.Channel_FRONT_LEFT:
-		return C.AV_CH_FRONT_LEFT
-	case audio.Channel_FRONT_RIGHT:
-		return C.AV_CH_FRONT_RIGHT
-	case audio.Channel_FRONT_CENTER:
-		return C.AV_CH_FRONT_CENTER
-	case audio.Channel_LOW_FREQUENCY:
-		return C.AV_CH_LOW_FREQUENCY
-	case audio.Channel_BACK_LEFT:
-		return C.AV_CH_BACK_LEFT
-	case audio.Channel_BACK_RIGHT:
-		return C.AV_CH_BACK_RIGHT
-	case audio.Channel_FRONT_LEFT_OF_CENTER:
-		return C.AV_CH_FRONT_LEFT_OF_CENTER
-	case audio.Channel_FRONT_RIGHT_OF_CENTER:
-		return C.AV_CH_FRONT_RIGHT_OF_CENTER
-	case audio.Channel_BACK_CENTER:
-		return C.AV_CH_BACK_CENTER
-	case audio.Channel_SIDE_LEFT:
-		return C.AV_CH_SIDE_LEFT
-	case audio.Channel_SIDE_RIGHT:
-		return C.AV_CH_SIDE_RIGHT
+	case audio.ChannelFrontLeft:
+		return C.AV_CHAN_FRONT_LEFT
+	case audio.ChannelFrontRight:
+		return C.AV_CHAN_FRONT_RIGHT
+	case audio.ChannelFrontCenter:
+		return C.AV_CHAN_FRONT_CENTER
+	case audio.ChannelLowFrequency:
+		return C.AV_CHAN_LOW_FREQUENCY
+	case audio.ChannelBackLeft:
+		return C.AV_CHAN_BACK_LEFT
+	case audio.ChannelBackRight:
+		return C.AV_CHAN_BACK_RIGHT
+	case audio.ChannelFrontLeftOfCenter:
+		return C.AV_CHAN_FRONT_LEFT_OF_CENTER
+	case audio.ChannelFrontRightOfCenter:
+		return C.AV_CHAN_FRONT_RIGHT_OF_CENTER
+	case audio.ChannelBackCenter:
+		return C.AV_CHAN_BACK_CENTER
+	case audio.ChannelSideLeft:
+		return C.AV_CHAN_SIDE_LEFT
+	case audio.ChannelSideRight:
+		return C.AV_CHAN_SIDE_RIGHT
 	// case audio.Channel_TOP_CENTER:
-	// 	return C.AV_CH_TOP_CENTER
-	case audio.Channel_TOP_FRONT_LEFT:
-		return C.AV_CH_TOP_FRONT_LEFT
-	case audio.Channel_TOP_FRONT_CENTER:
-		return C.AV_CH_TOP_FRONT_CENTER
-	case audio.Channel_TOP_FRONT_RIGHT:
-		return C.AV_CH_TOP_FRONT_RIGHT
-	case audio.Channel_TOP_BACK_LEFT:
-		return C.AV_CH_TOP_BACK_LEFT
-	case audio.Channel_TOP_BACK_CENTER:
-		return C.AV_CH_TOP_BACK_CENTER
-	case audio.Channel_TOP_BACK_RIGHT:
-		return C.AV_CH_TOP_BACK_RIGHT
+	// 	return C.AV_CHAN_TOP_CENTER
+	case audio.ChannelTopFrontLeft:
+		return C.AV_CHAN_TOP_FRONT_LEFT
+	case audio.ChannelTopFrontCenter:
+		return C.AV_CHAN_TOP_FRONT_CENTER
+	case audio.ChannelTopFrontRight:
+		return C.AV_CHAN_TOP_FRONT_RIGHT
+	case audio.ChannelTopBackLeft:
+		return C.AV_CHAN_TOP_BACK_LEFT
+	case audio.ChannelTopBackCenter:
+		return C.AV_CHAN_TOP_BACK_CENTER
+	case audio.ChannelTopBackRight:
+		return C.AV_CHAN_TOP_BACK_RIGHT
+	default:
+		return 0
 	}
-	return 0
 }
 
 func BitsFromAVFormat(b C.enum_AVSampleFormat) audio.Bits {
@@ -180,32 +183,17 @@ func AVFormatFromBits(b audio.Bits) C.enum_AVSampleFormat {
 		return C.AV_SAMPLE_FMT_FLTP
 	case audio.Bits_64LEF:
 		return C.AV_SAMPLE_FMT_DBLP
+	default:
+		return C.AV_SAMPLE_FMT_NONE
 	}
-	return C.AV_SAMPLE_FMT_NONE
-}
-
-func ChannelsFromLayout(layout uint64) (m audio.Layout, index audio.ChannelIndex) {
-	acSlice := []audio.Channel{}
-
-	index = m.ChannelIndex()
-
-	for i := int8(0); i < 64; i++ {
-		ch := C.av_channel_layout_extract_channel(C.uint64_t(layout), C.int(i))
-		ac := channelFromAV(ch)
-		if !ac.IsValid() {
-			continue
-		}
-		index[ac] = i
-		acSlice = append(acSlice, ac)
-	}
-
-	return audio.NewLayout(acSlice...), index
 }
 
 func AVLayoutFromLayout(layout audio.Layout) uint64 {
-	av := C.uint64_t(0)
+	var (
+		mask uint64
+	)
 	for _, ch := range layout.ChannelMask.Slice() {
-		av |= avFromChannel(ch)
+		mask |= avFromChannel(ch)
 	}
-	return uint64(av)
+	return mask
 }

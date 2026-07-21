@@ -22,17 +22,20 @@ type StreamSeekCloser interface {
 	Seek(p time.Duration) error
 }
 
+// SourceStreamer 声源发生器
+// 事件：formatChanged
 type SourceStreamer interface {
 	StreamCloser
-	AudioFormat() audio.Format         // 获取输入的音频格式
+	AudioFormat() audio.Format        // 获取输入的音频格式
 	ChannelIndex() audio.ChannelIndex // 获取输入的声道布局
-	SetOutFormat(audio.Format) error   // 设置音频输出格式
+	SetOutFormat(audio.Format) error  // 设置音频输出格式
 	IsPlaying() bool
 	CanRemove() bool // 是否可以自动移除
 }
 
 type FormatChangedHandler func(stream SourceStreamer, inFormat, outFormat audio.Format)
 
+// FileStreamer 文件声源
 type FileStreamer interface {
 	SourceStreamer
 	StreamSeekCloser

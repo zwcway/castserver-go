@@ -32,23 +32,23 @@ func apiTestSound(c *websockets.WSConnection, req Requester, log lg.Logger) (ret
 		var chsound []byte
 
 		switch ch {
-		case audio.Channel_FRONT_LEFT:
+		case audio.ChannelFrontLeft:
 			chsound = sounds.FrontLeft()
-		case audio.Channel_FRONT_RIGHT:
+		case audio.ChannelFrontRight:
 			chsound = sounds.FrontRight()
-		case audio.Channel_FRONT_CENTER:
+		case audio.ChannelFrontCenter:
 			chsound = sounds.FrontCenter()
-		case audio.Channel_SIDE_LEFT:
+		case audio.ChannelSideLeft:
 			chsound = sounds.SideLeft()
-		case audio.Channel_SIDE_RIGHT:
+		case audio.ChannelSideRight:
 			chsound = sounds.SideRight()
-		case audio.Channel_BACK_LEFT:
+		case audio.ChannelBackLeft:
 			chsound = sounds.BackLeft()
-		case audio.Channel_BACK_RIGHT:
+		case audio.ChannelBackRight:
 			chsound = sounds.BackRight()
-		case audio.Channel_BACK_CENTER:
+		case audio.ChannelBackCenter:
 			chsound = sounds.BackCenter()
-		case audio.Channel_LOW_FREQUENCY:
+		case audio.ChannelLowFrequency:
 			chsound = sounds.LowBass()
 		default:
 			return true, nil

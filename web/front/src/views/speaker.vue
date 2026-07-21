@@ -246,7 +246,7 @@ export default {
     }
 
     >span {
-      font-size: 0.5rem;
+      font-size: 0.7rem;
       margin-left: 1rem;
       align-items: center;
       line-height: 1rem;

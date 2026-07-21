@@ -22,6 +22,7 @@ type Element interface {
 
 	// Type 元类型
 	Type() ElementType
+	// Close
 	// Sample 开始流处理
 	// Sample(*float64, int, int)
 	// Close 释放元
@@ -63,16 +64,16 @@ type MixerElement interface {
 	Len() int
 	Del(SourceStreamer)
 	Has(SourceStreamer) bool
-	Add(...SourceStreamer)
+	Add(...SourceStreamer) error
 	Clear()
 
-	// 是否开启转码。
+	// SetResample 是否开启转码。
 	// 如果开启转码，SetFormat 将作用于转码器
 	// 否则通知 SourceStreamer 自己转码
 	SetResample(bool)
 
-	SetFormat(audio.Format) // 设置输出格式
-	Format() audio.Format   // 获取输出格式
+	SetFormat(audio.Format) error // 设置输出格式
+	Format() audio.Format         // 获取输出格式
 
 	Buffer() *Samples
 }
@@ -90,8 +91,8 @@ type RawPlayerElement interface {
 	Element
 	SourceStreamer
 
-	AddPCM(audio.Format, []byte)
-	AddPCMWithChannel(audio.Channel, audio.Format, []byte)
+	AddPCM(audio.Format, []byte) error
+	AddPCMWithChannel(audio.Channel, audio.Format, []byte) error
 }
 
 // ResampleElement 转码元

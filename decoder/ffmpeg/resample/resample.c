@@ -10,7 +10,7 @@ typedef struct GOResample
     SwrContext *swrctx;
 
     int in_rate;
-    int64_t in_chs_layout;
+    AVChannelLayout * in_chs_layout;
     /**
      * @brief 指向 (uint8_t**) 偏移 256
      * 
@@ -20,7 +20,7 @@ typedef struct GOResample
     enum AVSampleFormat in_fmt;
 
     int out_rate;
-    int64_t out_chs_layout;
+    AVChannelLayout * out_chs_layout;
     /**
      * @brief 指向 (uint8_t**) 偏移 256
      * 
@@ -51,7 +51,7 @@ static void go_swr_free(GOResample **ctx)
     *ctx = NULL;
 }
 
-static const int go_swr_init(GOResample **ctx, int in_rate, int64_t in_chs_layout, enum AVSampleFormat in_bits, int out_rate, int64_t out_chs_layout, enum AVSampleFormat out_bits)
+static const int go_swr_init(GOResample **ctx, int in_rate, const AVChannelLayout *in_chs_layout, enum AVSampleFormat in_bits, int out_rate, const AVChannelLayout * out_chs_layout, enum AVSampleFormat out_bits)
 {
     if (ctx == NULL)
         return AVERROR(ENOMEM);
@@ -68,24 +68,14 @@ static const int go_swr_init(GOResample **ctx, int in_rate, int64_t in_chs_layou
     }
 
     r->in_rate = in_rate;
-    r->in_chs_layout = in_chs_layout;
+    r->in_chs_layout = (AVChannelLayout *)in_chs_layout;
     r->in_fmt = in_bits;
 
     r->out_rate = out_rate;
-    r->out_chs_layout = out_chs_layout;
+    r->out_chs_layout = (AVChannelLayout *)out_chs_layout;
     r->out_fmt = out_bits;
 
-    if (r->swrctx == NULL)
-    {
-        // 初始化转码器
-        r->swrctx = swr_alloc();
-        if (r->swrctx == NULL)
-        {
-            return -1;
-        }
-    }
-
-    swr_alloc_set_opts(r->swrctx,
+    swr_alloc_set_opts2(&r->swrctx,
                        out_chs_layout, out_bits, out_rate,
                        in_chs_layout, in_bits, in_rate,
                        0, NULL);
@@ -103,7 +93,7 @@ static const int go_swr_init(GOResample **ctx, int in_rate, int64_t in_chs_layou
 static const int malloc_in_buffer(GOResample *ctx, int nb_samples)
 {
     uint8_t *buf;
-    int ret, chs = av_get_channel_layout_nb_channels(ctx->in_chs_layout);
+    int ret, chs = ctx->in_chs_layout->nb_channels;
     int inBufferSize = av_samples_get_buffer_size(NULL, chs, nb_samples, ctx->in_fmt, 0);
     if (ctx->in_buf_size >= inBufferSize)
         return 0;
@@ -139,7 +129,7 @@ static int go_convert(GOResample *ctx, int nb_samples)
     int dst_nb_samples = out_nb_samples(ctx, nb_samples);
     // int dst_nb_samples = nb_samples;
 
-    int outBufferSize = av_samples_get_buffer_size(NULL, ctx->out_chs_layout, dst_nb_samples, ctx->out_fmt, 0);
+    int outBufferSize = av_samples_get_buffer_size(NULL, ctx->out_chs_layout->nb_channels, dst_nb_samples, ctx->out_fmt, 0);
     if (outBufferSize < 0)
         return outBufferSize;
 
@@ -159,7 +149,7 @@ static int go_convert(GOResample *ctx, int nb_samples)
 
         buf = ctx->out_buffer + BUFFER_OFFSET;
 
-        chs = av_get_channel_layout_nb_channels(ctx->out_chs_layout);
+        chs = ctx->out_chs_layout->nb_channels;
 
         ret = av_samples_fill_arrays((uint8_t **)ctx->out_buffer, NULL, buf, chs, dst_nb_samples, ctx->out_fmt, 0);
         if (ret < 0)

@@ -3,7 +3,7 @@ package control
 import "github.com/zwcway/castserver-go/common/audio"
 
 func DefaultChannel() audio.Channel {
-	return audio.Channel_NONE
+	return audio.ChannelNone
 }
 
 func DefaultRate() audio.Rate {

@@ -73,6 +73,7 @@ func ApiDispatchDevel(ctx *fasthttp.RequestCtx) bool {
 }
 
 func initDebug() {
+	log.Debug("Running in debug mode...")
 	apiRouterList["addSpeaker"] = apiRouter{apiSpeakerCreate}
 	apiRouterList["spReconnect"] = apiRouter{apiReconnect}
 	apiRouterList["spSample"] = apiRouter{apiControlSpeakerFormat}

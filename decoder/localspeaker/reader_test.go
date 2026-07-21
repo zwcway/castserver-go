@@ -38,7 +38,7 @@ func Test_reader_Read(t *testing.T) {
 		}
 		pl := pipeline.NewPipeLine(inFormat)
 		player := element.NewPlayer()
-		player.AddPCMWithChannel(audio.Channel_FRONT_CENTER, inFormat, data)
+		player.AddPCMWithChannel(audio.ChannelFrontCenter, inFormat, data)
 		pl.Append(player)
 
 		// 输出格式

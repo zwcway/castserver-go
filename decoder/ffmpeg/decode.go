@@ -24,6 +24,24 @@ func New(outFormat audio.Format) stream.FileStreamer {
 	}
 }
 
+func ChannelsFromLayout(layout *C.AVChannelLayout) (m audio.Layout, index audio.ChannelIndex) {
+	var acSlice []audio.Channel
+
+	index = m.ChannelIndex()
+
+	for i := int8(0); i < 64; i++ {
+		ch := C.av_channel_layout_channel_from_index(layout, C.uint(i))
+		ac := avutil.ChannelFromAV(int(ch))
+		if !ac.IsValid() {
+			continue
+		}
+		index[ac] = i
+		acSlice = append(acSlice, ac)
+	}
+
+	return audio.NewLayout(acSlice...), index
+}
+
 func AudioInfo(f string, ai *playlist.AudioInfo) (err error) {
 	var (
 		cFileName = C.CString(f)
@@ -56,7 +74,7 @@ func AudioInfo(f string, ai *playlist.AudioInfo) (err error) {
 			Bits: bit,
 		},
 	}
-	ai.Format.Layout, _ = avutil.ChannelsFromLayout(uint64(ctx.codecCtx.channel_layout))
+	ai.Format.Layout, _ = ChannelsFromLayout(&ctx.codecCtx.ch_layout)
 
 	ai.Url = f
 	ai.Duration = time.Duration(ctx.formatCtx.duration) * time.Microsecond
@@ -132,7 +150,7 @@ func (c *AVFormatContext) OpenFile(fileName string) (err error) {
 			Bits: bit,
 		},
 	}
-	c.format.Layout, c.channelIndex = avutil.ChannelsFromLayout(uint64(c.ctx.codecCtx.channel_layout))
+	c.format.Layout, c.channelIndex = ChannelsFromLayout(&c.ctx.codecCtx.ch_layout)
 
 	if !c.format.IsValid() {
 		return fmt.Errorf("file format invalid: %s", c.format.String())
@@ -194,9 +212,11 @@ func (c *AVFormatContext) SetOutFormat(f audio.Format) error {
 func (c *AVFormatContext) initOutputFormat() error {
 	outputFmt := avutil.AVFormatFromBits(c.outputFmt.Bits)
 	rate := C.int(c.outputFmt.Rate.ToInt())
-	chs_layout := avutil.AVLayoutFromLayout(c.outputFmt.Layout)
+	mask := avutil.AVLayoutFromLayout(c.outputFmt.Layout)
+	chsLayout := &C.AVChannelLayout{}
+	C.av_channel_layout_from_mask(chsLayout, C.uint64_t(mask))
 
-	ret := C.go_init_resample(c.ctx, rate, C.int64_t(chs_layout), outputFmt)
+	ret := C.go_init_resample(c.ctx, rate, chsLayout, outputFmt)
 	if ret < 0 {
 		return avutil.NewErrorFromCCode(int(ret))
 	}

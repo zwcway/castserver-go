@@ -43,16 +43,15 @@ func (p *Player) Stream(samples *stream.Samples) {
 		return
 	}
 
+	if p.format != samples.Format {
+		return
+	}
+
 	var (
 		mixed = 0
 		i     = 0
 		s     *playerSamples
 	)
-
-	if p.format != samples.Format {
-		p.format = samples.Format
-		go p.resampleAll()
-	}
 
 	for i = 0; i < len(p.streamers); i++ {
 		s = p.streamers[i]
@@ -126,9 +125,9 @@ func (p *Player) resampleAll() {
 	}
 }
 
-func (p *Player) AddPCMWithChannel(ch audio.Channel, f audio.Format, pcm []byte) {
+func (p *Player) AddPCMWithChannel(ch audio.Channel, f audio.Format, pcm []byte) error {
 	if len(pcm) == 0 {
-		return
+		return nil
 	}
 	f.Layout = audio.NewLayout(ch)
 	p.streamers = append(p.streamers, &playerSamples{
@@ -137,18 +136,20 @@ func (p *Player) AddPCMWithChannel(ch audio.Channel, f audio.Format, pcm []byte)
 	})
 
 	p.resampleAll()
+	return nil
 }
 
-func (p *Player) AddPCM(f audio.Format, pcm []byte) {
+func (p *Player) AddPCM(f audio.Format, pcm []byte) error {
 	if len(pcm) == 0 {
-		return
+		return nil
 	}
 	p.streamers = append(p.streamers, &playerSamples{
 		samples: stream.NewFromBytes(pcm, f),
-		layout:  audio.NewLayout(audio.Channel_NONE),
+		layout:  audio.NewLayout(audio.ChannelNone),
 	})
 
 	p.resampleAll()
+	return nil
 }
 
 func (p *Player) Close() (err error) {

@@ -47,7 +47,7 @@ func (m *Mixer) Len() int {
 	return len(m.streamers)
 }
 
-func (m *Mixer) Add(ss ...stream.SourceStreamer) {
+func (m *Mixer) Add(ss ...stream.SourceStreamer) error {
 	m.locker.Lock()
 	defer m.locker.Unlock()
 
@@ -73,6 +73,7 @@ func (m *Mixer) Add(ss ...stream.SourceStreamer) {
 	}
 
 	m.decideFormat()
+	return nil
 }
 
 func (m *Mixer) onSourceFormatChanged(ss stream.SourceStreamer, format *audio.Format, channelIndex audio.ChannelIndex) error {
@@ -160,9 +161,9 @@ func (m *Mixer) SetResample(on bool) {
 	}
 }
 
-func (m *Mixer) SetFormat(format audio.Format) {
+func (m *Mixer) SetFormat(format audio.Format) error {
 	if format == m.buffer.Format {
-		return
+		return nil
 	}
 	format.Bits = audio.Bits_DEFAULT
 
@@ -178,6 +179,7 @@ func (m *Mixer) SetFormat(format audio.Format) {
 		}
 	}
 
+	return nil
 }
 
 func (m *Mixer) Format() audio.Format {

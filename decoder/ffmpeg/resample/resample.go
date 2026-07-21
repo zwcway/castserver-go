@@ -1,7 +1,7 @@
 package resample
 
 /*
-#cgo pkg-config: libavutil libswresample
+#cgo pkg-config: libavutil libswresample libavcodec
 #include "resample.c"
 
 */
@@ -53,12 +53,16 @@ func (r *Resample) init() error {
 	if !r.inFormat.IsValid() || !r.outFormat.IsValid() {
 		return errors.New("set format first")
 	}
-	avInLayout := avutil.AVLayoutFromLayout(r.inFormat.Layout)
-	avOutLayout := avutil.AVLayoutFromLayout(r.outFormat.Layout)
+	avInLayout := &C.AVChannelLayout{}
+	avOutLayout := &C.AVChannelLayout{}
+	mask := avutil.AVLayoutFromLayout(r.inFormat.Layout)
+	C.av_channel_layout_from_mask(avInLayout, C.uint64_t(mask))
+	mask = avutil.AVLayoutFromLayout(r.outFormat.Layout)
+	C.av_channel_layout_from_mask(avOutLayout, C.uint64_t(mask))
 
 	ret := C.go_swr_init(&r.swrCtx,
-		C.int(r.inFormat.Rate.ToInt()), C.int64_t(avInLayout), avutil.AVFormatFromBits(r.inFormat.Bits),
-		C.int(r.outFormat.Rate.ToInt()), C.int64_t(avOutLayout), avutil.AVFormatFromBits(r.outFormat.Bits))
+		C.int(r.inFormat.Rate.ToInt()), avInLayout, avutil.AVFormatFromBits(r.inFormat.Bits),
+		C.int(r.outFormat.Rate.ToInt()), avOutLayout, avutil.AVFormatFromBits(r.outFormat.Bits))
 
 	if ret < 0 {
 		r.Close()

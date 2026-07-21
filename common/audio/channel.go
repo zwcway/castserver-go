@@ -5,35 +5,33 @@ import "errors"
 type Channel uint8
 
 const (
-	Channel_NONE Channel = iota
-	Channel_FRONT_LEFT
-	Channel_FRONT_RIGHT
-	Channel_FRONT_CENTER
-	Channel_FRONT_LEFT_OF_CENTER
-	Channel_FRONT_RIGHT_OF_CENTER
-	Channel_LOW_FREQUENCY
-	Channel_BACK_LEFT
-	Channel_BACK_RIGHT
-	Channel_BACK_CENTER
-	Channel_SIDE_LEFT
-	Channel_SIDE_RIGHT
-	Channel_TOP_FRONT_LEFT
-	Channel_TOP_FRONT_CENTER
-	Channel_TOP_FRONT_RIGHT
-	Channel_TOP_BACK_LEFT
-	Channel_TOP_BACK_CENTER
-	Channel_TOP_BACK_RIGHT
-	Channel_MAX
+	ChannelNone Channel = iota
+	ChannelFrontLeft
+	ChannelFrontRight
+	ChannelFrontCenter
+	ChannelFrontLeftOfCenter
+	ChannelFrontRightOfCenter
+	ChannelLowFrequency
+	ChannelBackLeft
+	ChannelBackRight
+	ChannelBackCenter
+	ChannelSideLeft
+	ChannelSideRight
+	ChannelTopFrontLeft
+	ChannelTopFrontCenter
+	ChannelTopFrontRight
+	ChannelTopBackLeft
+	ChannelTopBackCenter
+	ChannelTopBackRight
+	ChannelMax
 )
 
 func NewAudioChannel(i int) Channel {
-	var a Channel
-	a.FromInt(i)
-	return a
+	return Channel(i)
 }
 
-func (a *Channel) FromInt(i int) {
-	*a = Channel(i)
+func ChannelFromInt(i int) Channel {
+	return Channel(i)
 }
 
 func (a Channel) ToInt() int {
@@ -42,39 +40,39 @@ func (a Channel) ToInt() int {
 
 func (a Channel) String() string {
 	switch a {
-	case Channel_FRONT_LEFT:
+	case ChannelFrontLeft:
 		return "Front Left"
-	case Channel_FRONT_RIGHT:
+	case ChannelFrontRight:
 		return "Front Right"
-	case Channel_FRONT_CENTER:
+	case ChannelFrontCenter:
 		return "Front Center"
-	case Channel_LOW_FREQUENCY:
+	case ChannelLowFrequency:
 		return "Subwoofer"
-	case Channel_BACK_LEFT:
+	case ChannelBackLeft:
 		return "Rear Left"
-	case Channel_BACK_RIGHT:
+	case ChannelBackRight:
 		return "Rear Right"
-	case Channel_FRONT_LEFT_OF_CENTER:
+	case ChannelFrontLeftOfCenter:
 		return "Front Left Of Center"
-	case Channel_FRONT_RIGHT_OF_CENTER:
+	case ChannelFrontRightOfCenter:
 		return "Front Right Of Center"
-	case Channel_BACK_CENTER:
+	case ChannelBackCenter:
 		return "Rear Center"
-	case Channel_SIDE_LEFT:
+	case ChannelSideLeft:
 		return "Side Left"
-	case Channel_SIDE_RIGHT:
+	case ChannelSideRight:
 		return "Side Right"
-	case Channel_TOP_FRONT_LEFT:
+	case ChannelTopFrontLeft:
 		return "Top Front Left"
-	case Channel_TOP_FRONT_CENTER:
+	case ChannelTopFrontCenter:
 		return "Top Front Center"
-	case Channel_TOP_FRONT_RIGHT:
+	case ChannelTopFrontRight:
 		return "Top Front Right"
-	case Channel_TOP_BACK_LEFT:
+	case ChannelTopBackLeft:
 		return "Top Rear Left"
-	case Channel_TOP_BACK_CENTER:
+	case ChannelTopBackCenter:
 		return "Top Rear Center"
-	case Channel_TOP_BACK_RIGHT:
+	case ChannelTopBackRight:
 		return "Top Rear Right"
 	default:
 		return "Unknown"
@@ -82,49 +80,48 @@ func (a Channel) String() string {
 }
 
 func (a Channel) IsValid() bool {
-	return a > Channel_NONE && a < Channel_MAX
+	return a > ChannelNone && a < ChannelMax
 }
 
 type ChannelIndex = []int8
 type ChannelMask uint32
 
 func NewChannelMask(arr []uint8) (ChannelMask, error) {
-	var a ChannelMask
-	err := a.FromSlice(arr)
-	return a, err
+	return ChannelMaskFromSlice(arr)
 }
 
-func (m *ChannelMask) FromSlice(arr []uint8) error {
+func ChannelMaskFromSlice(arr []uint8) (ChannelMask, error) {
 	if len(arr) > 32 {
-		return errors.New("channels too large")
+		return 0, errors.New("channels too large")
 	}
-	*m = 0
+	m := ChannelMask(0)
 	for _, a := range arr {
-		m.Add(Channel(a))
+		m = ChannelMaskAdd(m, Channel(a))
 	}
-	return nil
+	return m, nil
 }
 
-func (m *ChannelMask) Add(ch Channel) {
+func ChannelMaskAdd(m ChannelMask, ch Channel) ChannelMask {
 	if ch.IsValid() {
-		*m |= 1 << (ch - 1)
+		m |= 1 << (ch - 1)
 	}
+	return m
 }
 
-func (m *ChannelMask) FromChannelSlice(arr []Channel) error {
-	if len(arr) > int(Channel_MAX) {
-		return errors.New("channels too large")
+func ChannelMaskFromChannelSlice(arr []Channel) (ChannelMask, error) {
+	if len(arr) > int(ChannelMax) {
+		return 0, errors.New("channels too large")
 	}
-	*m = 0
+	m := ChannelMask(0)
 	for _, a := range arr {
-		m.Add(a)
+		m = ChannelMaskAdd(m, a)
 	}
-	return nil
+	return m, nil
 }
 
 func (m ChannelMask) Count() int {
 	c := 0
-	for i := 0; i < int(Channel_MAX); i++ {
+	for i := 0; i < int(ChannelMax); i++ {
 		if (m>>i)&0x01 > 0 {
 			c++
 		}
@@ -144,45 +141,45 @@ func (m ChannelMask) IssetSlice(a []uint8) bool {
 	return MaskIssetIntSlice(uint32(m), a)
 }
 
-func (m *ChannelMask) IntersectIntSlice(a []uint8) bool {
+func (m ChannelMask) IntersectIntSlice(a []uint8) bool {
 	r, err := NewChannelMask(a)
 	if err != nil {
 		return false
 	}
-	*m &= r
+	m &= r
 	return m.IsValid()
 }
 
-// 默认参数合法
-func (m *ChannelMask) IntersectSlice(a []Channel) bool {
-	*m &= ChannelMask(MakeMaskFromSlice(a))
-	return m.IsValid()
+// IntersectSlice 默认参数合法
+func (m ChannelMask) IntersectSlice(a []Channel) ChannelMask {
+	m &= ChannelMask(MakeMaskFromSlice(a))
+	return m
 }
 
-func (m *ChannelMask) Intersect(a ChannelMask) bool {
-	*m &= a
-	return m.IsValid()
+func (m ChannelMask) Intersect(a ChannelMask) ChannelMask {
+	m &= a
+	return m
 }
 
-// 默认参数合法
-func (m *ChannelMask) CombineSlice(a []Channel) bool {
-	*m &= ChannelMask(MakeMaskFromSlice(a))
-	return m.IsValid()
+// CombineSlice 默认参数合法
+func (m ChannelMask) CombineSlice(a []Channel) ChannelMask {
+	m &= ChannelMask(MakeMaskFromSlice(a))
+	return m
 }
 
-func (m *ChannelMask) Combine(a ChannelMask) bool {
-	*m &= a
-	return m.IsValid()
+func (m ChannelMask) Combine(a ChannelMask) ChannelMask {
+	m &= a
+	return m
 }
 
 func (m ChannelMask) IsValid() bool {
-	return m > 0 && ((m)>>(Channel_MAX-1)) == 0
+	return m > 0 && ((m)>>(ChannelMax-1)) == 0
 }
 
 func (m ChannelMask) Slice() []Channel {
-	s := make([]Channel, Channel_MAX)
+	s := make([]Channel, ChannelMax)
 	j := 0
-	for i := 0; i < int(Channel_MAX); i++ {
+	for i := 0; i < int(ChannelMax); i++ {
 		if (m>>i)&0x01 == 1 {
 			s[j] = Channel(i + 1)
 			j++
@@ -192,9 +189,9 @@ func (m ChannelMask) Slice() []Channel {
 }
 
 func (m ChannelMask) SliceInt() []int {
-	s := make([]int, Channel_MAX)
+	s := make([]int, ChannelMax)
 	j := 0
-	for i := 0; i < int(Channel_MAX); i++ {
+	for i := 0; i < int(ChannelMax); i++ {
 		if (m>>i)&0x01 == 1 {
 			s[j] = i + 1
 			j++
@@ -204,8 +201,8 @@ func (m ChannelMask) SliceInt() []int {
 }
 
 func (m ChannelMask) ChannelIndex() ChannelIndex {
-	ci := make(ChannelIndex, Channel_MAX)
-	for i := 0; i < int(Channel_MAX); i++ {
+	ci := make(ChannelIndex, ChannelMax)
+	for i := 0; i < int(ChannelMax); i++ {
 		ci[i] = -1
 	}
 	if m > 0 {
@@ -217,131 +214,131 @@ func (m ChannelMask) ChannelIndex() ChannelIndex {
 }
 
 var (
-	Layout10 = NewLayout(Channel_FRONT_CENTER) // 前中
+	Layout10 = NewLayout(ChannelFrontCenter) // 前中
 	Layout20 = NewLayout(
-		Channel_FRONT_LEFT,
-		Channel_FRONT_RIGHT) // 前左、前右
+		ChannelFrontLeft,
+		ChannelFrontRight) // 前左、前右
 	Layout21 = NewLayout(
-		Channel_FRONT_LEFT,
-		Channel_FRONT_RIGHT,
-		Channel_LOW_FREQUENCY) // 前左、前右，低音
+		ChannelFrontLeft,
+		ChannelFrontRight,
+		ChannelLowFrequency) // 前左、前右，低音
 	Layout22 = NewLayout(
-		Channel_FRONT_LEFT,
-		Channel_FRONT_RIGHT,
-		Channel_SIDE_LEFT,
-		Channel_SIDE_RIGHT) // 前左、前右，环左、环右
+		ChannelFrontLeft,
+		ChannelFrontRight,
+		ChannelSideLeft,
+		ChannelSideRight) // 前左、前右，环左、环右
 	Layout30 = NewLayout(
-		Channel_FRONT_LEFT,
-		Channel_FRONT_RIGHT,
-		Channel_FRONT_CENTER) // 前左、前右、前中
+		ChannelFrontLeft,
+		ChannelFrontRight,
+		ChannelFrontCenter) // 前左、前右、前中
 	Layout31 = NewLayout(
-		Channel_FRONT_LEFT,
-		Channel_FRONT_RIGHT,
-		Channel_FRONT_CENTER,
-		Channel_LOW_FREQUENCY) // 前左、前右、前中，低音
+		ChannelFrontLeft,
+		ChannelFrontRight,
+		ChannelFrontCenter,
+		ChannelLowFrequency) // 前左、前右、前中，低音
 	Layout40 = NewLayout(
-		Channel_FRONT_LEFT,
-		Channel_FRONT_RIGHT,
-		Channel_FRONT_CENTER,
-		Channel_BACK_CENTER) // 前左、前右、前中、后中
+		ChannelFrontLeft,
+		ChannelFrontRight,
+		ChannelFrontCenter,
+		ChannelBackCenter) // 前左、前右、前中、后中
 	Layout41 = NewLayout(
-		Channel_FRONT_LEFT,
-		Channel_FRONT_RIGHT,
-		Channel_FRONT_CENTER,
-		Channel_BACK_CENTER,
-		Channel_LOW_FREQUENCY) // 前左、前右、前中、后中，低音
+		ChannelFrontLeft,
+		ChannelFrontRight,
+		ChannelFrontCenter,
+		ChannelBackCenter,
+		ChannelLowFrequency) // 前左、前右、前中、后中，低音
 	Layout50 = NewLayout(
-		Channel_FRONT_LEFT,
-		Channel_FRONT_RIGHT,
-		Channel_FRONT_CENTER,
-		Channel_SIDE_LEFT,
-		Channel_SIDE_RIGHT) // 前左、前右、前中、环左、环右
+		ChannelFrontLeft,
+		ChannelFrontRight,
+		ChannelFrontCenter,
+		ChannelSideLeft,
+		ChannelSideRight) // 前左、前右、前中、环左、环右
 	Layout51 = NewLayout(
-		Channel_FRONT_LEFT,
-		Channel_FRONT_RIGHT,
-		Channel_FRONT_CENTER,
-		Channel_SIDE_LEFT,
-		Channel_SIDE_RIGHT,
-		Channel_LOW_FREQUENCY) // 前左、前右、前中、环左、环右，低音
+		ChannelFrontLeft,
+		ChannelFrontRight,
+		ChannelFrontCenter,
+		ChannelSideLeft,
+		ChannelSideRight,
+		ChannelLowFrequency) // 前左、前右、前中、环左、环右，低音
 	Layout5B0 = NewLayout(
-		Channel_FRONT_LEFT,
-		Channel_FRONT_RIGHT,
-		Channel_FRONT_CENTER,
-		Channel_BACK_LEFT,
-		Channel_BACK_RIGHT) // 前左、前右、前中、后左、后右
+		ChannelFrontLeft,
+		ChannelFrontRight,
+		ChannelFrontCenter,
+		ChannelBackLeft,
+		ChannelBackRight) // 前左、前右、前中、后左、后右
 	Layout5B1 = NewLayout(
-		Channel_FRONT_LEFT,
-		Channel_FRONT_RIGHT,
-		Channel_FRONT_CENTER,
-		Channel_BACK_LEFT,
-		Channel_BACK_RIGHT,
-		Channel_LOW_FREQUENCY) // 前左、前右、前中、后左、后右，低音
+		ChannelFrontLeft,
+		ChannelFrontRight,
+		ChannelFrontCenter,
+		ChannelBackLeft,
+		ChannelBackRight,
+		ChannelLowFrequency) // 前左、前右、前中、后左、后右，低音
 	Layout60 = NewLayout(
-		Channel_FRONT_LEFT,
-		Channel_FRONT_RIGHT,
-		Channel_FRONT_CENTER,
-		Channel_SIDE_LEFT,
-		Channel_SIDE_RIGHT,
-		Channel_BACK_CENTER) // 前左、前右、前中、环左、环右、后中
+		ChannelFrontLeft,
+		ChannelFrontRight,
+		ChannelFrontCenter,
+		ChannelSideLeft,
+		ChannelSideRight,
+		ChannelBackCenter) // 前左、前右、前中、环左、环右、后中
 	Layout61 = NewLayout(
-		Channel_FRONT_LEFT,
-		Channel_FRONT_RIGHT,
-		Channel_FRONT_CENTER,
-		Channel_SIDE_LEFT,
-		Channel_SIDE_RIGHT,
-		Channel_LOW_FREQUENCY,
-		Channel_BACK_CENTER) // 前左、前右、前中、环左、环右、后中，低音
+		ChannelFrontLeft,
+		ChannelFrontRight,
+		ChannelFrontCenter,
+		ChannelSideLeft,
+		ChannelSideRight,
+		ChannelLowFrequency,
+		ChannelBackCenter) // 前左、前右、前中、环左、环右、后中，低音
 	Layout70 = NewLayout(
-		Channel_FRONT_LEFT,
-		Channel_FRONT_RIGHT,
-		Channel_FRONT_CENTER,
-		Channel_SIDE_LEFT,
-		Channel_SIDE_RIGHT,
-		Channel_BACK_LEFT,
-		Channel_BACK_RIGHT) // 前左、前右、前中、环左、环右、后左、后右
+		ChannelFrontLeft,
+		ChannelFrontRight,
+		ChannelFrontCenter,
+		ChannelSideLeft,
+		ChannelSideRight,
+		ChannelBackLeft,
+		ChannelBackRight) // 前左、前右、前中、环左、环右、后左、后右
 	Layout71 = NewLayout(
-		Channel_FRONT_LEFT,
-		Channel_FRONT_RIGHT,
-		Channel_FRONT_CENTER,
-		Channel_SIDE_LEFT,
-		Channel_SIDE_RIGHT,
-		Channel_BACK_LEFT,
-		Channel_BACK_RIGHT,
-		Channel_LOW_FREQUENCY) // 前左、前右、前中、环左、环右、后左、后右，低音
+		ChannelFrontLeft,
+		ChannelFrontRight,
+		ChannelFrontCenter,
+		ChannelSideLeft,
+		ChannelSideRight,
+		ChannelBackLeft,
+		ChannelBackRight,
+		ChannelLowFrequency) // 前左、前右、前中、环左、环右、后左、后右，低音
 	Layout702 = NewLayout(
-		Channel_FRONT_LEFT,
-		Channel_FRONT_RIGHT,
-		Channel_FRONT_CENTER,
-		Channel_SIDE_LEFT,
-		Channel_SIDE_RIGHT,
-		Channel_BACK_LEFT,
-		Channel_BACK_RIGHT,
-		Channel_TOP_FRONT_LEFT,
-		Channel_TOP_FRONT_RIGHT) // 前左、前右、前中、环左、环右、后左、后右，上前左、上前右
+		ChannelFrontLeft,
+		ChannelFrontRight,
+		ChannelFrontCenter,
+		ChannelSideLeft,
+		ChannelSideRight,
+		ChannelBackLeft,
+		ChannelBackRight,
+		ChannelTopFrontLeft,
+		ChannelTopFrontRight) // 前左、前右、前中、环左、环右、后左、后右，上前左、上前右
 	Layout712 = NewLayout(
-		Channel_FRONT_LEFT,
-		Channel_FRONT_RIGHT,
-		Channel_FRONT_CENTER,
-		Channel_SIDE_LEFT,
-		Channel_SIDE_RIGHT,
-		Channel_BACK_LEFT,
-		Channel_BACK_RIGHT,
-		Channel_LOW_FREQUENCY,
-		Channel_TOP_FRONT_LEFT,
-		Channel_TOP_FRONT_RIGHT) // 前左、前右、前中、环左、环右、后左、后右，低音，上前左、上前右
+		ChannelFrontLeft,
+		ChannelFrontRight,
+		ChannelFrontCenter,
+		ChannelSideLeft,
+		ChannelSideRight,
+		ChannelBackLeft,
+		ChannelBackRight,
+		ChannelLowFrequency,
+		ChannelTopFrontLeft,
+		ChannelTopFrontRight) // 前左、前右、前中、环左、环右、后左、后右，低音，上前左、上前右
 	Layout714 = NewLayout(
-		Channel_FRONT_LEFT,
-		Channel_FRONT_RIGHT,
-		Channel_FRONT_CENTER,
-		Channel_SIDE_LEFT,
-		Channel_SIDE_RIGHT,
-		Channel_BACK_LEFT,
-		Channel_BACK_RIGHT,
-		Channel_LOW_FREQUENCY,
-		Channel_TOP_FRONT_LEFT,
-		Channel_TOP_FRONT_RIGHT,
-		Channel_TOP_BACK_LEFT,
-		Channel_TOP_BACK_RIGHT) // 前左、前右、前中、环左、环右、后左、后右，低音，上前左、上前右、上后左、上后右
+		ChannelFrontLeft,
+		ChannelFrontRight,
+		ChannelFrontCenter,
+		ChannelSideLeft,
+		ChannelSideRight,
+		ChannelBackLeft,
+		ChannelBackRight,
+		ChannelLowFrequency,
+		ChannelTopFrontLeft,
+		ChannelTopFrontRight,
+		ChannelTopBackLeft,
+		ChannelTopBackRight) // 前左、前右、前中、环左、环右、后左、后右，低音，上前左、上前右、上后左、上后右
 
 	LayoutMono   = Layout10
 	LayoutStereo = Layout20
@@ -351,8 +348,8 @@ var (
 
 func newMaxLayout() Layout {
 	var a Layout
-	for ch := Channel_NONE + 1; ch < Channel_MAX; ch++ {
-		a.ChannelMask.Add(ch)
+	for ch := ChannelNone + 1; ch < ChannelMax; ch++ {
+		a.ChannelMask = ChannelMaskAdd(a.ChannelMask, ch)
 	}
 	a.Count = uint32(a.ChannelMask.Count())
 	return a
@@ -360,7 +357,7 @@ func newMaxLayout() Layout {
 
 func NewLayout(ch ...Channel) Layout {
 	var a Layout
-	a.ChannelMask.FromChannelSlice(ch)
+	a.ChannelMask, _ = ChannelMaskFromChannelSlice(ch)
 	a.Count = uint32(a.ChannelMask.Count())
 	return a
 }
@@ -423,7 +420,7 @@ func (l Layout) Equal(r Layout) bool {
 }
 
 func extendLayout(a Layout, ch ...Channel) Layout {
-	a.ChannelMask.FromChannelSlice(append(a.ChannelMask.Slice(), ch...))
+	a.ChannelMask, _ = ChannelMaskFromChannelSlice(append(a.ChannelMask.Slice(), ch...))
 	a.Count = uint32(a.ChannelMask.Count())
 	return a
 }

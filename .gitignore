@@ -7,6 +7,4 @@ pkg
 scripts
 build/
 *.css
-*.vsdx
 doc/*.xls*
-castserver*

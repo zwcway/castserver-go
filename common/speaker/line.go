@@ -277,7 +277,7 @@ func (l *Line) Save() {
 }
 
 func (line *Line) init() {
-	line.spsByCh = make([][]*Speaker, audio.Channel_MAX)
+	line.spsByCh = make([][]*Speaker, audio.ChannelMax)
 
 	line.Input.MixerEle = element.NewMixer()
 	line.Input.VolumeEle = element.NewVolume(float64(line.Volume) / 100)

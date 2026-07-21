@@ -21,7 +21,7 @@ import (
 	"github.com/zwcway/castserver-go/web/websockets"
 )
 
-//go:embed public/*
+//go:embed front/public/*
 var httpfs embed.FS
 
 var (

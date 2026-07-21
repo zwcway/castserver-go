@@ -130,7 +130,7 @@ func (sp *Speaker) SetChannel(ch audio.Channel) {
 	if ch.IsValid() {
 		sp.Channel = uint32(ch)
 	} else {
-		sp.Channel = uint32(audio.Channel_NONE)
+		sp.Channel = uint32(audio.ChannelNone)
 	}
 	if sp.Line != nil {
 		sp.Line.refresh()
@@ -217,7 +217,7 @@ func (sp *Speaker) SetLine(newLine *Line) {
 	} else {
 		sp.LineId = 0
 	}
-	sp.SetChannel(audio.Channel_NONE)
+	sp.SetChannel(audio.ChannelNone)
 
 	bus.DispatchObj(sp, "speaker edited", "line_id", sp.LineId)
 	bus.DispatchObj(sp, "speaker line changed", ol)

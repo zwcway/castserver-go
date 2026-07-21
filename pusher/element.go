@@ -15,7 +15,7 @@ type Element struct {
 
 	line   *speaker.Line
 	buffer *stream.Samples
-	chBuf  [audio.Channel_MAX]*stream.Samples
+	chBuf  [audio.ChannelMax]*stream.Samples
 
 	resample stream.ResampleElement
 }
@@ -48,6 +48,7 @@ func (e *Element) Close() error {
 	if e.resample != nil {
 		e.resample.Off()
 		e.resample.Close()
+		e.resample = nil
 	}
 	e.buffer = nil
 	return nil
@@ -97,11 +98,9 @@ func (e *Element) Stream(samples *stream.Samples) {
 		from   []audio.Channel
 		buf    *stream.Samples
 		format = samples.Format
-		layout = samples.Format.Layout
+		layout audio.ChannelMask
 	)
 	format.Layout = e.line.Layout()
-
-	e.initBuf(samples.RequestNbSamples, format)
 
 	// 开始声道路由/混合
 	for i = 0; i < len(chList); i++ {
@@ -113,8 +112,8 @@ func (e *Element) Stream(samples *stream.Samples) {
 		}
 
 		from = e.line.ChannelRoute(ch)
-		layout = samples.Format.Layout
-		if !layout.IntersectSlice(from) {
+		layout = samples.Format.Layout.IntersectSlice(from)
+		if !layout.IsValid() {
 			// 批量判断声道是否存在
 			continue
 		}
@@ -166,6 +165,7 @@ func (e *Element) OnEnding() {
 }
 
 func (e *Element) OnFormatChanged(newFormat *audio.Format) {
+	e.initBuf(1, *newFormat)
 }
 
 func (e *Element) PushSpeaker(sp *speaker.Speaker, samples *stream.Samples) {
@@ -238,8 +238,9 @@ func NewElement(line *speaker.Line) stream.SwitchElement {
 	e.resample = resample
 
 	line.Register("line output changed", func(o any, a ...any) error {
-		l := o.(*speaker.Line)
-		e.resample.SetFormat(l.Output)
+		if l, ok := o.(*speaker.Line); ok {
+			e.resample.SetFormat(l.Output)
+		}
 		return nil
 	})
 	return e

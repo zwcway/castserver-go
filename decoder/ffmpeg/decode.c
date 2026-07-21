@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <libavformat/avformat.h>
+#include <libavcodec/avcodec.h>
 #include <libswresample/swresample.h>
 #include "resample/resample.c"
 
@@ -60,7 +61,7 @@ typedef struct GOAVDecoder
     int channel_index[CHANNEL_MAX];
 } GOAVDecoder;
 
-static const int go_init_resample(GOAVDecoder *ctx, int rate, int64_t channel_layout, enum AVSampleFormat fmt)
+static const int go_init_resample(GOAVDecoder *ctx, int rate, const AVChannelLayout *channel_layout, enum AVSampleFormat fmt)
 {
     int ret = 0;
 
@@ -77,7 +78,7 @@ static const int go_init_resample(GOAVDecoder *ctx, int rate, int64_t channel_la
 
     // 初始化转码器
     ret = go_swr_init(&ctx->swrCtx,
-                        ctx->codecCtx->sample_rate, ctx->codecCtx->channel_layout, ctx->codecCtx->sample_fmt,
+                        ctx->codecCtx->sample_rate, &ctx->codecCtx->ch_layout, ctx->codecCtx->sample_fmt,
                         rate, channel_layout, fmt);
 
     return ret;
@@ -161,7 +162,7 @@ static const int go_init(GOAVDecoder **ctxp, const char *fileName,
     ctx->stream->discard = AVDISCARD_DEFAULT;
 
     // 获取编码器
-    AVCodec *audioCodec = avcodec_find_decoder(ctx->stream->codecpar->codec_id);
+    const AVCodec *audioCodec = avcodec_find_decoder(ctx->stream->codecpar->codec_id);
     if (audioCodec == NULL)
     {
         ret = -254;
@@ -183,7 +184,7 @@ static const int go_init(GOAVDecoder **ctxp, const char *fileName,
         goto _exit_;
     }
 
-    if (ctx->codecCtx->channels > 16 || ctx->codecCtx->channels == 0)
+    if (ctx->codecCtx->ch_layout.nb_channels > 16 || ctx->codecCtx->ch_layout.nb_channels == 0)
     {
         ret = -252;
         goto _exit_;
@@ -193,7 +194,7 @@ static const int go_init(GOAVDecoder **ctxp, const char *fileName,
     ctx->codecCtx->codec_id = audioCodec->id;
     ctx->codecCtx->lowres = 0;
     ctx->start_pts = AV_NOPTS_VALUE;
-    if ((ctx->formatCtx->iformat->flags & (AVFMT_NOBINSEARCH | AVFMT_NOGENSEARCH | AVFMT_NO_BYTE_SEEK)) && !ctx->formatCtx->iformat->read_seek)
+    if ((ctx->formatCtx->iformat->flags & (AVFMT_NOBINSEARCH | AVFMT_NOGENSEARCH | AVFMT_NO_BYTE_SEEK)) && !ctx->formatCtx->pb->read_seek)
     {
         ctx->start_pts = ctx->stream->start_time;
         ctx->start_pts_tb = ctx->stream->time_base;
@@ -205,18 +206,14 @@ static const int go_init(GOAVDecoder **ctxp, const char *fileName,
     {
         goto _exit_;
     }
-
-    if (ctx->codecCtx->channel_layout == 0) {
-        ctx->codecCtx->channel_layout = av_get_default_channel_layout(ctx->codecCtx->channels);
-    }
     
     for (ret = 0; ret < CHANNEL_MAX; ret ++)
         ctx->channel_index[ret] = -1;
     
-    for (ret = 0; ret < ctx->codecCtx->channels; ret ++)
-        ctx->channel_index[ret] = av_channel_layout_extract_channel(ctx->codecCtx->channel_layout, ret);
+    for (ret = 0; ret < ctx->codecCtx->ch_layout.nb_channels; ret ++)
+        ctx->channel_index[ret] = av_channel_layout_channel_from_index(&ctx->codecCtx->ch_layout, ret);
     
-    *channels = ctx->codecCtx->channels;
+    *channels = ctx->codecCtx->ch_layout.nb_channels;
     *rate = ctx->codecCtx->sample_rate;
     *fmt = ctx->codecCtx->sample_fmt;
 

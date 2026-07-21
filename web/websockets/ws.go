@@ -50,14 +50,14 @@ func (c *WSConnection) readFromClient() {
 		delete(c.hub.broadcast, c)
 		delete(c.hub.Clients, c)
 		log.Debug("client close", lg.String("ip", c.Conn.RemoteAddr().String()))
-		c.Conn.Close()
+		_ = c.Conn.Close()
 		c.Conn = nil
 	}()
 
 	c.Conn.SetReadLimit(512)
-	c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+	_ = c.Conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.Conn.SetPongHandler(func(string) error {
-		c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+		_ = c.Conn.SetReadDeadline(time.Now().Add(pongWait))
 		return nil
 	})
 
@@ -71,7 +71,7 @@ func (c *WSConnection) readFromClient() {
 		}
 		if len(message) == 4 && string(message) == "ping" {
 			WSHub.writeQueue <- writeQueueData{&c.Conn, websocket.TextMessage, []byte("pong")}
-			c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+			_ = c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 			continue
 		}
 		// if t != websocket.TextMessage {
@@ -79,6 +79,8 @@ func (c *WSConnection) readFromClient() {
 		// }
 		if ApiDispatch != nil {
 			ApiDispatch(t, message, c)
+		} else {
+			log.Debug("receive", lg.String("ip", c.Conn.RemoteAddr().String()), lg.ByteString("data", message))
 		}
 	}
 }
@@ -127,7 +129,7 @@ func newConnection(ws *websocket.Conn) {
 	if len(WSHub.Clients) > config.WSClientMAX {
 		// 超过5个，随机断开一个
 		for c := range WSHub.Clients {
-			c.Conn.Close()
+			_ = c.Conn.Close()
 			break
 		}
 	}
