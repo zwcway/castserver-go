@@ -1,16 +1,45 @@
 package speaker
 
-import "github.com/zwcway/castserver-go/common/bus"
+import (
+	"github.com/zwcway/castserver-go/common/audio"
+	"github.com/zwcway/castserver-go/common/bus"
+)
 
 var (
-	BusSpeakerCreated  = speakerCreated{}
-	BusSpeakerEdited   = speakerEdited{}
-	BusSpeakerDeleted  = speakerDeleted{}
-	BusSpeakerDetected = speakerDetected{}
-	BusSpeakerOnline   = speakerOnline{}
-	BusSpeakerOffline  = speakerOffline{}
-	BusSpeakerReonline = speakerReonline{}
+	BusGetSpeakers          = getSpeakers{}
+	BusGetSpeaker           = getSpeaker{}
+	BusSpeakerCreated       = speakerCreated{}
+	BusSpeakerEdited        = speakerEdited{}
+	BusSpeakerSaved         = speakerSaved{}
+	BusSpeakerDeleted       = speakerDeleted{}
+	BusSpeakerDetected      = speakerDetected{}
+	BusSpeakerOnline        = speakerOnline{}
+	BusSpeakerOffline       = speakerOffline{}
+	BusSpeakerReonline      = speakerReonline{}
+	BusSpeakerFormatChanged = speakerFormatChanged{}
 )
+
+type getSpeakers struct{}
+
+func (getSpeakers) Dispatch(l *[]*Speaker) error {
+	return bus.Dispatch("get speakers", l)
+}
+func (getSpeakers) Register(c func(l *[]*Speaker) error) *bus.HandlerData {
+	return bus.Register("get speakers", func(_ any, a ...any) error {
+		return c(a[0].(*[]*Speaker))
+	})
+}
+
+type getSpeaker struct{}
+
+func (getSpeaker) Dispatch(l *Speaker) error {
+	return bus.Dispatch("get speaker", l)
+}
+func (getSpeaker) Register(c func(l *Speaker) error) *bus.HandlerData {
+	return bus.Register("get speaker", func(_ any, a ...any) error {
+		return c(a[0].(*Speaker))
+	})
+}
 
 type speakerCreated struct{}
 
@@ -25,12 +54,23 @@ func (speakerCreated) Register(c func(sp *Speaker) error) *bus.HandlerData {
 
 type speakerEdited struct{}
 
-func (speakerEdited) Dispatch(sp *Speaker, a ...any) error {
-	return bus.DispatchObj(sp, "speaker edited", a...)
+func (speakerEdited) Dispatch(sp *Speaker, field string, value, oldValue any) error {
+	return bus.DispatchObj(sp, "speaker edited", field, value)
 }
-func (speakerEdited) Register(c func(sp *Speaker, a ...any) error) *bus.HandlerData {
+func (speakerEdited) Register(c func(sp *Speaker, field string, value, oldValue any) error) *bus.HandlerData {
 	return bus.Register("speaker edited", func(o any, a ...any) error {
-		return c(o.(*Speaker), a...)
+		return c(o.(*Speaker), a[0].(string), a[1], a[2])
+	})
+}
+
+type speakerSaved struct{}
+
+func (speakerSaved) Dispatch(l *Speaker) error {
+	return bus.DispatchObj(l, "speaker saved")
+}
+func (speakerSaved) Register(c func(l *Speaker) error) *bus.HandlerData {
+	return bus.Register("speaker saved", func(o any, _ ...any) error {
+		return c(o.(*Speaker))
 	})
 }
 
@@ -63,7 +103,7 @@ func (speakerOffline) Dispatch(sp *Speaker) error {
 }
 func (speakerOffline) Register(c func(sp *Speaker) error) *bus.HandlerData {
 	return bus.Register("speaker offline", func(o any, a ...any) error {
-		return c(a[0].(*Speaker))
+		return c(o.(*Speaker))
 	})
 }
 
@@ -74,7 +114,7 @@ func (speakerOnline) Dispatch(sp *Speaker) error {
 }
 func (speakerOnline) Register(c func(sp *Speaker) error) *bus.HandlerData {
 	return bus.Register("speaker online", func(o any, a ...any) error {
-		return c(a[0].(*Speaker))
+		return c(o.(*Speaker))
 	})
 }
 
@@ -85,6 +125,17 @@ func (speakerReonline) Dispatch(sp *Speaker) error {
 }
 func (speakerReonline) Register(c func(sp *Speaker) error) *bus.HandlerData {
 	return bus.Register("speaker reonline", func(o any, a ...any) error {
-		return c(a[0].(*Speaker))
+		return c(o.(*Speaker))
+	})
+}
+
+type speakerFormatChanged struct{}
+
+func (speakerFormatChanged) Dispatch(sp *Speaker, format, oldFormat audio.Sample) error {
+	return bus.DispatchObj(sp, "speaker format changed")
+}
+func (speakerFormatChanged) Register(c func(sp *Speaker, format, oldFormat audio.Sample) error) *bus.HandlerData {
+	return bus.Register("speaker format changed", func(o any, a ...any) error {
+		return c(o.(*Speaker), a[0].(audio.Sample), a[1].(audio.Sample))
 	})
 }

@@ -1,15 +1,14 @@
 package main
 
 import (
-	"github.com/zwcway/castserver-go/common"
 	"github.com/zwcway/castserver-go/common/utils"
-	"github.com/zwcway/castserver-go/control"
-	"github.com/zwcway/castserver-go/decoder"
-	"github.com/zwcway/castserver-go/detector"
-	"github.com/zwcway/castserver-go/mutexer"
-	"github.com/zwcway/castserver-go/pusher"
-	"github.com/zwcway/castserver-go/receiver"
-	"github.com/zwcway/castserver-go/web"
+	"github.com/zwcway/castserver-go/modules/controller"
+	"github.com/zwcway/castserver-go/modules/decoder"
+	"github.com/zwcway/castserver-go/modules/detector"
+	"github.com/zwcway/castserver-go/modules/mutexer"
+	"github.com/zwcway/castserver-go/modules/pusher"
+	"github.com/zwcway/castserver-go/modules/receiver"
+	"github.com/zwcway/castserver-go/modules/web"
 )
 
 type Module interface {
@@ -19,12 +18,11 @@ type Module interface {
 }
 
 var mods = []Module{
-	common.Module,
 	decoder.Module,
 	mutexer.Module,
 	detector.Module,
 	pusher.Module,
-	control.Module,
+	controller.Module,
 	receiver.Module,
 	web.Module,
 }

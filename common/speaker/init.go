@@ -4,11 +4,12 @@ import (
 	"sync"
 
 	"github.com/zwcway/castserver-go/common/bus"
+	"github.com/zwcway/castserver-go/common/utils"
 )
 
 var locker sync.Mutex
 
-func Init() error {
+func Init(ctx utils.Context) error {
 	return nil
 }
 

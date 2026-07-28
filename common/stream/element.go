@@ -67,13 +67,8 @@ type MixerElement interface {
 	Add(...SourceStreamer) error
 	Clear()
 
-	// SetResample 是否开启转码。
-	// 如果开启转码，SetFormat 将作用于转码器
-	// 否则通知 SourceStreamer 自己转码
-	SetResample(bool)
-
-	SetFormat(audio.Format) error // 设置输出格式
-	Format() audio.Format         // 获取输出格式
+	// SetFormat(audio.Format) error // 设置输出格式
+	Format() audio.Format // 获取输出格式
 
 	Buffer() *Samples
 }
@@ -136,6 +131,9 @@ const EqualizerDelayMax time.Duration = 300 * time.Millisecond // 大约 102 米
 
 type PipeLiner interface {
 	StreamCloser
+
+	SetOutFormat(f audio.Format) error
+	AudioFormat() audio.Format
 
 	Len() int
 	SetBuffer(*Samples)

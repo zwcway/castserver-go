@@ -40,14 +40,8 @@ func NewLogger(logFile string, daemon bool) (l Logger, close func(), err error) 
 		return lvl < zapcore.ErrorLevel
 	})
 
-	topicDebugging := zapcore.AddSync(io.Discard)
-	topicErrors := zapcore.AddSync(io.Discard)
-	consoleDebugging := zapcore.Lock(os.Stdout)
-	consoleErrors := zapcore.Lock(os.Stderr)
-
 	fileEncoder := zapcore.NewJSONEncoder(encoderConfig)
 	// consoleEncoder := zapcore.NewConsoleEncoder(encoderConfig)
-	consoleEncoder := NewConsoleEncoder(encoderConfig)
 
 	cores := []zapcore.Core{}
 
@@ -67,6 +61,10 @@ func NewLogger(logFile string, daemon bool) (l Logger, close func(), err error) 
 			zapcore.NewCore(fileEncoder, sink, lowPriority),
 		)
 	} else {
+
+		topicDebugging := zapcore.AddSync(io.Discard)
+		topicErrors := zapcore.AddSync(io.Discard)
+
 		cores = append(cores,
 			zapcore.NewCore(fileEncoder, topicErrors, highPriority),
 			zapcore.NewCore(fileEncoder, topicDebugging, lowPriority),
@@ -74,6 +72,10 @@ func NewLogger(logFile string, daemon bool) (l Logger, close func(), err error) 
 	}
 
 	if !daemon {
+		consoleDebugging := zapcore.Lock(os.Stdout)
+		consoleErrors := zapcore.Lock(os.Stderr)
+		consoleEncoder := NewConsoleEncoder(encoderConfig)
+
 		cores = append(cores,
 			zapcore.NewCore(consoleEncoder, consoleErrors, highPriority),
 			zapcore.NewCore(consoleEncoder, consoleDebugging, lowPriority),
@@ -94,4 +96,9 @@ func NewMemroy() Logger {
 
 func NewDBLog(level Level) logger.Interface {
 	return &dbLog{log: log.Name("database"), lv: level}
+}
+
+func NewStdLog() Logger {
+	log = &Log{l: zap.NewExample()}
+	return log
 }

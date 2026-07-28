@@ -50,7 +50,7 @@ func TestMixer(t *testing.T) {
 	}
 	result := []float64{0, 2, 4, 6, 8, 10, 12, 14}
 	t.Run("mix size 512 for 8", func(t *testing.T) {
-		mixer := NewMixer(&mixer1{}, &mixer1{})
+		mixer := NewMixer("ele_test", &mixer1{}, &mixer1{})
 		samples := stream.NewSamples(8, format)
 		mixer.Stream(samples)
 		if !slices.Equal(samples.Data[0][:8], result) {
@@ -58,7 +58,7 @@ func TestMixer(t *testing.T) {
 		}
 	})
 	t.Run("mix size 6 for 8", func(t *testing.T) {
-		mixer := NewMixer(&mixer1{}, &mixer1{}).(*Mixer)
+		mixer := NewMixer("ele_test", &mixer1{}, &mixer1{}).(*Mixer)
 		samples := stream.NewSamples(8, format)
 		mixer.Stream(samples)
 		if !slices.Equal(samples.Data[0][:8], result) {
@@ -66,7 +66,7 @@ func TestMixer(t *testing.T) {
 		}
 	})
 	t.Run("mix size 5 for 8", func(t *testing.T) {
-		mixer := NewMixer(&mixer1{}, &mixer1{}).(*Mixer)
+		mixer := NewMixer("ele_test", &mixer1{}, &mixer1{}).(*Mixer)
 		samples := stream.NewSamples(8, format)
 		mixer.Stream(samples)
 		if !slices.Equal(samples.Data[0][:8], result) {

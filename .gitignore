@@ -8,3 +8,4 @@ scripts
 build/
 *.css
 doc/*.xls*
+*_debug_*

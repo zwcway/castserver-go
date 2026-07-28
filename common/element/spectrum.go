@@ -36,12 +36,8 @@ func (r *Spectrum) Type() stream.ElementType {
 }
 
 func (r *Spectrum) zeroData() {
-	for i := 0; i < len(r.spectrum); i++ {
-		r.spectrum[i] = 0
-	}
-	for i := 0; i < r.n; i++ {
-		r.s[i] = 0
-	}
+	clear(r.spectrum)
+	clear(r.s)
 	r.levelMeter = 0
 	r.suml = 0
 	r.pos = 0
@@ -115,7 +111,6 @@ func (r *Spectrum) Stream(samples *stream.Samples) {
 	}
 }
 
-func (r *Spectrum) Sample(*float64, int, int) {}
 func (e *Spectrum) OnStarting() {
 }
 

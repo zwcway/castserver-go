@@ -3,12 +3,14 @@ module github.com/zwcway/castserver-go
 go 1.26
 
 require (
+	github.com/BurntSushi/toml v1.6.0
+	github.com/ebitengine/oto/v3 v3.4.0
 	github.com/fasthttp/websocket v1.5.1
 	github.com/go-ini/ini v1.67.0
-	github.com/hajimehoshi/oto/v2 v2.3.1
 	github.com/jackpal/gateway v1.0.7
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/muesli/go-app-paths v0.2.2
+	github.com/nicksnyder/go-i18n/v2 v2.6.1
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.4
 	github.com/valyala/fasthttp v1.44.0
@@ -22,10 +24,7 @@ require (
 	gorm.io/gorm v1.25.7
 )
 
-require (
-	github.com/BurntSushi/toml v1.6.0 // indirect
-	github.com/nicksnyder/go-i18n/v2 v2.6.1 // indirect
-)
+require github.com/ebitengine/purego v0.9.0 // indirect
 
 require (
 	github.com/andybalholm/brotli v1.0.4 // indirect
@@ -55,8 +54,8 @@ require (
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	golang.org/x/crypto v0.7.0 // indirect
-	golang.org/x/sys v0.6.0 // indirect
-	golang.org/x/text v0.32.0 // indirect
+	golang.org/x/sys v0.36.0 // indirect
+	golang.org/x/text v0.32.0
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 

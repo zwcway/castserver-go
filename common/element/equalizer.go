@@ -40,9 +40,6 @@ func (e *Equalizer) Stream(samples *stream.Samples) {
 	}
 }
 
-func (e *Equalizer) Sample(sample *float64, ch int, n int) {
-}
-
 func (e *Equalizer) OnStarting() {
 	if e.newFilter == nil {
 		return
@@ -54,6 +51,8 @@ func (e *Equalizer) OnEnding() {
 }
 
 func (e *Equalizer) OnFormatChanged(newFormat *audio.Format) {
+	e.format = *newFormat
+	e.init()
 }
 
 func (r *Equalizer) On() {
@@ -77,7 +76,7 @@ func (e *Equalizer) FilterType() dsp.FilterType {
 
 func (e *Equalizer) SetEqualizer(eq []*dsp.FilterParams) {
 	e.equalizer.Filters = eq
-	e.init(&e.newFilter)
+	e.init()
 }
 
 func (e *Equalizer) Equalizer() []*dsp.FilterParams {
@@ -91,8 +90,7 @@ func (e *Equalizer) Count() int {
 func (e *Equalizer) Set(freq int, gain, q float64) {
 	e.equalizer.Set(freq, gain, q)
 
-	e.init(&e.newFilter)
-	return
+	e.init()
 }
 
 func (e *Equalizer) Delay() time.Duration {
@@ -103,12 +101,12 @@ func (e *Equalizer) SetDelay(delay time.Duration) {
 	e.equalizer.Delay = delay
 }
 
-func (e *Equalizer) init(filter *[][]*dsp.Filter) {
-	*filter = make([][]*dsp.Filter, e.format.Layout.Count)
+func (e *Equalizer) init() {
+	e.newFilter = make([][]*dsp.Filter, e.format.Layout.Count)
 	chCount := int(e.format.Layout.Count)
 	rate := e.format.Rate.ToInt()
 
-	for ch := 0; ch < chCount; ch++ {
+	for ch := range chCount {
 		fch := make([]*dsp.Filter, 0)
 
 		for _, f := range e.equalizer.Filters {
@@ -118,7 +116,7 @@ func (e *Equalizer) init(filter *[][]*dsp.Filter) {
 			fch = append(fch, dsp.NewFilter(*f, rate))
 		}
 
-		(*filter)[ch] = fch
+		e.newFilter[ch] = fch
 	}
 }
 

@@ -5,38 +5,39 @@ import (
 
 	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/bus"
+	lg "github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/common/stream"
 )
 
-type PipeLineStreamer struct {
-	stream stream.Element
-	cost   time.Duration
+type Element struct {
+	ele  stream.Element
+	cost time.Duration
 }
 
-func (s *PipeLineStreamer) Name() string {
-	return s.stream.Name()
+func (s *Element) Name() string {
+	return s.ele.Name()
 }
 
-func (s *PipeLineStreamer) Cost() time.Duration {
+func (s *Element) Cost() time.Duration {
 	return s.cost
 }
 
-func (s *PipeLineStreamer) Element() stream.Element {
-	return s.stream
+func (s *Element) Element() stream.Element {
+	return s.ele
 }
 
 type PipeLine struct {
-	buffer       *stream.Samples
-	format       audio.Format
-	wholeStreams []*PipeLineStreamer
-	oneStreams   []*PipeLineStreamer
+	tag      string
+	buffer   *stream.Samples
+	format   audio.Format
+	elements []*Element
 
 	cost    time.Duration
 	maxCost time.Duration
 }
 
 func (p *PipeLine) Len() int {
-	return len(p.wholeStreams) + len(p.oneStreams)
+	return len(p.elements)
 }
 
 func (p *PipeLine) Buffer() *stream.Samples {
@@ -48,17 +49,16 @@ func (p *PipeLine) SetBuffer(sample *stream.Samples) {
 }
 
 func (p *PipeLine) Prepend(s stream.Element) {
-	ps := []*PipeLineStreamer{{
-		stream: s,
-		cost:   0,
+	ps := []*Element{{
+		ele:  s,
+		cost: 0,
 	}}
 
 	// if s.Type() == stream.ET_OneSample {
 	// 	p.oneStreams = append(ps, p.wholeStreams...)
 	// } else if s.Type() == stream.ET_WholeSamples {
-	p.wholeStreams = append(ps, p.wholeStreams...)
+	p.elements = append(ps, p.elements...)
 	// }
-	p.append(s)
 }
 
 // TODO 防止循环引用
@@ -67,33 +67,25 @@ func (p *PipeLine) Append(s ...stream.Element) {
 		if ss == nil {
 			continue
 		}
-		ps := &PipeLineStreamer{
-			stream: ss,
-			cost:   0,
+
+		ps := &Element{
+			ele:  ss,
+			cost: 0,
 		}
 		// if ss.Type() == stream.ET_OneSample {
 		// 	p.oneStreams = append(p.oneStreams, ps)
 		// } else if ss.Type() == stream.ET_WholeSamples {
-		p.wholeStreams = append(p.wholeStreams, ps)
+		p.elements = append(p.elements, ps)
 		// }
-		p.append(ss)
-	}
-}
 
-func (p *PipeLine) append(ss stream.Element) {
-	if sc, ok := ss.(stream.MixerElement); ok {
-		// 注册样本格式变更的回调
-		stream.BusMixerFormatChanged.Register(sc, func(m stream.MixerElement, format *audio.Format, channelIndex audio.ChannelIndex) error {
-			p.format = *format
-			stream.BusSourceFormatChanged.Dispatch(p, format, channelIndex)
-			return nil
-		})
+		log.Debug("element added", lg.String("name", ss.Name()), lg.String("tag", p.tag))
+		// 同步格式，各自初始化自己的缓存
+		ss.OnFormatChanged(&p.format)
 	}
 }
 
 func (p *PipeLine) Clear() {
-	p.wholeStreams = p.wholeStreams[:0]
-	p.oneStreams = p.oneStreams[:0]
+	p.elements = p.elements[:0]
 }
 
 func (p *PipeLine) AudioFormat() audio.Format {
@@ -108,6 +100,17 @@ func (p *PipeLine) ChannelIndex() audio.ChannelIndex {
 }
 
 func (p *PipeLine) SetOutFormat(f audio.Format) error {
+	if p.format == f {
+		return nil
+	}
+
+	p.format = f
+
+	log.Debug("set out format", lg.String("format", f.String()), lg.String("tag", p.tag))
+
+	for _, ele := range p.elements {
+		ele.ele.OnFormatChanged(&f)
+	}
 	return nil
 }
 
@@ -120,8 +123,8 @@ func (p *PipeLine) CanRemove() bool {
 }
 
 func (p *PipeLine) Close() error {
-	for _, s := range p.wholeStreams {
-		if sc, ok := s.stream.(stream.StreamCloser); ok {
+	for _, s := range p.elements {
+		if sc, ok := s.ele.(stream.StreamCloser); ok {
 			sc.Close()
 		}
 		bus.UnregisterObj(s)
@@ -131,7 +134,7 @@ func (p *PipeLine) Close() error {
 }
 
 func (p *PipeLine) Stream(sample *stream.Samples) {
-	if sample == nil && p.buffer == nil {
+	if sample == nil && p.buffer == nil || !p.format.IsValid() {
 		return
 	}
 
@@ -140,17 +143,17 @@ func (p *PipeLine) Stream(sample *stream.Samples) {
 		buf = p.buffer
 	}
 
-	for _, s := range p.wholeStreams {
-		s.stream.OnStarting()
+	for _, s := range p.elements {
+		s.ele.OnStarting()
 	}
 
 	var (
-		t time.Time
+		t  time.Time
 		mt time.Time = time.Now()
 	)
-	for _, s := range p.wholeStreams {
+	for _, s := range p.elements {
 		t = time.Now()
-		s.stream.Stream(buf)
+		s.ele.Stream(buf)
 		s.cost = time.Since(t)
 	}
 
@@ -179,15 +182,15 @@ func (p *PipeLine) LastMaxCost() time.Duration {
 	return p.maxCost
 }
 
-func (p *PipeLine) Streamers() []*PipeLineStreamer {
-	return append(p.oneStreams, p.wholeStreams...)
+func (p *PipeLine) Streamers() []*Element {
+	return append([]*Element{}, p.elements...)
 }
 
-func NewPipeLine(format audio.Format, eles ...stream.Element) stream.PipeLiner {
+func NewPipeLine(tag string, format audio.Format, eles ...stream.Element) stream.PipeLiner {
 	p := &PipeLine{
-		wholeStreams: make([]*PipeLineStreamer, 0),
-		oneStreams:   make([]*PipeLineStreamer, 0),
-		format:       format,
+		tag:      tag,
+		elements: make([]*Element, 0),
+		format:   format,
 	}
 
 	p.Append(eles...)

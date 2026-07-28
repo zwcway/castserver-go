@@ -78,5 +78,5 @@ type sliceHeader struct {
 }
 
 func MakeSlice[E any](p unsafe.Pointer, size int) []E {
-	return *(*[]E)(unsafe.Pointer(&sliceHeader{p, size, size}))
+	return unsafe.Slice((*E)(p), size)
 }

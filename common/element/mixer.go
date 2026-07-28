@@ -3,6 +3,8 @@ package element
 import (
 	"sync"
 
+	lg "github.com/zwcway/castserver-go/common/log"
+
 	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/bus"
 	"github.com/zwcway/castserver-go/common/config"
@@ -15,19 +17,13 @@ type mixerStreamer struct {
 	resample stream.ResampleElement
 }
 
-const (
-	noResample uint8 = iota
-	hasResample
-	onResample
-)
-
 // 音频混合器
 type Mixer struct {
+	tag string
 	// 与顺序无关
 	streamers []mixerStreamer
 
-	buffer   *stream.Samples
-	resample uint8
+	buffer *stream.Samples
 
 	locker sync.Mutex
 }
@@ -51,57 +47,47 @@ func (m *Mixer) Add(ss ...stream.SourceStreamer) error {
 	m.locker.Lock()
 	defer m.locker.Unlock()
 
-	var resample stream.ResampleElement
-
 	for _, s := range ss {
 		if s == nil {
 			continue
 		}
 
-		stream.BusResample.GetInstance(m, &resample, nil)
+		var resample stream.ResampleElement
 
-		if resample == nil {
-			m.resample = noResample
+		// stream.BusResample.GetInstance(m, &resample, nil)
+
+		if resample != nil {
+			resample.SetFormat(m.buffer.Format)
+			resample.On()
 		}
+
 		m.streamers = append(m.streamers, mixerStreamer{
 			s,
 			resample,
 		})
 
+		ml.Debug("add source streamer", lg.String("tag", m.tag))
+
 		// 订阅格式变更事件，同步调用
 		stream.BusSourceFormatChanged.Register(s, m.onSourceFormatChanged)
 	}
 
-	m.decideFormat()
 	return nil
 }
 
 func (m *Mixer) onSourceFormatChanged(ss stream.SourceStreamer, format *audio.Format, channelIndex audio.ChannelIndex) error {
-	m.decideFormat()
+	for _, s := range m.streamers {
+		if s.streamer != ss {
+			continue
+		}
+
+		if s.resample != nil {
+			s.resample.OnFormatChanged(format)
+		}
+		stream.BusMixerInFormatChanged.Dispatch(m, ss, format, format.ChannelIndex())
+	}
+
 	return nil
-}
-
-// 根据每个待混合格式确定合适的统一格式
-func (m *Mixer) decideFormat() {
-	if len(m.streamers) == 0 {
-		return
-	}
-
-	format := audio.InternalFormat()
-	format.InitFrom(audio.DefaultFormat())
-
-	for i := 0; i < len(m.streamers); i++ {
-		s := m.streamers[i].streamer
-		f := s.AudioFormat()
-		if format.Count < f.Count {
-			format.Layout = f.Layout
-		}
-		if format.Rate.LessThan(f.Rate) {
-			format.Rate = f.Rate
-		}
-	}
-
-	m.SetFormat(format)
 }
 
 func (m *Mixer) Del(s stream.SourceStreamer) {
@@ -140,73 +126,31 @@ func (m *Mixer) Buffer() *stream.Samples {
 	return m.buffer
 }
 
-func (m *Mixer) SetResample(on bool) {
-	m.locker.Lock()
-	defer m.locker.Unlock()
-
-	if m.resample == noResample {
-		return
-	}
-
-	if on {
-		for _, ss := range m.streamers {
-			ss.resample.On()
-		}
-		m.resample = onResample
-	} else {
-		for _, ss := range m.streamers {
-			ss.resample.Off()
-		}
-		m.resample = hasResample
-	}
-}
-
-func (m *Mixer) SetFormat(format audio.Format) error {
-	if format == m.buffer.Format {
-		return nil
-	}
-	format.Bits = audio.Bits_DEFAULT
-
-	m.buffer.ResizeDuration(config.AudioBuferMSDuration, format)
-	stream.BusMixerFormatChanged.Dispatch(m, &format, m.buffer.ChannelIndex)
-
-	if m.resample != onResample {
-		// 通知所有输入源变更输出格式
-		for _, ms := range m.streamers {
-			f := ms.streamer.AudioFormat()
-			f.Sample = format.Sample
-			ms.streamer.SetOutFormat(f)
-		}
-	}
-
-	return nil
-}
-
 func (m *Mixer) Format() audio.Format {
 	return m.buffer.Format
 }
 
 func (m *Mixer) Stream(samples *stream.Samples) {
-	if len(m.streamers) == 0 {
+	if len(m.streamers) == 0 || m.buffer == nil {
 		return
 	}
-
-	if m.buffer.LessThan(samples) {
-		m.buffer.Resize(samples.RequestNbSamples, samples.Format)
-	}
+	m.buffer.Resize(samples.RequestNbSamples, m.Format())
 
 	mixed := 0
 	for si := 0; si < len(m.streamers); si++ {
 		ms := m.streamers[si]
 
-		m.buffer.ResetData()
+		// m.buffer.ResetData()
 
+		// 从音源获取数据
 		ms.streamer.Stream(m.buffer)
 
-		if m.resample == onResample && ms.resample != nil {
+		// 转码到内部格式
+		if ms.resample != nil {
 			ms.resample.Stream(m.buffer)
 		}
 
+		// 混合音源数据
 		i := m.buffer.MixChannelMap(samples, 0, 0)
 
 		if mixed < i {
@@ -227,21 +171,39 @@ func (m *Mixer) Stream(samples *stream.Samples) {
 	// }
 }
 
-func (e *Mixer) OnStarting() {
+func (m *Mixer) OnStarting() {
 }
 
-func (e *Mixer) OnEnding() {
+func (m *Mixer) OnEnding() {
 }
 
-func (e *Mixer) OnFormatChanged(newFormat *audio.Format) {
-}
+func (m *Mixer) OnFormatChanged(newFormat *audio.Format) {
+	f := *newFormat
+	f.Bits = audio.Bits_DEFAULT
 
-func (m *Mixer) Sample(*float64, int, int) {}
+	for _, s := range m.streamers {
+		if s.resample != nil {
+			s.resample.SetFormat(f)
+		}
+
+		if f.LessThan(s.streamer.AudioFormat()) {
+			f = s.streamer.AudioFormat()
+		}
+	}
+	ml.Debug("format changed", lg.String("format", f.String()), lg.String("tag", m.tag))
+
+	m.buffer = stream.NewSamplesDuration(config.AudioBuferMSDuration, f)
+
+	stream.BusMixerOutFormatChanged.Dispatch(m, newFormat, f.ChannelIndex())
+}
 
 func (m *Mixer) Close() error {
 	bus.UnregisterObj(m)
 
 	for _, ss := range m.streamers {
+		if ss.resample != nil {
+			ss.resample.Close()
+		}
 		ss.streamer.Close()
 	}
 
@@ -249,15 +211,16 @@ func (m *Mixer) Close() error {
 	return nil
 }
 
-func (o *Mixer) Dispatch(e string, a ...any) error {
-	return bus.DispatchObj(o, e, a...)
+func (m *Mixer) Dispatch(e string, a ...any) error {
+	return bus.DispatchObj(m, e, a...)
 }
-func (o *Mixer) Register(e string, c bus.Handler) *bus.HandlerData {
-	return bus.RegisterObj(o, e, c)
+func (m *Mixer) Register(e string, c bus.Handler) *bus.HandlerData {
+	return bus.RegisterObj(m, e, c)
 }
 
-func NewMixer(streamers ...stream.SourceStreamer) stream.MixerElement {
+func NewMixer(tag string, streamers ...stream.SourceStreamer) stream.MixerElement {
 	m := &Mixer{
+		tag:       tag,
 		streamers: make([]mixerStreamer, 0),
 		buffer:    stream.NewSamplesDuration(config.AudioBuferMSDuration, audio.DefaultFormat()),
 	}

@@ -88,6 +88,14 @@ func DispatchObj(obj any, e string, args ...any) error {
 		count int = 0
 	)
 	if ll, ok = list[e]; !ok {
+		lf := []lg.Field{lg.String("event", e), lg.Int("count", int64(count))}
+		for i, arg := range args {
+			if i >= len(logArgs) {
+				break
+			}
+			lf = append(lf, lg.Any(logArgs[i], arg))
+		}
+		log.Debug("dispatch", lf...)
 		return err
 	}
 

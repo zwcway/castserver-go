@@ -3,6 +3,7 @@ package speaker
 import (
 	"github.com/zwcway/castserver-go/common/audio"
 	"github.com/zwcway/castserver-go/common/bus"
+	"github.com/zwcway/castserver-go/common/dsp"
 	"github.com/zwcway/castserver-go/common/stream"
 )
 
@@ -12,6 +13,7 @@ var (
 	BusGetLine     = getLine{}
 	BusLineCreated = lineCreated{}
 	BusLineEdited  = lineEdited{}
+	BusLineSaved   = lineSaved{}
 	BusLineDeleted = lineDeleted{}
 	BusLineRefresh = lineRefresh{}
 
@@ -21,6 +23,8 @@ var (
 	BusLineVolumeChanged   = lineVolumeChanged{}
 	BusLineSpeakerAppended = lineSpeakerAppended{}
 	BusLineSpeakerRemoved  = lineSpeakerRemoved{}
+	BusLineEQChanged       = lineEQChanged{}
+	BusLineRouteChanged    = lineRouteChanged{}
 )
 
 type getLines struct{}
@@ -40,7 +44,7 @@ func (getLine) Dispatch(l *Line) error {
 	return bus.Dispatch("get line", l)
 }
 func (getLine) Register(c func(l *Line) error) *bus.HandlerData {
-	return bus.Register("get line", func(o any, a ...any) error {
+	return bus.Register("get line", func(_ any, a ...any) error {
 		return c(a[0].(*Line))
 	})
 }
@@ -51,19 +55,30 @@ func (lineCreated) Dispatch(l *Line) error {
 	return bus.Dispatch("line created", l)
 }
 func (lineCreated) Register(c func(l *Line) error) *bus.HandlerData {
-	return bus.Register("line created", func(o any, a ...any) error {
+	return bus.Register("line created", func(_ any, a ...any) error {
 		return c(a[0].(*Line))
 	})
 }
 
 type lineEdited struct{}
 
-func (lineEdited) Dispatch(l *Line, args ...any) error {
-	return bus.DispatchObj(l, "line edited", args...)
+func (lineEdited) Dispatch(l *Line, field string, value, oldValue any) error {
+	return bus.DispatchObj(l, "line edited", field, value)
 }
-func (lineEdited) Register(c func(l *Line, args ...any) error) *bus.HandlerData {
+func (lineEdited) Register(c func(l *Line, field string, value, oldValue any) error) *bus.HandlerData {
 	return bus.Register("line edited", func(o any, a ...any) error {
-		return c(o.(*Line), a...)
+		return c(o.(*Line), a[0].(string), a[1], a[2])
+	})
+}
+
+type lineSaved struct{}
+
+func (lineSaved) Dispatch(l *Line) error {
+	return bus.DispatchObj(l, "line saved")
+}
+func (lineSaved) Register(c func(l *Line) error) *bus.HandlerData {
+	return bus.Register("line saved", func(o any, _ ...any) error {
+		return c(o.(*Line))
 	})
 }
 
@@ -141,6 +156,28 @@ func (lineSpeakerRemoved) Dispatch(l *Line, sp *Speaker) error {
 func (lineSpeakerRemoved) Register(c func(l *Line, sp *Speaker) error) *bus.HandlerData {
 	return bus.Register("line speaker removed", func(o any, a ...any) error {
 		return c(o.(*Line), a[0].(*Speaker))
+	})
+}
+
+type lineEQChanged struct{}
+
+func (lineEQChanged) Dispatch(l *Line, eq *dsp.EqualizerProcessor) error {
+	return bus.DispatchObj(l, "line eq changed", eq)
+}
+func (lineEQChanged) Register(c func(l *Line, eq *dsp.EqualizerProcessor) error) *bus.HandlerData {
+	return bus.Register("line eq changed", func(o any, a ...any) error {
+		return c(o.(*Line), a[0].(*dsp.EqualizerProcessor))
+	})
+}
+
+type lineRouteChanged struct{}
+
+func (lineRouteChanged) Dispatch(l *Line, route []audio.ChannelRoute) error {
+	return bus.DispatchObj(l, "line route changed", route)
+}
+func (lineRouteChanged) Register(c func(l *Line, route []audio.ChannelRoute) error) *bus.HandlerData {
+	return bus.Register("line route changed", func(o any, a ...any) error {
+		return c(o.(*Line), a[0].([]audio.ChannelRoute))
 	})
 }
 

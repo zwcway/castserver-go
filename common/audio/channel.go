@@ -23,7 +23,7 @@ const (
 	ChannelTopBackLeft
 	ChannelTopBackCenter
 	ChannelTopBackRight
-	ChannelMax
+	ChannelMax = 32
 )
 
 func NewAudioChannel(i int) Channel {
@@ -214,73 +214,73 @@ func (m ChannelMask) ChannelIndex() ChannelIndex {
 }
 
 var (
-	Layout10 = NewLayout(ChannelFrontCenter) // 前中
-	Layout20 = NewLayout(
+	Layout10 = NewLayouts(ChannelFrontCenter) // 前中
+	Layout20 = NewLayouts(
 		ChannelFrontLeft,
 		ChannelFrontRight) // 前左、前右
-	Layout21 = NewLayout(
+	Layout21 = NewLayouts(
 		ChannelFrontLeft,
 		ChannelFrontRight,
 		ChannelLowFrequency) // 前左、前右，低音
-	Layout22 = NewLayout(
+	Layout22 = NewLayouts(
 		ChannelFrontLeft,
 		ChannelFrontRight,
 		ChannelSideLeft,
 		ChannelSideRight) // 前左、前右，环左、环右
-	Layout30 = NewLayout(
+	Layout30 = NewLayouts(
 		ChannelFrontLeft,
 		ChannelFrontRight,
 		ChannelFrontCenter) // 前左、前右、前中
-	Layout31 = NewLayout(
+	Layout31 = NewLayouts(
 		ChannelFrontLeft,
 		ChannelFrontRight,
 		ChannelFrontCenter,
 		ChannelLowFrequency) // 前左、前右、前中，低音
-	Layout40 = NewLayout(
+	Layout40 = NewLayouts(
 		ChannelFrontLeft,
 		ChannelFrontRight,
 		ChannelFrontCenter,
 		ChannelBackCenter) // 前左、前右、前中、后中
-	Layout41 = NewLayout(
+	Layout41 = NewLayouts(
 		ChannelFrontLeft,
 		ChannelFrontRight,
 		ChannelFrontCenter,
 		ChannelBackCenter,
 		ChannelLowFrequency) // 前左、前右、前中、后中，低音
-	Layout50 = NewLayout(
+	Layout50 = NewLayouts(
 		ChannelFrontLeft,
 		ChannelFrontRight,
 		ChannelFrontCenter,
 		ChannelSideLeft,
 		ChannelSideRight) // 前左、前右、前中、环左、环右
-	Layout51 = NewLayout(
+	Layout51 = NewLayouts(
 		ChannelFrontLeft,
 		ChannelFrontRight,
 		ChannelFrontCenter,
 		ChannelSideLeft,
 		ChannelSideRight,
 		ChannelLowFrequency) // 前左、前右、前中、环左、环右，低音
-	Layout5B0 = NewLayout(
+	Layout5B0 = NewLayouts(
 		ChannelFrontLeft,
 		ChannelFrontRight,
 		ChannelFrontCenter,
 		ChannelBackLeft,
 		ChannelBackRight) // 前左、前右、前中、后左、后右
-	Layout5B1 = NewLayout(
+	Layout5B1 = NewLayouts(
 		ChannelFrontLeft,
 		ChannelFrontRight,
 		ChannelFrontCenter,
 		ChannelBackLeft,
 		ChannelBackRight,
 		ChannelLowFrequency) // 前左、前右、前中、后左、后右，低音
-	Layout60 = NewLayout(
+	Layout60 = NewLayouts(
 		ChannelFrontLeft,
 		ChannelFrontRight,
 		ChannelFrontCenter,
 		ChannelSideLeft,
 		ChannelSideRight,
 		ChannelBackCenter) // 前左、前右、前中、环左、环右、后中
-	Layout61 = NewLayout(
+	Layout61 = NewLayouts(
 		ChannelFrontLeft,
 		ChannelFrontRight,
 		ChannelFrontCenter,
@@ -288,7 +288,7 @@ var (
 		ChannelSideRight,
 		ChannelLowFrequency,
 		ChannelBackCenter) // 前左、前右、前中、环左、环右、后中，低音
-	Layout70 = NewLayout(
+	Layout70 = NewLayouts(
 		ChannelFrontLeft,
 		ChannelFrontRight,
 		ChannelFrontCenter,
@@ -296,7 +296,7 @@ var (
 		ChannelSideRight,
 		ChannelBackLeft,
 		ChannelBackRight) // 前左、前右、前中、环左、环右、后左、后右
-	Layout71 = NewLayout(
+	Layout71 = NewLayouts(
 		ChannelFrontLeft,
 		ChannelFrontRight,
 		ChannelFrontCenter,
@@ -305,7 +305,7 @@ var (
 		ChannelBackLeft,
 		ChannelBackRight,
 		ChannelLowFrequency) // 前左、前右、前中、环左、环右、后左、后右，低音
-	Layout702 = NewLayout(
+	Layout702 = NewLayouts(
 		ChannelFrontLeft,
 		ChannelFrontRight,
 		ChannelFrontCenter,
@@ -315,7 +315,7 @@ var (
 		ChannelBackRight,
 		ChannelTopFrontLeft,
 		ChannelTopFrontRight) // 前左、前右、前中、环左、环右、后左、后右，上前左、上前右
-	Layout712 = NewLayout(
+	Layout712 = NewLayouts(
 		ChannelFrontLeft,
 		ChannelFrontRight,
 		ChannelFrontCenter,
@@ -326,7 +326,7 @@ var (
 		ChannelLowFrequency,
 		ChannelTopFrontLeft,
 		ChannelTopFrontRight) // 前左、前右、前中、环左、环右、后左、后右，低音，上前左、上前右
-	Layout714 = NewLayout(
+	Layout714 = NewLayouts(
 		ChannelFrontLeft,
 		ChannelFrontRight,
 		ChannelFrontCenter,
@@ -355,11 +355,29 @@ func newMaxLayout() Layout {
 	return a
 }
 
-func NewLayout(ch ...Channel) Layout {
+func NewLayouts(ch ...Channel) Layout {
 	var a Layout
 	a.ChannelMask, _ = ChannelMaskFromChannelSlice(ch)
 	a.Count = uint32(a.ChannelMask.Count())
 	return a
+}
+
+func NewLayout(count int) Layout {
+	switch count {
+	case 1:
+		return Layout10
+	case 2:
+		return Layout20
+	case 3:
+		return Layout21
+	case 4:
+		return Layout22
+	case 5:
+		return Layout50
+	case 6:
+		return Layout51
+	}
+	return Layout10
 }
 
 type Layout struct {

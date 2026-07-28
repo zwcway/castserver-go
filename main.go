@@ -10,8 +10,8 @@ import (
 	"syscall"
 
 	"github.com/go-ini/ini"
+	"github.com/zwcway/castserver-go/common"
 	"github.com/zwcway/castserver-go/common/config"
-	"github.com/zwcway/castserver-go/common/database"
 	"github.com/zwcway/castserver-go/common/i18n"
 	"github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/common/utils"
@@ -84,18 +84,30 @@ func exit(code int, usage bool, format string, val ...any) {
 	os.Exit(code)
 }
 
+func loadConfig() {
+	configDir := filepath.Dir(optConfigFile)
+	if configDir == "" {
+		configDir = "."
+	}
+
+	if err := parseConfigFileToOptions(optConfigFile, options); err != nil {
+		exit(2, false, "%s", err.Error())
+	}
+	_ = i18n.Load(filepath.Join(configDir, "locales"))
+
+	if v, ok := options["language"]; ok && v != "" {
+		i18n.SetLanguage(v)
+	} else {
+		i18n.SetLanguage("en")
+	}
+}
+
 func main() {
 	exitCode := 0
 
 	flag.Parse()
 	options = make(map[string]string)
 	flag.Visit(func(f *flag.Flag) { options[f.Name] = f.Value.String() })
-
-	configDir := filepath.Dir(optConfigFile)
-	if configDir == "" {
-		configDir = "."
-	}
-	_ = i18n.Load(filepath.Join(configDir, "locales"))
 
 	if optVersion {
 		exit(exitCode, false, "Version: %s", config.VERSION)
@@ -104,21 +116,12 @@ func main() {
 		exit(exitCode, true, "")
 	}
 
+	loadConfig()
+
 	logger, logClose, err := log.NewLogger(optLogFile, optDaemon)
 	if err != nil {
 		exit(2, true, "%s", err.Error())
 	}
-
-	if err := parseConfigFileToOptions(optConfigFile, options); err != nil {
-		exit(2, false, "%s", err.Error())
-	}
-
-	if v, ok := options["language"]; ok && v != "" {
-		i18n.SetLanguage(v)
-	} else {
-		i18n.SetLanguage("en")
-	}
-
 	// 用于通知主程序退出
 	signalChannel := make(chan os.Signal, 2)
 
@@ -132,7 +135,7 @@ func main() {
 
 	debug.SetMaxThreads(config.RuntimeThreads)
 
-	database.Init(rootCtx, config.DB)
+	common.Init(rootCtx)
 
 	err = initModules(rootCtx)
 	if err != nil {

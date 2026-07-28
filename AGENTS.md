@@ -14,8 +14,27 @@
 
 ## 主要目录
 - `common/`：通用配置、日志、数据库、本地音频、工具函数等。
+- `common/audio`: 音频流结构定义
+- `common/bus`: 消息总线
+- `common/config`: 配置文件结构定义与存储
+- `common/database`: 数据库支持
+- `common/dsp`: dsp基础库
+- `common/element`: 音频工作流基本单位的定义
+- `common/i18n`: 多国语言支持
+- `common/jsonpack`: 流式json压缩格式支持
+- `common/log` : 日志
+- `common/pipeline`: 音频工作流结构定义
+- `common/playlist`: 音频播放列表数据结构定义
+- `common/protocol`: 音频网络传输协议数据结构定义
+- `common/sounds`: 内嵌音效文件
+- `common/speaker`: 扬声器设备数据结构
+- `common/stream`: 音频流数据结构
+- `common/utils`: 基础工具包
 - `decoder/`：音频解码与 FFmpeg 集成，以及本地播放与文件流支持。
+- `decoder/ffmpeg`: cgo与ffmpeg的中间层
+- `decoder/localspeaker`: 通过本地声卡播放声音
 - `detector/`：网络/设备发现与探测逻辑。
+- `player/`: 音频播放器
 - `pusher/`：音频数据推送、队列与播放控制。
 - `control/`：控制消息、模块管理、音量与样本。
 - `receiver/`：接收端协议实现，包括 DLNA/AirPlay。

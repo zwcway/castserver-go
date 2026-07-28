@@ -17,6 +17,8 @@ import (
 
 var lineList []*Line = make([]*Line, 0)
 
+// Line
+// 包含三种音频格式，1：音频源格式；2：内部固定格式；3：设备接收格式
 type Line struct {
 	ID       LineID `gorm:"primaryKey;column:id"`
 	LineName string `gorm:"column:name"`
@@ -31,8 +33,8 @@ type Line struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
-	Input  stream.Source `gorm:"-"` // 输入格式
-	Output audio.Format  `gorm:"-"` // 输出格式
+	Input  stream.Workflow `gorm:"-"` // 输入格式
+	Output audio.Format    `gorm:"-"` // 输出格式
 
 	isDeleted bool
 
@@ -68,12 +70,14 @@ func (l *Line) ChannelRoute(dst audio.Channel) []audio.Channel {
 }
 
 func (l *Line) AddRoute(to audio.Channel, from audio.Channel) {
+	oldRoute := append([]audio.ChannelRoute{}, l.ChRoute.R...)
+
 	for i, cr := range l.ChRoute.R {
 		if cr.To != to {
 			continue
 		}
 		l.ChRoute.R[i].From = append(l.ChRoute.R[i].From, from)
-		l.changeRoute()
+		l.changeRoute(oldRoute)
 		return
 	}
 
@@ -81,10 +85,12 @@ func (l *Line) AddRoute(to audio.Channel, from audio.Channel) {
 		From: []audio.Channel{from},
 		To:   to,
 	})
-	l.changeRoute()
+	l.changeRoute(oldRoute)
 }
 
 func (l *Line) RemoveRoute(to audio.Channel, from audio.Channel) {
+	oldRoute := append([]audio.ChannelRoute{}, l.ChRoute.R...)
+
 	for i, cr := range l.ChRoute.R {
 		if cr.To != to {
 			continue
@@ -94,17 +100,17 @@ func (l *Line) RemoveRoute(to audio.Channel, from audio.Channel) {
 		} else {
 			utils.SliceQuickRemove(&l.ChRoute.R, i)
 		}
-		l.changeRoute()
+		l.changeRoute(oldRoute)
 		return
 	}
 }
 
-func (l *Line) changeRoute() {
-	l.Dispatch("line edited", "route", l.ChRoute)
+func (l *Line) changeRoute(oldRoute []audio.ChannelRoute) {
+	BusLineEdited.Dispatch(l, "route", l.ChRoute.R, oldRoute)
 }
 
 func (l *Line) syncRoute() {
-	l.Dispatch("line route changed")
+	BusLineRouteChanged.Dispatch(l, l.ChRoute.R)
 }
 
 func (l *Line) Equalizer() *dsp.EqualizerProcessor {
@@ -112,11 +118,13 @@ func (l *Line) Equalizer() *dsp.EqualizerProcessor {
 }
 
 func (l *Line) SetEqualizer(eq *dsp.EqualizerProcessor) (err error) {
+	oldEQ := l.EQ.Eq
+
 	l.EQ.Eq = eq
 
 	l.syncEqualizer()
 
-	l.Dispatch("line edited", "eq", l.EQ)
+	BusLineEdited.Dispatch(l, "eq", l.EQ, oldEQ)
 
 	return nil
 }
@@ -130,7 +138,7 @@ func (l *Line) syncEqualizer() {
 	l.Input.EqualizerEle.SetFilterType(eq.Type)
 	l.Input.EqualizerEle.SetEqualizer(eq.Filters)
 
-	l.Dispatch("line eq changed")
+	BusLineEQChanged.Dispatch(l, eq)
 }
 
 func (l *Line) Speakers() []*Speaker {
@@ -150,7 +158,7 @@ func (l *Line) AppendSpeaker(sp *Speaker) {
 		l.speakers = append(l.speakers, sp)
 	}
 
-	l.SetOutput(l.decideOutputFormat())
+	l.decideOutputFormat()
 
 	BusLineSpeakerAppended.Dispatch(l, sp)
 	l.refresh()
@@ -184,22 +192,20 @@ func (l *Line) SetOutput(f audio.Format) {
 		sp.SetSample(f.Sample)
 	}
 
+	l.Input.PipeLiner.SetOutFormat(f)
+
 	BusLineOutputChanged.Dispatch(l, &old)
 }
 
 func (l *Line) SetVolume(vol uint8, mute bool) {
 	old := l.Input.VolumeEle.Volume()
 
-	args := []any{}
 	if l.Volume != vol {
-		args = append(args, "volume", vol)
-		l.Volume = vol
+		BusLineEdited.Dispatch(l, "volume", vol, old)
 	}
 	if l.Mute != mute {
-		args = append(args, "mute", mute)
-		l.Mute = mute
+		BusLineEdited.Dispatch(l, "mute", mute, l.Mute)
 	}
-	BusLineEdited.Dispatch(l, args...)
 
 	l.Input.VolumeEle.SetVolume(float64(vol) / 100)
 	l.Input.VolumeEle.SetMute(mute)
@@ -210,7 +216,7 @@ func (l *Line) SetVolume(vol uint8, mute bool) {
 func (l *Line) SetName(n string) {
 	old := l.LineName
 	l.LineName = n
-	BusLineEdited.Dispatch(l, "name", n)
+	BusLineEdited.Dispatch(l, "name", n, old)
 	BusLineNameChanged.Dispatch(l, &old)
 }
 
@@ -222,6 +228,8 @@ func (l *Line) refresh() {
 	for _, sp := range l.speakers {
 		l.spsByCh[sp.Channel] = append(l.spsByCh[sp.Channel], sp)
 	}
+
+	l.decideOutputFormat()
 
 	BusLineRefresh.Dispatch(l)
 }
@@ -238,7 +246,7 @@ func (l *Line) SpeakerSamplesFromat() (rm audio.RateMask, bm audio.BitsMask) {
 }
 
 // 根据设备的支持程度，自动确定输出格式
-func (l *Line) decideOutputFormat() audio.Format {
+func (l *Line) decideOutputFormat() {
 	channels := []audio.Channel{}
 	format := audio.DefaultFormat()
 
@@ -258,9 +266,9 @@ func (l *Line) decideOutputFormat() audio.Format {
 	for _, sp := range l.speakers {
 		channels = append(channels, sp.SampleChannel())
 	}
-	format.Layout = audio.NewLayout(channels...)
+	format.Layout = audio.NewLayouts(channels...)
 
-	return format
+	l.SetOutput(format)
 }
 
 func (l *Line) IsDeleted() bool {
@@ -273,19 +281,20 @@ func (l *Line) ApplyInput(ss stream.SourceStreamer) {
 }
 
 func (l *Line) Save() {
-	l.Dispatch("save line")
+	BusLineSaved.Dispatch(l)
 }
 
 func (line *Line) init() {
 	line.spsByCh = make([][]*Speaker, audio.ChannelMax)
 
-	line.Input.MixerEle = element.NewMixer()
+	line.Input.MixerEle = element.NewMixer("line " + line.String())
 	line.Input.VolumeEle = element.NewVolume(float64(line.Volume) / 100)
 	line.Input.SpectrumEle = element.NewSpectrum()
 	line.Input.EqualizerEle = element.NewEqualizer(line.EQ.Eq)
 	line.Input.PlayerEle = element.NewPlayer()
 
-	line.Input.PipeLine = pipeline.NewPipeLine(line.Output,
+	line.Input.PipeLiner = pipeline.NewPipeLine("line "+line.String(),
+		audio.DefaultFormat(),
 		line.Input.MixerEle,
 		line.Input.EqualizerEle,
 		line.Input.PlayerEle,
@@ -296,7 +305,7 @@ func (line *Line) init() {
 	line.syncEqualizer()
 	line.syncRoute()
 
-	line.SetOutput(line.decideOutputFormat())
+	line.decideOutputFormat()
 }
 
 func (o *Line) Dispatch(e string, args ...any) error {
@@ -384,7 +393,7 @@ func DelLine(id LineID, move LineID) error {
 
 	BusLineDeleted.Dispatch(src, dst)
 
-	src.Input.PipeLine.Close()
+	src.Input.PipeLiner.Close()
 	bus.UnregisterObj(src)
 
 	return nil

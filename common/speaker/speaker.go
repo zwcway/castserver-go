@@ -81,9 +81,11 @@ func (sp *Speaker) Name() string {
 }
 
 func (sp *Speaker) SetName(n string) {
+	old := sp.SpeakerName
+
 	sp.SpeakerName = n
-	bus.DispatchObj(sp, "speaker edited", "name", n)
-	bus.DispatchObj(sp, "speaker name changed")
+
+	BusSpeakerEdited.Dispatch(sp, "name", n, old)
 }
 
 func (sp *Speaker) SetIP(ip netip.Addr) {
@@ -108,18 +110,22 @@ func (sp *Speaker) SampleBits() audio.Bits {
 }
 
 func (sp *Speaker) Layout() audio.Layout {
-	return audio.NewLayout(sp.SampleChannel())
+	return audio.NewLayouts(sp.SampleChannel())
 }
 
 func (sp *Speaker) SetSample(f audio.Sample) {
 	if sp.Rate == uint8(f.Rate) && sp.Bits == uint8(f.Bits) {
 		return
 	}
+	old := sp.Format().Sample
 
 	sp.Rate = uint8(f.Rate)
 	sp.Bits = uint8(f.Bits)
-	bus.DispatchObj(sp, "speaker edited", "rate", sp.Rate, "bits", sp.Bits)
-	bus.DispatchObj(sp, "speaker format changed")
+
+	BusSpeakerEdited.Dispatch(sp, "rate", sp.Rate, old.Rate)
+	BusSpeakerEdited.Dispatch(sp, "bits", sp.Bits, old.Bits)
+
+	BusSpeakerFormatChanged.Dispatch(sp, f, old)
 }
 
 func (sp *Speaker) SampleChannel() audio.Channel {
@@ -127,6 +133,8 @@ func (sp *Speaker) SampleChannel() audio.Channel {
 }
 
 func (sp *Speaker) SetChannel(ch audio.Channel) {
+	oldCh := sp.Channel
+
 	if ch.IsValid() {
 		sp.Channel = uint32(ch)
 	} else {
@@ -135,8 +143,7 @@ func (sp *Speaker) SetChannel(ch audio.Channel) {
 	if sp.Line != nil {
 		sp.Line.refresh()
 	}
-	bus.DispatchObj(sp, "speaker edited", "channel", sp.Channel)
-	bus.DispatchObj(sp, "speaker channel changed")
+	BusSpeakerEdited.Dispatch(sp, "channel", sp.Channel, oldCh)
 }
 
 func (sp *Speaker) IsOnline() bool {
@@ -245,12 +252,12 @@ func (sp *Speaker) Elements() []stream.Element {
 }
 
 func (sp *Speaker) init() {
-	sp.MixerEle = element.NewMixer()
+	sp.MixerEle = element.NewMixer("speaker " + sp.String())
 	sp.VolumeEle = element.NewVolume(float64(sp.Volume) / 100)
 	sp.SpectrumEle = element.NewSpectrum()
 	sp.EqualizerEle = element.NewEqualizer(nil)
 	sp.PlayerEle = element.NewPlayer()
-	sp.PipeLine = pipeline.NewPipeLine(sp.Format(), sp.Elements()...)
+	sp.PipeLine = pipeline.NewPipeLine("speaker "+sp.String(), sp.Format(), sp.Elements()...)
 }
 
 func (o *Speaker) Dispatch(e string, args ...any) error {
@@ -290,6 +297,8 @@ func NewSpeaker(ip string, line LineID, channel audio.Channel) (*Speaker, error)
 	sp.Ip = ip
 	sp.Channel = uint32(channel)
 	sp.State = State_OFFLINE
+	sp.Rate = uint8(audio.AudioRate_44100)
+	sp.Bits = uint8(audio.Bits_S16LE)
 	sp.Volume = 50
 	sp.init()
 

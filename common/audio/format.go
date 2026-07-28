@@ -122,3 +122,13 @@ func InternalFormat() Format {
 		},
 	}
 }
+
+func NewFormat(r int, b Bits, c int) Format {
+	return Format{
+		Sample: Sample{
+			Rate: NewAudioRate(r),
+			Bits: b,
+		},
+		Layout: NewLayout(c),
+	}
+}

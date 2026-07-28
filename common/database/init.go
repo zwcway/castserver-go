@@ -1,7 +1,6 @@
 package database
 
 import (
-	"github.com/zwcway/castserver-go/common/bus"
 	lg "github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/common/speaker"
 	"github.com/zwcway/castserver-go/common/utils"
@@ -26,15 +25,11 @@ func Init(ctx utils.Context, d *gorm.DB) {
 	)
 
 	speaker.BusGetLines.Register(getLines)
-	bus.Register("get line", getLine)
-	bus.Register("save line", saveLine).ASync()
-	bus.Register("line deleted", deleteLine).ASync()
-	bus.Register("line edited", func(o any, a ...any) error {
-		line := o.(*speaker.Line)
-		um := map[string]any{}
-		for i := 0; i < len(a); i += 2 {
-			um[a[i].(string)] = a[i+1]
-		}
+	speaker.BusGetLine.Register(getLine)
+	speaker.BusLineSaved.Register(saveLine).ASync()
+	speaker.BusLineDeleted.Register(deleteLine).ASync()
+	speaker.BusLineEdited.Register(func(line *speaker.Line, field string, value, _ any) error {
+		um := map[string]any{field: value}
 		result := db.Model(line).UpdateColumns(um)
 		if result.Error != nil {
 			log.Fatal("save line error", lg.Error(result.Error))
@@ -43,15 +38,12 @@ func Init(ctx utils.Context, d *gorm.DB) {
 		return nil
 	}).ASync()
 
-	bus.Register("get speakers", getSpeakers)
-	bus.Register("get speaker", getSpeaker)
-	bus.Register("save speaker", saveSpeaker)
-	bus.Register("speaker deleted", deleteSpeaker).ASync()
-	speaker.BusSpeakerEdited.Register(func(sp *speaker.Speaker, a ...any) error {
-		um := map[string]any{}
-		for i := 0; i < len(a); i += 2 {
-			um[a[i].(string)] = a[i+1]
-		}
+	speaker.BusGetSpeakers.Register(getSpeakers)
+	speaker.BusGetSpeaker.Register(getSpeaker)
+	speaker.BusSpeakerSaved.Register(saveSpeaker)
+	speaker.BusSpeakerDeleted.Register(deleteSpeaker).ASync()
+	speaker.BusSpeakerEdited.Register(func(sp *speaker.Speaker, field string, value, _ any) error {
+		um := map[string]any{field: value}
 		result := db.Model(sp).UpdateColumns(um)
 		if result.Error != nil {
 			log.Fatal("save speaker error", lg.Error(result.Error))
@@ -76,8 +68,7 @@ func getLines(lineList *[]*speaker.Line) error {
 	return result.Error
 }
 
-func getLine(o any, a ...any) error {
-	line := a[0].(*speaker.Line)
+func getLine(line *speaker.Line) error {
 	result := db.Take(line)
 	if result.Error != nil {
 		log.Fatal("read line error", lg.Uint("line", uint64(line.ID)), lg.Error(result.Error))
@@ -85,8 +76,7 @@ func getLine(o any, a ...any) error {
 	return result.Error
 }
 
-func saveLine(o any, a ...any) error {
-	line := o.(*speaker.Line)
+func saveLine(line *speaker.Line) error {
 	result := db.Save(line)
 
 	if result.Error != nil {
@@ -95,8 +85,7 @@ func saveLine(o any, a ...any) error {
 	return result.Error
 }
 
-func deleteLine(o any, a ...any) error {
-	line := o.(*speaker.Line)
+func deleteLine(line, _ *speaker.Line) error {
 	result := db.Delete(line)
 	if result.Error != nil {
 		log.Fatal("delete line error", lg.Uint("line", uint64(line.ID)), lg.Error(result.Error))
@@ -104,8 +93,7 @@ func deleteLine(o any, a ...any) error {
 	return result.Error
 }
 
-func getSpeakers(o any, a ...any) error {
-	spList := a[0].(*[]*speaker.Speaker)
+func getSpeakers(spList *[]*speaker.Speaker) error {
 	sps := []speaker.Speaker{}
 	result := db.Preload(clause.Associations).Find(&sps)
 	if result.RowsAffected > 0 {
@@ -120,8 +108,7 @@ func getSpeakers(o any, a ...any) error {
 	return result.Error
 }
 
-func getSpeaker(o any, a ...any) error {
-	sp := a[0].(*speaker.Speaker)
+func getSpeaker(sp *speaker.Speaker) error {
 	result := db.Take(sp)
 	if result.Error != nil {
 		log.Fatal("read speaker error", lg.Uint("speaker", uint64(sp.ID)), lg.Error(result.Error))
@@ -129,8 +116,7 @@ func getSpeaker(o any, a ...any) error {
 	return result.Error
 }
 
-func saveSpeaker(o any, a ...any) error {
-	sp := o.(*speaker.Speaker)
+func saveSpeaker(sp *speaker.Speaker) error {
 	result := db.Session(&gorm.Session{FullSaveAssociations: true}).Save(sp)
 	if result.Error != nil {
 		log.Fatal("save speaker error", lg.Uint("speaker", uint64(sp.ID)), lg.Error(result.Error))
@@ -138,8 +124,7 @@ func saveSpeaker(o any, a ...any) error {
 	return result.Error
 }
 
-func deleteSpeaker(o any, a ...any) error {
-	sp := o.(*speaker.Speaker)
+func deleteSpeaker(sp *speaker.Speaker) error {
 	result := db.Delete(sp)
 	if result.Error != nil {
 		log.Fatal("delete speaker error", lg.Uint("speaker", uint64(sp.ID)), lg.Error(result.Error))

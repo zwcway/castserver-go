@@ -35,9 +35,6 @@ func (v *Volume) Stream(samples *stream.Samples) {
 	}
 }
 
-func (v *Volume) Sample(sample *float64, ch int, n int) {
-	*sample *= v.gain
-}
 func (e *Volume) OnStarting() {
 }
 
