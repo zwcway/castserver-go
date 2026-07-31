@@ -17,11 +17,12 @@ var (
 	currentTrigger = lastTrigger
 )
 
-func initDriver() {
+func initDriver() error {
 	err := local.Init()
 	if err != nil {
 		log.Error("init local speaker failed. use timer", lg.Error(err))
 		lastTrigger = trigger_timer
+		return err
 	} else {
 		local.Play()
 		// localspeaker.SetCallback(PushLineBuffer)
@@ -31,10 +32,16 @@ func initDriver() {
 	currentTrigger = lastTrigger
 
 	speaker.BusLineCreated.Register(func(l *speaker.Line) error {
-		TriggerAddLine(l)
-		return nil
+		return local.AddLine(l)
 	})
+
+	speaker.BusLineDeleted.Register(func(src, dst *speaker.Line) error {
+		return local.RemoveLine(src, dst)
+	})
+
+	return nil
 }
+
 func Play() {
 
 }
@@ -43,7 +50,7 @@ func Stop() {
 
 }
 func IsPlaying() bool {
-	return false
+	return local.IsPlaying()
 }
 func TriggerReceiverIn(b bool) {
 	if b {
@@ -53,14 +60,14 @@ func TriggerReceiverIn(b bool) {
 	}
 }
 
-func TriggerAddLine(line *speaker.Line) {
+func triggerAddLine(line *speaker.Line) {
 	// e := NewElement(line)
 	// line.Input.PipeLiner.Append(e)
 	// e.On()
 
-	TimerAddLine(line)
+	timerAddLine(line)
 }
 
-func TriggerRemoveLine(line *speaker.Line) {
-	TimerRemoveLine(line)
+func triggerRemoveLine(line *speaker.Line) {
+	timerRemoveLine(line)
 }

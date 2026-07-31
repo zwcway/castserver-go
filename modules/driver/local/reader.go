@@ -39,6 +39,7 @@ func (r *reader) Read(p []byte) (n int, err error) {
 			}
 
 			if r.resample != nil {
+				r.resample.OnFormatChanged(&samples.Format)
 				r.resample.Stream(samples)
 			}
 

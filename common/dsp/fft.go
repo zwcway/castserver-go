@@ -81,10 +81,18 @@ func FFTN(pr []float64, n, rate int, logAxis bool) int {
 	if logAxis {
 		j = 0
 		m = 0
+		// 对数轴映射：将线性频谱索引转换为对数刻度
+		// 低频 bins 少，高频 bins 多，符合人耳对频率的感知特性
+		scale := float64(n) / math.Exp(0.8*math.Log(float64(n)))
 		for k = 0; k < n; k = j + 1 {
-			j = int(math.Pow(float64(k), 1.01))
+			// 将 k 映射到对数空间，再映射回线性空间
+			// +1 避免 log(0)
+			j = int(math.Exp(0.8*math.Log(float64(k+1))) * scale)
 			if j >= n {
-				break
+				j = n - 1
+			}
+			if j <= k {
+				j = k + 1
 			}
 			// j = k
 			p = 0

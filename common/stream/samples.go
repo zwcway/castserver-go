@@ -179,6 +179,7 @@ func (s *Samples) ChannelIndexBytes(c int) []byte {
 
 // 混合声道，处理声道数量不一致的情况
 func (s *Samples) MixChannelMap(dst *Samples, dstOffset, srcOffset int) (mixed int) {
+
 	if sc := s.ChannelIndex[audio.ChannelFrontCenter]; sc >= 0 && s.Format.Layout.Count == 1 && dst.Format.Layout.Count > 1 {
 		dc := dst.ChannelIndex[audio.ChannelFrontCenter]
 		if dc >= 0 {
@@ -403,6 +404,10 @@ func (s *Samples) Resize(samples int, format audio.Format) {
 	}
 
 	s.resize(samples, format)
+}
+
+func (s *Samples) SizeEnsure() {
+	s.Resize(s.RequestNbSamples, s.Format)
 }
 
 // ResizeDuration 按时长调整缓存大小

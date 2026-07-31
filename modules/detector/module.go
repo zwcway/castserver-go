@@ -251,9 +251,11 @@ func (detectModule) Start() error {
 }
 
 func (detectModule) DeInit() {
-	MulicastServerInfo(ST_Exit)
+	if conn != nil {
+		MulicastServerInfo(ST_Exit)
 
-	conn.Close()
-	wg.Wait()
+		conn.Close()
+		wg.Wait()
+	}
 	close(recvMessage)
 }

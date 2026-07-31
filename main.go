@@ -10,10 +10,9 @@ import (
 	"syscall"
 
 	"github.com/go-ini/ini"
-	"github.com/zwcway/castserver-go/common"
 	"github.com/zwcway/castserver-go/common/config"
 	"github.com/zwcway/castserver-go/common/i18n"
-	"github.com/zwcway/castserver-go/common/log"
+	lg "github.com/zwcway/castserver-go/common/log"
 	"github.com/zwcway/castserver-go/common/utils"
 )
 
@@ -24,6 +23,8 @@ var (
 	optDaemon     bool
 	optLogFile    string
 	optConfigFile string
+
+	log lg.Logger
 )
 
 func init() {
@@ -118,7 +119,7 @@ func main() {
 
 	loadConfig()
 
-	logger, logClose, err := log.NewLogger(optLogFile, optDaemon)
+	log, logClose, err := lg.NewLogger(optLogFile, optDaemon)
 	if err != nil {
 		exit(2, true, "%s", err.Error())
 	}
@@ -126,7 +127,7 @@ func main() {
 	signalChannel := make(chan os.Signal, 2)
 
 	// 用于通知子协程退出
-	rootCtx, ctxCancel := utils.NewContext().WithSignal(signalChannel).WithLogger(logger).WithCancel()
+	rootCtx, ctxCancel := utils.NewContext().WithSignal(signalChannel).WithLogger(log).WithCancel()
 
 	err = config.FromOptions(rootCtx, options)
 	if err != nil {
@@ -135,13 +136,12 @@ func main() {
 
 	debug.SetMaxThreads(config.RuntimeThreads)
 
-	common.Init(rootCtx)
-
 	err = initModules(rootCtx)
 	if err != nil {
 		exitCode = 255
 		goto __exit__
 	}
+
 	err = startModules()
 	if err != nil {
 		exitCode = 254
@@ -157,12 +157,13 @@ func main() {
 	)
 
 	<-signalChannel
+
+__exit__:
 	ctxCancel()
 	close(signalChannel)
 
-	logger.Info("exit")
+	log.Info("exit")
 
-__exit__:
 	if err != nil {
 		fmt.Println(err.Error())
 	}

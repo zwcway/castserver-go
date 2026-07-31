@@ -8,6 +8,7 @@ import "C"
 import (
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -109,6 +110,8 @@ type AVFormatContext struct {
 	pause    bool
 	finished bool
 
+	fs os.FileInfo
+
 	ctx                *C.GOAVDecoder
 	channelIndex       audio.ChannelIndex
 	outputFmt          audio.Format // 输出格式，通常固定
@@ -134,6 +137,10 @@ func (c *AVFormatContext) OpenFile(fileName string) (err error) {
 	}()
 
 	c.Close()
+
+	if err := c.check(); err != nil {
+		return err
+	}
 
 	rate := C.int(0)
 	format := C.enum_AVSampleFormat(C.AV_SAMPLE_FMT_NONE)
@@ -220,6 +227,16 @@ func (c *AVFormatContext) initOutputFormat() error {
 	return nil
 }
 
+func (c *AVFormatContext) check() (err error) {
+	c.fs, err = os.Stat(c.fileName)
+	if err != nil {
+		return err
+	}
+	if c.fs.IsDir() {
+		return fmt.Errorf("not a file")
+	}
+	return
+}
 func (c *AVFormatContext) Duration() time.Duration {
 	if c.ctx == nil {
 		return 0

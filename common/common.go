@@ -25,7 +25,9 @@ func Init(ctx utils.Context) error {
 		return err
 	}
 
-	speaker.LoadData()
-
 	return nil
+}
+
+func Start() error {
+	return speaker.LoadData()
 }

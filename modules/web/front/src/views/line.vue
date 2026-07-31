@@ -419,6 +419,7 @@ export default {
         this.specturmCtx.SP.width = bg.offsetWidth;
         this.specturmCtx.SP.height = bg.offsetHeight;
         this.specturmCtx.ctx = this.specturmCtx.SP.getContext('2d');
+        this.specturmCtx.count = 0;
         this.drawSpectrum();
       })
       this.specturmCtx.slow = [];
@@ -494,8 +495,10 @@ export default {
     },
     onSpectrumChange(data) {
       const lm = data['l'] || [];
-      this.specturmCtx.spdata = data['s'] || [];
+      this.specturmCtx.spdata = data['s'] || [];      this.specturmCtx.count ++;
       this.specturmCtx.level.setValById('line-' + lm[0], lm[1]);
+
+      this.specturmCtx.spdata[0] = (this.specturmCtx.count%60)*2
     },
     computeLayout() {
       let known = false;
@@ -715,60 +718,47 @@ export default {
       const ctx = this.specturmCtx.ctx;
       const SP = this.specturmCtx.SP;
       const spdata = this.specturmCtx.spdata;
-      const hd = this.specturmCtx.hd;
-      let slow = this.specturmCtx.slow;
-      let title = this.specturmCtx.title;
+      let hd = this.specturmCtx.hd;
+      const slow = this.specturmCtx.slow;
+      const title = this.specturmCtx.title;
 
       ctx.clearRect(0, 0, SP.width, SP.height);
       const spc = Math.max(16, spdata.length);
       let w = SP.width / spc;
-      let space = w > 1 ? w * 0.1 : 0;
-      let left = 0;
-      let spd = 0;
-      let sum = 0;
+      const space = w > 1 ? w * 0.1 : 0;
       w -= space;
+      const height = SP.height;
+      const bgColor = 'hsl(171deg 100% 41% / 20%)';
+      const fgColor = '#bbb';
+
+      // 预计算颜色值
+      ctx.fillStyle = bgColor;
+
+      let sum = 0;
       for (var i = 0; i < spc; i++) {
-        left = i * (w + space);
-        spd = spdata[i]
-        // spd *= 0.5 * (1 - Math.cos(2*Math.PI*i/spc-1))
-        if (spd >= SP.height) {
-          spd = SP.height - 1;
-        }
+        let spd = spdata[i] || 0;
+        if (spd >= height) spd = height - 1;
         sum += spd;
-        if (hd && spd < 1) {
-          spd = 1
-        }
 
-        ctx.beginPath();
-        ctx.lineWidth = w;
-        ctx.strokeStyle = 'hsl(171deg 100% 41% / 20%)';
+        if (hd && spd < 1) spd = 1;
 
-        if (slow[i] > spd) {
-          slow[i] -= 2;
-        } else if (spd - slow[i] > 8) {
-          slow[i] += 5;
-        } else {
-          slow[i] = spd;
-        }
+        // 指数平滑替代分段线性平滑
+        const prevSlow = slow[i] || 0;
+        slow[i] = prevSlow + (spd - prevSlow) * 0.3;
 
-        ctx.moveTo(left, SP.height);
-        ctx.lineTo(left, SP.height - slow[i]);
-        ctx.stroke();
+        const y = height - slow[i];
+        // 用 fillRect 替代 lineTo + stroke，效率更高
+        ctx.fillRect(i * (w + space), y, w, height - y);
 
-        if (title[i] > slow[i]) {
-          title[i] -= 0.5;
-        } else {
-          title[i] = slow[i];
-        }
-
-        ctx.beginPath();
-        ctx.lineWidth = w;
-        ctx.strokeStyle = '#bbb';
-        ctx.moveTo(left, SP.height - title[i]);
-        ctx.lineTo(left, SP.height - title[i] + 1);
-        ctx.stroke();
+        // title 线平滑
+        const prevTitle = title[i] || 0;
+        title[i] = prevTitle + (slow[i] - prevTitle) * 0.5;
+        ctx.fillStyle = fgColor;
+        ctx.fillRect(i * (w + space), height - title[i], w, 2);
+        ctx.fillStyle = bgColor;
       }
-      this.specturmCtx.hd = sum > 0
+      hd = sum > 0;
+      this.specturmCtx.hd = hd;
 
       if (this.specturmCtx.speakerIndex > this.specturmCtx.level.length) {
         this.specturmCtx.speakerIndex = 0;
@@ -778,6 +768,7 @@ export default {
         this.specturmCtx.level.commitWidth(this.specturmCtx.speakerIndex);
         this.specturmCtx.speakerIndex++;
       }
+ctx.fillText(""+this.specturmCtx.count, 10, 10)
 
       this.specturmCtx.spRequestId = requestAnimationFrame(this.drawSpectrum);
     }

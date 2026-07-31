@@ -150,6 +150,8 @@ func (m *Mixer) Stream(samples *stream.Samples) {
 			ms.resample.Stream(m.buffer)
 		}
 
+		samples.Resize(samples.RequestNbSamples, m.Format())
+
 		// 混合音源数据
 		i := m.buffer.MixChannelMap(samples, 0, 0)
 

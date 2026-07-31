@@ -68,6 +68,9 @@ func Init() error {
 			return errors.Wrap(err, "failed to initialize speaker")
 		}
 		<-readyChan
+		if err := otoCtx.Err(); err != nil {
+			return err
+		}
 	}
 
 	player = otoCtx.NewPlayer(sampleReader)
@@ -76,21 +79,7 @@ func Init() error {
 	}
 	sampleReader.samples = stream.NewSamplesDuration(config.AudioBuferMSDuration, format)
 
-	registerEventBus()
-
 	return nil
-}
-
-func registerEventBus() {
-	speaker.BusLineCreated.Register(AddLine)
-	speaker.BusLineDeleted.Register(RemoveLine)
-	// stream.BusMixerInFormatChanged.Register(mixer, func(m stream.MixerElement, s stream.SourceStreamer, format *audio.Format, channelIndex audio.ChannelIndex) error {
-	// 	if sampleReader.samples == nil {
-	// 		sampleReader.samples = stream.NewSamplesDuration(config.AudioBuferMSDuration, *format)
-	// 	}
-	// 	return nil
-	// })
-
 }
 
 func AddLine(line *speaker.Line) error {

@@ -11,7 +11,6 @@ import (
 	"github.com/zwcway/go-jsonpack"
 )
 
-var ticker = time.NewTicker(50 * time.Millisecond)
 var ctlSignal chan struct{}
 var wg sync.WaitGroup
 var locker sync.Mutex
@@ -155,6 +154,8 @@ func spectrumRoutine() {
 	locker.Unlock()
 
 	log.Info("start spectrum routine")
+
+	var ticker = time.NewTicker(10 * time.Millisecond)
 
 	for {
 		select {

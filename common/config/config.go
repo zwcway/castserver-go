@@ -77,7 +77,7 @@ var (
 	HTTPListen Interface = Interface{
 		AddrPort: netip.MustParseAddrPort("0.0.0.0:4415"),
 	}
-	HTTPRoot    string = "web/front/public"
+	HTTPRoot    string = "modules/web/front/public"
 	WSClientMAX int    = 5
 
 	// udp

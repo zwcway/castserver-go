@@ -17,7 +17,9 @@ func (driverModule) Init(ctx utils.Context) error {
 	log = ctx.Logger("pusher")
 	context = ctx
 
-	initDriver()
+	if err := initDriver(); err != nil {
+		return err
+	}
 
 	return nil
 }

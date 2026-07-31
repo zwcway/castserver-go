@@ -63,7 +63,7 @@ func (lineCreated) Register(c func(l *Line) error) *bus.HandlerData {
 type lineEdited struct{}
 
 func (lineEdited) Dispatch(l *Line, field string, value, oldValue any) error {
-	return bus.DispatchObj(l, "line edited", field, value)
+	return bus.DispatchObj(l, "line edited", field, value, oldValue)
 }
 func (lineEdited) Register(c func(l *Line, field string, value, oldValue any) error) *bus.HandlerData {
 	return bus.Register("line edited", func(o any, a ...any) error {

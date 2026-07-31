@@ -16,8 +16,8 @@ var (
 	timerQuitSignal chan struct{}
 )
 
-func TimerAddLine(line *speaker.Line) {
-	TimerRemoveLine(line)
+func timerAddLine(line *speaker.Line) {
+	timerRemoveLine(line)
 	LineFormatChanged(line)
 	go linePushTimerRoutine(line)
 }
@@ -39,7 +39,7 @@ func LineFormatChanged(line *speaker.Line) {
 	}
 }
 
-func TimerRemoveLine(line *speaker.Line) {
+func timerRemoveLine(line *speaker.Line) {
 	lt, ok := lineList[line]
 	if !ok {
 		return
@@ -53,7 +53,7 @@ func TimerRemoveLine(line *speaker.Line) {
 }
 
 func linePushTimerRoutine(line *speaker.Line) {
-	defer TimerRemoveLine(line)
+	defer timerRemoveLine(line)
 
 	for {
 		lt, ok := lineList[line]
