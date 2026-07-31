@@ -9,10 +9,14 @@ import (
 	"github.com/zwcway/castserver-go/common/stream"
 )
 
-// 44100 ~21hz
-//
-// 192000 ~93hz
-const SpectrumCount = 2048
+const (
+	// 44100 ~21hz
+	//
+	// 192000 ~93hz
+	SpectrumCount = 2048
+
+	BufSize = 50
+)
 
 // HannWindow 预计算的汉宁窗系数，避免运行时计算
 var hannWindow []float64
@@ -24,20 +28,28 @@ func init() {
 	}
 }
 
+type spectrum struct {
+	S  []float64 // 输出幅值，大小 < n/2
+	LL float64   // 音阶
+}
+
 type Spectrum struct {
 	power bool
 
-	n            int       // fft 计算量
-	pos          int       // 如果样本数量少于 n
-	s            []float64 // fft 输入数据
-	spectrum     []float64 // 输出幅值，大小 < n/2
-	suml         float64   // 音阶绝对值求和
-	levelMeter   float64   // 音阶
+	n            int        // fft 计算量
+	pos          int        // 环形缓冲池写入位置
+	s            []float64  // 环形缓冲池
+	spectrum     []spectrum // 输出幅值，大小 < n/2
+	suml         float64    // 音阶绝对值求和
 	logAxis      bool
 	hasData      bool
 	rate         int   // 采样率缓存
 	logBins      int   // 对数轴变换后的 bin 数量
 	logBinsCache []int // 对数轴 bin 映射表
+	samples      *stream.Samples
+
+	writePos int
+	readPos  int
 }
 
 func (r *Spectrum) Name() string {
@@ -51,7 +63,6 @@ func (r *Spectrum) Type() stream.ElementType {
 func (r *Spectrum) zeroData() {
 	clear(r.spectrum)
 	clear(r.s)
-	r.levelMeter = 0
 	r.suml = 0
 	r.pos = 0
 }
@@ -66,31 +77,39 @@ func (r *Spectrum) Stream(samples *stream.Samples) {
 	}
 
 	var (
-		sam  float64
-		frac float64 // 多声道音阶求平均
-		sums float64 // 频谱求和
-		// 不同采样率下保证fft的频率宽度约小于20hz，大于20hz的采样率下求平均，模拟转码
-		c     int = 20 * samples.LastNbSamples / samples.Format.Rate.ToInt()
-		i, ch int
+	// 不同采样率下保证fft的频率宽度约小于20hz，大于20hz的采样率下求平均，模拟转码
 	)
 	r.hasData = true
-	if c < 1 {
-		c = 1
-	}
-
 	rate := samples.Format.Rate.ToInt()
-	chCount := int(samples.Format.Count)
 
 	// 检查采样率是否变化，重新计算对数轴映射
 	if r.rate != rate {
 		r.rate = rate
+		r.samples.Resize(samples.LastNbSamples, samples.Format)
 		r.updateLogBins()
 	}
 
-	for i = 0; i < samples.LastNbSamples && r.pos < r.n; i += c {
+	// 通知开始计算
+
+	var (
+		sam  float64
+		frac float64 // 多声道音阶求平均
+		sums float64 // 频谱求和
+		// 不同采样率下保证fft的频率宽度约小于20hz，大于20hz的采样率下求平均，模拟转码
+		c       int = 20 * samples.LastNbSamples / samples.Format.Rate.ToInt()
+		i, ch   int
+		chCount = int(samples.Format.Count)
+	)
+	if c < 1 {
+		c = 1
+	}
+
+	for i = 0; i < samples.LastNbSamples; i += c {
 		frac = 0
 		sums = 0
-		for ch = 0; ch < chCount; ch++ {
+
+		// 多声道混合计算
+		for ch = range chCount {
 			sam = samples.Data[ch][i]
 			sums += sam
 			if sam >= 0 {
@@ -99,38 +118,54 @@ func (r *Spectrum) Stream(samples *stream.Samples) {
 				frac -= sam
 			}
 		}
+		// 多声道音阶求平均
 		frac /= float64(chCount)
-
-		// 只填充数据，窗函数稍后统一应用
-		r.s[r.pos] = sums / float64(chCount)
-		r.pos++
+		sums /= float64(chCount)
 
 		r.suml += frac * frac
 		if r.suml != r.suml { // NaN 检查
 			r.suml = 0
 		}
+
+		// 填充环形缓冲池
+		r.s[r.pos] = sums
+		r.pos++
+
+		if r.pos >= r.n {
+			// 应用窗函数
+			for i := 0; i < r.n; i++ {
+				r.s[i] *= hannWindow[i]
+			}
+
+			nbins := dsp.FFTN(r.s, r.n, r.rate, r.logAxis)
+
+			size := samples.Format.Rate.ToInt() * 2 / r.n
+
+			if len(r.spectrum) == 0 || len(r.spectrum[r.writePos].S) != nbins {
+				// ml.Debug("spectrum length change", lg.Int("nbins", int64(nbins)), lg.Int("old", int64(len(r.spectrum))))
+				r.spectrum = make([]spectrum, size)
+				for c := range size {
+					r.spectrum[c].S = make([]float64, nbins)
+				}
+			}
+			copy(r.spectrum[r.writePos].S, r.s[:nbins])
+
+			// 修复 RMS 计算：使用实际 FFT 点数 n，而非 n>>3
+			rms := math.Sqrt(r.suml / float64(r.n))
+			rms = math.Max(0.0, math.Min(1.0, rms))
+
+			r.spectrum[r.writePos].LL = rms
+
+			// FFT 完成后重置缓冲池
+			r.suml = 0
+			r.pos = 0
+
+			// r.readPos = 0
+			r.writePos = (r.writePos + 1) % len(r.spectrum)
+			// break
+		}
 	}
 
-	if r.pos >= r.n-1 {
-		// 在 FFT 前统一应用窗函数
-		for i = 0; i < r.n; i++ {
-			r.s[i] *= hannWindow[i]
-		}
-
-		nbins := dsp.FFTN(r.s, r.n, rate, r.logAxis)
-		if len(r.spectrum) != nbins {
-			r.spectrum = make([]float64, nbins)
-		}
-		copy(r.spectrum, r.s[:nbins])
-
-		// 修复 RMS 计算：使用实际 FFT 点数 n，而非 n>>3
-		rms := math.Sqrt(r.suml / float64(r.n))
-		rms = math.Max(0.0, math.Min(1.0, rms))
-
-		r.levelMeter = rms
-		r.suml = 0
-		r.pos = 0
-	}
 }
 
 // updateLogBins 更新对数轴 bin 映射表
@@ -182,19 +217,22 @@ func (r *Spectrum) LogAxis() bool {
 }
 
 func (r *Spectrum) LevelMeter() float64 {
-	if r.levelMeter != r.levelMeter {
-		return 0
+	if r.readPos < len(r.spectrum) {
+		return r.spectrum[r.readPos].LL
 	}
-	return r.levelMeter
+	return 0
 }
 
-func (r *Spectrum) Spectrum() []float64 {
-	return r.spectrum
-}
+func (r *Spectrum) Spectrum() (ret []float64) {
+	if r.readPos < len(r.spectrum) {
+		ret = r.spectrum[r.readPos].S
 
+		r.readPos = (r.readPos + 1) % len(r.spectrum)
+	}
+	return
+}
 func (r *Spectrum) Close() error {
 	bus.UnregisterObj(r)
-
 	r.Off()
 	return nil
 }
@@ -207,8 +245,8 @@ func (o *Spectrum) Register(e string, c bus.Handler) *bus.HandlerData {
 }
 
 func (r *Spectrum) init() {
+	r.samples = stream.NewSamples(r.n, audio.DefaultFormat())
 	r.s = make([]float64, r.n)
-	// r.spectrum = make([]float64, r.n>>1)
 }
 
 func NewSpectrum() stream.SpectrumElement {
@@ -218,5 +256,6 @@ func NewSpectrum() stream.SpectrumElement {
 		logAxis: true,
 	}
 	s.init()
+
 	return s
 }

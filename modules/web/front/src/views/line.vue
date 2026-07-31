@@ -419,7 +419,7 @@ export default {
         this.specturmCtx.SP.width = bg.offsetWidth;
         this.specturmCtx.SP.height = bg.offsetHeight;
         this.specturmCtx.ctx = this.specturmCtx.SP.getContext('2d');
-        this.specturmCtx.count = 0;
+        this.specturmCtx.fps = {start:0, end:0, v: 0, time: Date.now()}
         this.drawSpectrum();
       })
       this.specturmCtx.slow = [];
@@ -495,10 +495,8 @@ export default {
     },
     onSpectrumChange(data) {
       const lm = data['l'] || [];
-      this.specturmCtx.spdata = data['s'] || [];      this.specturmCtx.count ++;
+      this.specturmCtx.spdata = data['s'] || [];
       this.specturmCtx.level.setValById('line-' + lm[0], lm[1]);
-
-      this.specturmCtx.spdata[0] = (this.specturmCtx.count%60)*2
     },
     computeLayout() {
       let known = false;
@@ -752,7 +750,8 @@ export default {
 
         // title 线平滑
         const prevTitle = title[i] || 0;
-        title[i] = prevTitle + (slow[i] - prevTitle) * 0.5;
+        title[i] = prevTitle + (slow[i] - prevTitle) * 0.1;
+        title[i] = title[i] > slow[i] ? title[i] : slow[i];
         ctx.fillStyle = fgColor;
         ctx.fillRect(i * (w + space), height - title[i], w, 2);
         ctx.fillStyle = bgColor;
@@ -768,7 +767,20 @@ export default {
         this.specturmCtx.level.commitWidth(this.specturmCtx.speakerIndex);
         this.specturmCtx.speakerIndex++;
       }
-ctx.fillText(""+this.specturmCtx.count, 10, 10)
+
+      ctx.fillStyle = '#FFF';
+      ctx.fillText(""+spdata.length, 10, 10)
+      ctx.fillText(""+spdata[0], 10, 20)
+
+      const fps = this.specturmCtx.fps
+      const time = Date.now();
+      fps.end ++;
+      if (time - fps.time > 1000) {
+        fps.v = fps.end
+        fps.end = 0;
+        fps.time = time;
+      }
+      ctx.fillText(""+(fps.v), SP.width - 30, 10)
 
       this.specturmCtx.spRequestId = requestAnimationFrame(this.drawSpectrum);
     }

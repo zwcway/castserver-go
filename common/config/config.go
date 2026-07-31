@@ -68,7 +68,7 @@ var (
 	}
 
 	// 缓冲长度（单位ms），0 表示动态自动判断
-	AudioBuferMSDuration MilliDuration = 10 * time.Millisecond
+	AudioBuferMSDuration MilliDuration = 50 * time.Millisecond
 
 	SpeakerOfflineTimeout       int = 5
 	SpeakerOfflineCheckInterval int = 5

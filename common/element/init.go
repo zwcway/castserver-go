@@ -5,10 +5,13 @@ import (
 	"github.com/zwcway/castserver-go/common/utils"
 )
 
-var ml lg.Logger
+var (
+	ml  lg.Logger
+	ctx utils.Context
+)
 
-func Init(ctx utils.Context) error {
-
-	ml = ctx.Logger("mixer")
+func Init(c utils.Context) error {
+	ctx = c
+	ml = c.Logger("mixer")
 	return nil
 }

@@ -1,6 +1,7 @@
 package websockets
 
 import (
+	"fmt"
 	"runtime"
 	"sync"
 	"time"
@@ -155,7 +156,7 @@ func spectrumRoutine() {
 
 	log.Info("start spectrum routine")
 
-	var ticker = time.NewTicker(10 * time.Millisecond)
+	var ticker = time.NewTicker(50 * time.Millisecond)
 
 	for {
 		select {
@@ -190,6 +191,8 @@ func spectrumRoutine() {
 			msg, err := jsonpack.Marshal(resp)
 			if err == nil {
 				Broadcast(a.evt, 0, a.arg, msg)
+			} else {
+				fmt.Println(err)
 			}
 		}
 	}
