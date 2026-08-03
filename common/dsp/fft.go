@@ -6,7 +6,7 @@ var pi = make([]float64, 512)
 var fi = make([]float64, 512)
 var fr = make([]float64, 512)
 
-func FFTN(pr []float64, n, rate int, logAxis bool) int {
+func FFTN(pr []float64, n, rate int) int {
 	k := int(math.Floor(math.Log2(float64(n))))
 
 	if len(pi) != n {
@@ -77,28 +77,8 @@ func FFTN(pr []float64, n, rate int, logAxis bool) int {
 		}
 	}
 
+	// 取前一半的频谱数据
 	n = n >> 1
-	if logAxis {
-		j = 0
-		m = 0
-		for k = 0; k < n; k = j + 1 {
-			j = int(math.Pow(float64(k), 1.01))
-			if j >= n {
-				break
-			}
-			// j = k
-			p = 0
-			for i = k; i <= j; i++ {
-				q = math.Sqrt(fr[i]*fr[i] + fi[i]*fi[i]) //幅值计算
-				if q > p {
-					p = q
-				}
-			}
-			pr[m] = p
-			m++
-		}
-		return m
-	}
 
 	for i = 0; i < n; i++ {
 		pr[i] = math.Sqrt(fr[i]*fr[i] + fi[i]*fi[i]) //幅值计算

@@ -156,7 +156,7 @@ func spectrumRoutine() {
 
 	log.Info("start spectrum routine")
 
-	var ticker = time.NewTicker(50 * time.Millisecond)
+	var ticker = time.NewTicker(60 * time.Millisecond)
 
 	for {
 		select {

@@ -254,7 +254,7 @@ func (sp *Speaker) Elements() []stream.Element {
 func (sp *Speaker) init() {
 	sp.MixerEle = element.NewMixer("speaker " + sp.String())
 	sp.VolumeEle = element.NewVolume(float64(sp.Volume) / 100)
-	sp.SpectrumEle = element.NewSpectrum()
+	// sp.SpectrumEle = element.NewSpectrum()
 	sp.EqualizerEle = element.NewEqualizer(nil)
 	sp.PlayerEle = element.NewPlayer()
 	sp.PipeLine = pipeline.NewPipeLine("speaker "+sp.String(), sp.Format(), sp.Elements()...)

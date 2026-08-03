@@ -78,6 +78,7 @@ func Init() error {
 		return errors.New("create player failed")
 	}
 	sampleReader.samples = stream.NewSamplesDuration(config.AudioBuferMSDuration, format)
+	player.SetBufferSize(sampleReader.samples.BufferSize())
 
 	return nil
 }

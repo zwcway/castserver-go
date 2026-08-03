@@ -107,6 +107,7 @@ type SpectrumElement interface {
 
 	LevelMeter() float64
 	Spectrum() []float64
+	FreqiencyList() []int
 }
 
 // EqualizerElement 均衡器元

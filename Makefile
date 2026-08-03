@@ -10,7 +10,7 @@ endif
 all: check front castserver
 
 clean:
-	rm -rf ${PWD}/web/public/*
+	rm -rf ${PWD}/modules/web/public/*
 	@go clean
 
 build: castserver
@@ -23,4 +23,4 @@ check:
 	@go vet .
 
 front:
-	cd ${PWD}/web/front &&  ${NPM} i &&  ${NPM} run build
+	cd ${PWD}/modules/web/front &&  ${NPM} i &&  ${NPM} run build
